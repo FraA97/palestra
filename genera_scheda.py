@@ -6,7 +6,7 @@ Uso:
     python3 genera_scheda.py <file.pdf> [output.html]
 
 Il PDF deve contenere una tabella con colonne:
-    Esercizio | Programma A | Programma B | Programma C | Link
+    Esercizio | N colonne programma (es. Prog A, Prog B, ...) | Link
 
 Richiede: pdfplumber
     pip install pdfplumber --break-system-packages
@@ -156,10 +156,12 @@ def section_type(name):
 def parse_pdf(pdf_path):
     """
     Ritorna:
-      meta     — dict con 'title' e 'weeks'
-      programs — dict {'a': [...sezioni...], 'b': [...], 'c': [...]}
+      meta       — dict con 'title' e 'weeks'
+      programs   — dict {key: [...sezioni...]} con chiavi dinamiche (a, b, c, ...)
         ogni sezione: {'section': str, 'stype': str, 'exercises': [...]}
         ogni esercizio: {'id': str, 'name': str, 'params': str, 'link': str}
+      prog_keys  — list of program keys (e.g. ['a', 'b', 'c'])
+      prog_labels — list of display labels (e.g. ['A', 'B', 'C'])
     """
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[0]
@@ -183,9 +185,25 @@ def parse_pdf(pdf_path):
             header_idx = i
             break
 
+    header_row = table[header_idx]
+
+    # Detect link column
+    last_col_is_link = len(header_row) > 1 and bool(re.search(r'link', str(header_row[-1] or ''), re.IGNORECASE))
+    prog_col_count = len(header_row) - 1 - (1 if last_col_is_link else 0)
+    keys = 'abcdefghijklmnopqrstuvwxyz'
+    prog_keys = list(keys[:prog_col_count])
+
+    # Extract display labels from header
+    label_cols = header_row[1:-1] if last_col_is_link else header_row[1:]
+    prog_labels = []
+    for i, col in enumerate(label_cols):
+        lbl = str(col or '')
+        m = re.search(r'(?:prog(?:ramma?)?\s*)?([A-Z0-9]+)\s*$', lbl, re.IGNORECASE)
+        prog_labels.append(m.group(1).upper() if m else keys[i].upper())
+
     rows = table[header_idx + 1:]
 
-    programs = {'a': [], 'b': [], 'c': []}
+    programs = {k: [] for k in prog_keys}
     current_section = {'name': 'Generale', 'type': 'misc'}
     id_counter = {}
 
@@ -210,22 +228,21 @@ def parse_pdf(pdf_path):
         if not row or all(c is None or str(c).strip() == '' for c in row):
             continue
 
-        name   = str(row[0] or '').strip()
-        prog_a = str(row[1] or '').strip() if len(row) > 1 else ''
-        prog_b = str(row[2] or '').strip() if len(row) > 2 else ''
-        prog_c = str(row[3] or '').strip() if len(row) > 3 else ''
-        link   = str(row[4] or '').strip() if len(row) > 4 else ''
+        name = str(row[0] or '').strip()
+        prog_vals = [str(row[i+1] or '').strip() if len(row) > i+1 else '' for i in range(len(prog_keys))]
+        link_idx = len(prog_keys) + 1 if last_col_is_link else -1
+        link = str(row[link_idx] or '').strip() if link_idx >= 0 and len(row) > link_idx else ''
 
         # Riga sezione: col[0] vuota, col[1] ha il nome, col[2] è None
-        if not name and prog_a and (len(row) < 3 or row[2] is None or str(row[2]).strip() == ''):
-            current_section = {'name': prog_a, 'type': section_type(prog_a)}
+        if not name and prog_vals and prog_vals[0] and (len(row) < 3 or row[2] is None or str(row[2]).strip() == ''):
+            current_section = {'name': prog_vals[0], 'type': section_type(prog_vals[0])}
             continue
 
         if not name:
             continue
 
         # Riga esercizio
-        for prog_key, val in [('a', prog_a), ('b', prog_b), ('c', prog_c)]:
+        for i, (prog_key, val) in enumerate(zip(prog_keys, prog_vals)):
             if val:
                 sec = get_or_create_section(prog_key)
                 sec['exercises'].append({
@@ -235,7 +252,7 @@ def parse_pdf(pdf_path):
                     'link':   link
                 })
 
-    return {'title': title, 'weeks': weeks}, programs
+    return {'title': title, 'weeks': weeks}, programs, prog_keys, prog_labels
 
 
 # ── HTML Generation ────────────────────────────────────────────────────────────
@@ -297,79 +314,84 @@ def build_ex_names_js(programs):
     return json.dumps(all_ex, ensure_ascii=False)
 
 
+TAB_COLORS    = ['#60a5fa','#4ade80','#f87171','#fb923c','#a78bfa','#34d399','#f472b6','#38bdf8']
+ACCENT_COLORS = ['#2563eb','#16a34a','#dc2626','#ea580c','#7c3aed','#059669','#db2777','#0284c7']
+
+
+def generate_dynamic_css(prog_keys):
+    tab_css = ''.join(
+        f'.tab-btn.active-{k}{{color:white;border-color:{TAB_COLORS[i % len(TAB_COLORS)]}}}'
+        for i, k in enumerate(prog_keys)
+    ) + '.tab-btn.active-storico{color:white;border-color:#f59e0b}'
+    badge_css = ''.join(
+        f'.prog-badge.{k}{{background:{ACCENT_COLORS[i % len(ACCENT_COLORS)]}}}'
+        for i, k in enumerate(prog_keys)
+    )
+    return tab_css + badge_css
+
+
 CSS = """
-  :root {
+  :root {{
     --bg:#f5f5f5;--card:#fff;--primary:#1e3a5f;
-    --accent-a:#2563eb;--accent-b:#16a34a;--accent-c:#dc2626;
     --text:#1a1a1a;--muted:#6b7280;--border:#e5e7eb;
     --warmup:#f59e0b;--lower:#3b82f6;--upper:#8b5cf6;--misc:#10b981;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-  header{background:var(--primary);color:white;padding:16px 16px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-  header h1{font-size:1.1rem;font-weight:700;letter-spacing:.5px}
-  header p{font-size:.8rem;opacity:.75;margin-top:2px}
-  .tabs{display:flex;margin-top:12px;gap:4px}
-  .tab-btn{flex:1;padding:10px 6px;background:transparent;border:none;color:rgba(255,255,255,.65);font-size:.82rem;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
-  .tab-btn.active-a{color:white;border-color:#60a5fa}
-  .tab-btn.active-b{color:white;border-color:#4ade80}
-  .tab-btn.active-c{color:white;border-color:#f87171}
-  .tab-btn.active-storico{color:white;border-color:#f59e0b}
-  .panel{display:none;padding:12px 12px 80px}
-  .panel.active{display:block}
-  .section-header{display:flex;align-items:center;gap:8px;margin:18px 0 10px}
-  .section-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-  .section-header h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.8px;font-weight:700;color:var(--muted)}
-  .card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-left:4px solid var(--border)}
-  .card.warmup{border-left-color:var(--warmup)} .card.lower{border-left-color:var(--lower)}
-  .card.upper{border-left-color:var(--upper)}   .card.misc{border-left-color:var(--misc)}
-  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-  .exercise-name{font-size:.95rem;font-weight:600;line-height:1.3;flex:1}
-  .yt-btn{background:#f00;color:white;border:none;border-radius:6px;padding:5px 8px;font-size:.75rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;font-weight:600}
-  .badges{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
-  .badge{background:#f3f4f6;border-radius:6px;padding:3px 8px;font-size:.75rem;font-weight:500;border:1px solid var(--border)}
-  .badge.series{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
-  .badge.rest{background:#fef3c7;border-color:#fde68a;color:#92400e}
-  .badge.load{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
-  .note-label{font-size:.72rem;color:var(--muted);margin-top:10px;margin-bottom:4px;font-weight:500}
-  .note-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85rem;background:#fafafa;color:var(--text);resize:none;font-family:inherit;transition:border-color .2s;min-height:38px}
-  .note-input:focus{outline:none;border-color:#93c5fd;background:white}
-  .footer-bar{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;z-index:99;gap:8px}
-  .footer-bar small{font-size:.7rem;color:var(--muted);flex:1}
-  .save-btn{background:#16a34a;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:.82rem;font-weight:700;cursor:pointer}
-  .save-btn:active{background:#15803d}
-  .reset-btn{background:transparent;border:1px solid #fca5a5;color:#dc2626;padding:6px 12px;border-radius:8px;font-size:.78rem;cursor:pointer;font-weight:500}
-  .reset-btn:active{background:#fee2e2}
-  .saved-dot{width:7px;height:7px;border-radius:50%;background:#d1d5db;transition:background .4s;display:inline-block;margin-left:6px}
-  .saved-dot.saved{background:#22c55e}
-  #panel-storico{padding:12px 12px 80px}
-  .storico-empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:.9rem}
-  .session-card{background:var(--card);border-radius:12px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
-  .session-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;user-select:none;gap:8px}
-  .session-header:active{background:#f9fafb}
-  .session-meta{flex:1}
-  .session-date{font-size:.9rem;font-weight:700}
-  .session-sub{font-size:.75rem;color:var(--muted);margin-top:2px}
-  .prog-badge{border-radius:6px;padding:3px 10px;font-size:.78rem;font-weight:700;color:white}
-  .prog-badge.a{background:var(--accent-a)} .prog-badge.b{background:var(--accent-b)} .prog-badge.c{background:var(--accent-c)}
-  .chevron{font-size:.8rem;color:var(--muted);transition:transform .2s}
-  .chevron.open{transform:rotate(180deg)}
-  .session-body{display:none;border-top:1px solid var(--border);padding:10px 14px 14px}
-  .session-body.open{display:block}
-  .session-ex{padding:7px 0;border-bottom:1px solid #f3f4f6}
-  .session-ex:last-child{border-bottom:none}
-  .session-ex-name{font-size:.82rem;font-weight:600}
-  .session-ex-note{font-size:.8rem;color:var(--muted);margin-top:2px}
-  .del-session-btn{background:transparent;border:none;font-size:1rem;cursor:pointer;padding:2px 4px;color:#9ca3af}
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end}
-  .modal-overlay.open{display:flex}
-  .modal-sheet{background:white;border-radius:18px 18px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:20px 16px 40px}
-  .modal-title{font-size:1rem;font-weight:700;margin-bottom:4px}
-  .modal-close{float:right;background:#f3f4f6;border:none;border-radius:50%;width:28px;height:28px;font-size:1rem;cursor:pointer;line-height:28px;text-align:center}
-  .prog-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}
-  .prog-row:last-child{border-bottom:none}
-  .prog-row-date{font-size:.75rem;color:var(--muted);white-space:nowrap;padding-top:2px;min-width:80px}
-  .prog-row-note{font-size:.85rem;font-weight:500}
+  }}
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}}
+  header{{background:var(--primary);color:white;padding:16px 16px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}}
+  header h1{{font-size:1.1rem;font-weight:700;letter-spacing:.5px}}
+  header p{{font-size:.8rem;opacity:.75;margin-top:2px}}
+  .tabs{{display:flex;margin-top:12px;gap:4px}}
+  .tab-btn{{flex:1;padding:10px 6px;background:transparent;border:none;color:rgba(255,255,255,.65);font-size:.82rem;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}}
+  {{dyn_css}}
+  .panel{{display:none;padding:12px 12px 80px}}
+  .panel.active{{display:block}}
+  .section-header{{display:flex;align-items:center;gap:8px;margin:18px 0 10px}}
+  .section-dot{{width:10px;height:10px;border-radius:50%;flex-shrink:0}}
+  .section-header h2{{font-size:.85rem;text-transform:uppercase;letter-spacing:.8px;font-weight:700;color:var(--muted)}}
+  .card{{background:var(--card);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-left:4px solid var(--border)}}
+  .card.warmup{{border-left-color:var(--warmup)}} .card.lower{{border-left-color:var(--lower)}}
+  .card.upper{{border-left-color:var(--upper)}}   .card.misc{{border-left-color:var(--misc)}}
+  .card-top{{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}}
+  .exercise-name{{font-size:.95rem;font-weight:600;line-height:1.3;flex:1}}
+  .yt-btn{{background:#f00;color:white;border:none;border-radius:6px;padding:5px 8px;font-size:.75rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;font-weight:600}}
+  .badges{{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}}
+  .badge{{background:#f3f4f6;border-radius:6px;padding:3px 8px;font-size:.75rem;font-weight:500;border:1px solid var(--border)}}
+  .badge.series{{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}}
+  .badge.rest{{background:#fef3c7;border-color:#fde68a;color:#92400e}}
+  .badge.load{{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}}
+  .note-label{{font-size:.72rem;color:var(--muted);margin-top:10px;margin-bottom:4px;font-weight:500}}
+  .note-input{{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85rem;background:#fafafa;color:var(--text);resize:none;font-family:inherit;transition:border-color .2s;min-height:38px}}
+  .note-input:focus{{outline:none;border-color:#93c5fd;background:white}}
+  .footer-bar{{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;z-index:99;gap:8px}}
+  .footer-bar small{{font-size:.7rem;color:var(--muted);flex:1}}
+  .save-btn{{background:#16a34a;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:.82rem;font-weight:700;cursor:pointer}}
+  .save-btn:active{{background:#15803d}}
+  .reset-btn{{background:transparent;border:1px solid #fca5a5;color:#dc2626;padding:6px 12px;border-radius:8px;font-size:.78rem;cursor:pointer;font-weight:500}}
+  .reset-btn:active{{background:#fee2e2}}
+  .saved-dot{{width:7px;height:7px;border-radius:50%;background:#d1d5db;transition:background .4s;display:inline-block;margin-left:6px}}
+  .saved-dot.saved{{background:#22c55e}}
+  #panel-storico{{padding:12px 12px 80px}}
+  .storico-empty{{text-align:center;color:var(--muted);padding:60px 20px;font-size:.9rem}}
+  .session-card{{background:var(--card);border-radius:12px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}}
+  .session-header{{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;user-select:none;gap:8px}}
+  .session-header:active{{background:#f9fafb}}
+  .session-meta{{flex:1}}
+  .session-date{{font-size:.9rem;font-weight:700}}
+  .session-sub{{font-size:.75rem;color:var(--muted);margin-top:2px}}
+  .prog-badge{{border-radius:6px;padding:3px 10px;font-size:.78rem;font-weight:700;color:white}}
+  {{dyn_badge_css}}
+  .chevron{{font-size:.8rem;color:var(--muted);transition:transform .2s}}.chevron.open{{transform:rotate(180deg)}}
+  .session-body{{display:none;border-top:1px solid var(--border);padding:10px 14px 14px}}.session-body.open{{display:block}}
+  .session-ex{{padding:7px 0;border-bottom:1px solid #f3f4f6}}
+  .session-ex:last-child{{border-bottom:none}}
+  .session-ex-name{{font-size:.82rem;font-weight:600}}.session-ex-note{{font-size:.8rem;color:var(--muted);margin-top:2px}}
+  .del-session-btn{{background:transparent;border:none;font-size:1rem;cursor:pointer;padding:2px 4px;color:#9ca3af}}
+  .modal-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end}}.modal-overlay.open{{display:flex}}
+  .modal-sheet{{background:white;border-radius:18px 18px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:20px 16px 40px}}
+  .modal-title{{font-size:1rem;font-weight:700;margin-bottom:4px}}.modal-close{{float:right;background:#f3f4f6;border:none;border-radius:50%;width:28px;height:28px;font-size:1rem;cursor:pointer;line-height:28px;text-align:center}}
+  .prog-row{{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}}.prog-row:last-child{{border-bottom:none}}
+  .prog-row-date{{font-size:.75rem;color:var(--muted);white-space:nowrap;padding-top:2px;min-width:80px}}.prog-row-note{{font-size:.85rem;font-weight:500}}
 """
 
 JS_TEMPLATE = """
@@ -378,7 +400,7 @@ JS_TEMPLATE = """
   const EX_NAMES    = {ex_names};
 
   let notes = {{}};
-  let currentTab = 'a';
+  let currentTab = '{first_key}';
 
   function loadNotes() {{
     try {{ notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{{}}'); }} catch(e) {{ notes = {{}}; }}
@@ -501,11 +523,12 @@ JS_TEMPLATE = """
   }}
 
   function showTab(t) {{
-    ['a','b','c','storico'].forEach(x => {{
+    const allKeys={all_tabs_json};
+    allKeys.forEach(x => {{
       const p = document.getElementById('panel-' + x);
       const b = document.getElementById('tab-' + x);
       if (p) p.classList.remove('active');
-      if (b) b.classList.remove('active-a','active-b','active-c','active-storico');
+      if (b) allKeys.forEach(k => b.classList.remove('active-' + k));
     }});
     document.getElementById('panel-' + t).classList.add('active');
     document.getElementById('tab-' + t).classList.add('active-' + t);
@@ -515,24 +538,42 @@ JS_TEMPLATE = """
   }}
 
   loadNotes();
-  showTab('a');
+  showTab('{first_key}');
 """
 
 
-def generate_html(meta, programs):
-    panels_html = ''.join(render_program_panel(k, programs.get(k, [])) for k in ['a', 'b', 'c'])
+def generate_html(meta, programs, prog_keys, prog_labels, output_path):
+    panels_html = ''.join(render_program_panel(k, programs.get(k, [])) for k in prog_keys)
     ex_names_js = build_ex_names_js(programs)
     title    = meta['title'].replace('&', '&amp;').replace('<', '&lt;')
     subtitle = meta['weeks'] if meta['weeks'] else 'Scheda di allenamento'
-    js = JS_TEMPLATE.format(ex_names=ex_names_js)
+    first_key = prog_keys[0] if prog_keys else 'a'
+    all_tabs_json = json.dumps(prog_keys + ['storico'])
+    dyn_css = generate_dynamic_css(prog_keys)
+    # Extract badge css separately for CSS template placeholders
+    tab_css = ''.join(
+        f'.tab-btn.active-{k}{{color:white;border-color:{TAB_COLORS[i % len(TAB_COLORS)]}}}'
+        for i, k in enumerate(prog_keys)
+    ) + '.tab-btn.active-storico{color:white;border-color:#f59e0b}'
+    badge_css = ''.join(
+        f'.prog-badge.{k}{{background:{ACCENT_COLORS[i % len(ACCENT_COLORS)]}}}'
+        for i, k in enumerate(prog_keys)
+    )
+    css = CSS.format(dyn_css=tab_css, dyn_badge_css=badge_css)
+    js = JS_TEMPLATE.format(ex_names=ex_names_js, first_key=first_key, all_tabs_json=all_tabs_json)
 
-    return f"""<!DOCTYPE html>
+    tab_buttons = '\n  '.join(
+        f"<button class=\"tab-btn\" id=\"tab-{k}\" onclick=\"showTab('{k}')\">Prog. {prog_labels[i]}</button>"
+        for i, k in enumerate(prog_keys)
+    ) + '\n  <button class="tab-btn" id="tab-storico" onclick="showTab(\'storico\')">📊 Storico</button>'
+
+    html = f"""<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>{title}</title>
-<style>{CSS}</style>
+<style>{css}</style>
 </head>
 <body>
 
@@ -540,10 +581,7 @@ def generate_html(meta, programs):
   <h1>🏋️ {title}</h1>
   <p>{subtitle}</p>
   <div class="tabs">
-    <button class="tab-btn" id="tab-a"       onclick="showTab('a')">Prog. A</button>
-    <button class="tab-btn" id="tab-b"       onclick="showTab('b')">Prog. B</button>
-    <button class="tab-btn" id="tab-c"       onclick="showTab('c')">Prog. C</button>
-    <button class="tab-btn" id="tab-storico" onclick="showTab('storico')">📊 Storico</button>
+  {tab_buttons}
   </div>
 </header>
 
@@ -580,6 +618,10 @@ def generate_html(meta, programs):
 </body>
 </html>"""
 
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+    return html
+
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
@@ -597,17 +639,16 @@ def main():
 
     print(f"📄  Lettura PDF: {pdf_path}")
     try:
-        meta, programs = parse_pdf(pdf_path)
+        meta, programs, prog_keys, prog_labels = parse_pdf(pdf_path)
     except Exception as e:
         print(f"❌  Errore nel parsing del PDF: {e}")
         sys.exit(1)
 
-    counts = {k: sum(len(s['exercises']) for s in programs[k]) for k in 'abc'}
-    print(f"✅  Esercizi trovati → Prog A: {counts['a']} | B: {counts['b']} | C: {counts['c']}")
+    counts = {k: sum(len(s['exercises']) for s in programs[k]) for k in prog_keys}
+    counts_str = ' | '.join(f"Prog {prog_labels[i]}: {counts[k]}" for i, k in enumerate(prog_keys))
+    print(f"✅  Esercizi trovati → {counts_str}")
 
-    html = generate_html(meta, programs)
-    with open(out_path, 'w', encoding='utf-8') as f:
-        f.write(html)
+    html = generate_html(meta, programs, prog_keys, prog_labels, out_path)
 
     print(f"🎉  HTML generato: {out_path}  ({len(html)//1024} KB)")
     print(f"📱  Trasferisci il file sul telefono e aprilo nel browser!")
