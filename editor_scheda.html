@@ -162,11 +162,8 @@
   }
   .del-ex-btn:hover { color: var(--danger); background: #fee2e2; }
   .prog-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .prog-field { flex: 1; min-width: 120px; }
+  .prog-field { flex: 1; min-width: 140px; padding-left: 8px; }
   .prog-field label { color: var(--muted); }
-  .prog-field.a label { color: #1d4ed8; }
-  .prog-field.b label { color: #15803d; }
-  .prog-field.c label { color: #b91c1c; }
   .link-field { margin-top: 8px; }
   .link-field label { color: var(--muted); }
   /* ── Live badge preview ── */
@@ -320,6 +317,11 @@
       <label>Periodo / Settimane <span style="font-weight:400;color:var(--muted)">(opzionale)</span></label>
       <input type="text" id="meta-weeks" placeholder="es. Settimana 1-6" oninput="autosaveDraft()" />
     </div>
+    <div class="field">
+      <label>Programmi <span style="font-weight:400;color:var(--muted)">(es. A, B, C o Lunedì, Mercoledì)</span></label>
+      <div id="prog-tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center"></div>
+      <button onclick="addProgram()" style="margin-top:8px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:8px;padding:5px 12px;font-size:0.82rem;font-weight:600;cursor:pointer">+ Aggiungi programma</button>
+    </div>
   </div>
 
   <!-- Sections -->
@@ -361,12 +363,18 @@
 
 <script>
 // ── Data model ──────────────────────────────────────────────────────────────
-// sections = [ { id, name, open, exercises: [ { id, name, progA, progB, progC, link } ] } ]
+// sections = [ { id, name, open, exercises: [ { id, name, progs: [], link } ] } ]
 let sections = [];
 let sectionCounter = 0;
 let exerciseCounter = 0;
 let autosaveTimer = null;
 const DRAFT_KEY = 'editor_scheda_draft';
+
+// progLabels: display labels for each program column (e.g. ['A', 'B', 'C'])
+let progLabels = ['A', 'B', 'C'];
+
+const TAB_COLORS    = ['#60a5fa','#4ade80','#f87171','#fb923c','#a78bfa','#34d399','#f472b6','#38bdf8'];
+const ACCENT_COLORS = ['#2563eb','#16a34a','#dc2626','#ea580c','#7c3aed','#059669','#db2777','#0284c7'];
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 function slugify(s) {
@@ -537,7 +545,7 @@ function addExercise(secId) {
   const sec = sections.find(s => s.id === secId);
   if (!sec) return;
   const id = ++exerciseCounter;
-  sec.exercises.push({ id, name: '', progA: '', progB: '', progC: '', link: '' });
+  sec.exercises.push({ id, name: '', progs: progLabels.map(() => ''), link: '' });
   renderExercisesInSection(secId);
   updateSectionHead(secId);
   autosaveDraft();
@@ -559,11 +567,16 @@ function updateExField(secId, exId, field, value) {
   const sec = sections.find(s => s.id === secId);
   if (!sec) return;
   const ex = sec.exercises.find(e => e.id === exId);
-  if (ex) { ex[field] = value; autosaveDraft(); }
-  if (field === 'progA' || field === 'progB' || field === 'progC') {
-    const previewEl = document.getElementById(`preview-${exId}-${field}`);
+  if (!ex) return;
+  if (field === 'name' || field === 'link') {
+    ex[field] = value;
+  } else if (field.startsWith('prog-')) {
+    const idx = parseInt(field.slice(5));
+    ex.progs[idx] = value;
+    const previewEl = document.getElementById(`preview-${exId}-${idx}`);
     if (previewEl) previewEl.innerHTML = renderBadgePreview(value);
   }
+  autosaveDraft();
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
@@ -609,6 +622,14 @@ function renderExercisesInSection(secId) {
     const div = document.createElement('div');
     div.className = 'ex-row';
     div.id = `ex-row-${ex.id}`;
+    const progFieldsHtml = progLabels.map((lbl, i) => `
+  <div class="prog-field" style="border-left:3px solid ${ACCENT_COLORS[i % ACCENT_COLORS.length]}">
+    <label class="prog-field-label-${i}">Prog. ${escHtml(lbl)}</label>
+    <input type="text" value="${escHtml(ex.progs[i] || '')}"
+      placeholder="es. 3x10 60%"
+      oninput="updateExField(${secId}, ${ex.id}, 'prog-${i}', this.value)" />
+    <div class="badge-preview" id="preview-${ex.id}-${i}">${renderBadgePreview(ex.progs[i] || '')}</div>
+  </div>`).join('');
     div.innerHTML = `
       <div class="ex-row-top">
         <input type="text" id="ex-name-${ex.id}" value="${escHtml(ex.name)}"
@@ -616,29 +637,7 @@ function renderExercisesInSection(secId) {
           oninput="updateExField(${secId}, ${ex.id}, 'name', this.value)" />
         <button class="del-ex-btn" onclick="removeExercise(${secId}, ${ex.id})" title="Elimina">✕</button>
       </div>
-      <div class="prog-row">
-        <div class="prog-field a">
-          <label>Prog. A</label>
-          <input type="text" value="${escHtml(ex.progA)}"
-            placeholder="es. 3x10 60%"
-            oninput="updateExField(${secId}, ${ex.id}, 'progA', this.value)" />
-          <div class="badge-preview" id="preview-${ex.id}-progA">${renderBadgePreview(ex.progA)}</div>
-        </div>
-        <div class="prog-field b">
-          <label>Prog. B</label>
-          <input type="text" value="${escHtml(ex.progB)}"
-            placeholder="es. 4x8 70%"
-            oninput="updateExField(${secId}, ${ex.id}, 'progB', this.value)" />
-          <div class="badge-preview" id="preview-${ex.id}-progB">${renderBadgePreview(ex.progB)}</div>
-        </div>
-        <div class="prog-field c">
-          <label>Prog. C</label>
-          <input type="text" value="${escHtml(ex.progC)}"
-            placeholder="es. 4x6 80%"
-            oninput="updateExField(${secId}, ${ex.id}, 'progC', this.value)" />
-          <div class="badge-preview" id="preview-${ex.id}-progC">${renderBadgePreview(ex.progC)}</div>
-        </div>
-      </div>
+      <div class="prog-row">${progFieldsHtml}</div>
       <div class="link-field">
         <label>🎥 Link video YouTube (opzionale)</label>
         <input type="url" value="${escHtml(ex.link)}"
@@ -654,9 +653,56 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── Program management ───────────────────────────────────────────────────────
+function renderProgTags() {
+  const container = document.getElementById('prog-tags');
+  if (!container) return;
+  container.innerHTML = progLabels.map((lbl, i) => `
+    <div style="display:inline-flex;align-items:center;gap:4px;background:${ACCENT_COLORS[i % ACCENT_COLORS.length]};color:white;border-radius:8px;padding:4px 8px;font-size:0.82rem;font-weight:700">
+      <span contenteditable="true" spellcheck="false"
+        style="outline:none;min-width:16px;cursor:text"
+        onblur="renameProgram(${i}, this.textContent.trim())"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
+      >${escHtml(lbl)}</span>
+      ${progLabels.length > 1 ? `<button onclick="removeProgram(${i})" style="background:transparent;border:none;color:white;cursor:pointer;font-size:0.9rem;padding:0;line-height:1" title="Rimuovi">✕</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function addProgram() {
+  const nextLabel = String.fromCharCode(65 + progLabels.length);
+  progLabels.push(nextLabel);
+  for (const sec of sections)
+    for (const ex of sec.exercises)
+      ex.progs.push('');
+  renderProgTags();
+  renderSections();
+  autosaveDraft();
+}
+
+function removeProgram(idx) {
+  if (progLabels.length <= 1) { showToast('Deve esserci almeno 1 programma'); return; }
+  if (!confirm(`Rimuovere il programma "${progLabels[idx]}"? I dati inseriti per questo programma andranno persi.`)) return;
+  progLabels.splice(idx, 1);
+  for (const sec of sections)
+    for (const ex of sec.exercises)
+      ex.progs.splice(idx, 1);
+  renderProgTags();
+  renderSections();
+  autosaveDraft();
+}
+
+function renameProgram(idx, newLabel) {
+  if (!newLabel) return;
+  progLabels[idx] = newLabel;
+  document.querySelectorAll(`.prog-field-label-${idx}`).forEach(el => el.textContent = 'Prog. ' + newLabel);
+  autosaveDraft();
+}
 // ── Build programs structure from sections ──────────────────────────────────
 function buildPrograms() {
-  const programs = { a: [], b: [], c: [] };
+  const KEYS = 'abcdefghijklmnopqrstuvwxyz';
+  const progKeys = progLabels.map((_, i) => KEYS[i] || String(i));
+  const programs = Object.fromEntries(progKeys.map(k => [k, []]));
   const idCounter = {};
 
   function makeId(prog, name) {
@@ -667,21 +713,21 @@ function buildPrograms() {
 
   for (const sec of sections) {
     const stype = sectionType(sec.name);
-    for (const [progKey, paramKey] of [['a','progA'],['b','progB'],['c','progC']]) {
+    progKeys.forEach((progKey, i) => {
       const exercises = sec.exercises
-        .filter(ex => ex.name.trim() && ex[paramKey].trim())
+        .filter(ex => ex.name.trim() && (ex.progs[i] || '').trim())
         .map(ex => ({
           id:     makeId(progKey, ex.name),
           name:   ex.name.trim(),
-          params: ex[paramKey].trim(),
+          params: (ex.progs[i] || '').trim(),
           link:   /^https?:\/\//.test(ex.link) ? ex.link.trim() : ''
         }));
       if (exercises.length) {
         programs[progKey].push({ section: sec.name, stype, exercises });
       }
-    }
+    });
   }
-  return programs;
+  return { programs, progKeys, progLabelsCopy: [...progLabels] };
 }
 
 // ── Generate HTML (same as converter.html) ───────────────────────────────────
@@ -719,14 +765,31 @@ function renderPanel(progKey, sections) {
   return html;
 }
 
-function generateHtml(meta, programs, storageKey) {
+function generateHtml(meta, programs, progKeys, progLabelsList, storageKey) {
   const exNames = {};
   for (const secs of Object.values(programs))
     for (const sec of secs)
       for (const ex of sec.exercises)
         exNames[ex.id] = ex.name;
 
-  const panelsHtml  = ['a','b','c'].map(k => renderPanel(k, programs[k] || [])).join('');
+  const dynTabCss = progKeys.map((k, i) =>
+    `.tab-btn.active-${k}{color:white;border-color:${TAB_COLORS[i % TAB_COLORS.length]}}`
+  ).join('') + `.tab-btn.active-storico{color:white;border-color:#f59e0b}`;
+
+  const dynBadgeCss = progKeys.map((k, i) =>
+    `.prog-badge.${k}{background:${ACCENT_COLORS[i % ACCENT_COLORS.length]}}`
+  ).join('');
+
+  const tabButtonsHtml = [
+    ...progKeys.map((k, i) => `<button class="tab-btn" id="tab-${k}" onclick="showTab('${k}')">Prog. ${escHtml(progLabelsList[i])}</button>`),
+    `<button class="tab-btn" id="tab-storico" onclick="showTab('storico')">📊 Storico</button>`
+  ].join('\n    ');
+
+  const panelsHtml = progKeys.map(k => renderPanel(k, programs[k] || [])).join('');
+
+  const allTabsJson = JSON.stringify([...progKeys, 'storico']);
+  const firstKey = JSON.stringify(progKeys[0] || 'a');
+
   const title       = escHtml(meta.title);
   const subtitle    = escHtml(meta.weeks || 'Scheda di allenamento');
   const exNamesJson = JSON.stringify(exNames);
@@ -740,15 +803,15 @@ function generateHtml(meta, programs, storageKey) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>${title}</title>
 <style>
-  :root{--bg:#f5f5f5;--card:#fff;--primary:#1e3a5f;--accent-a:#2563eb;--accent-b:#16a34a;--accent-c:#dc2626;--text:#1a1a1a;--muted:#6b7280;--border:#e5e7eb;--warmup:#f59e0b;--lower:#3b82f6;--upper:#8b5cf6;--misc:#10b981;}
+  :root{--bg:#f5f5f5;--card:#fff;--primary:#1e3a5f;--text:#1a1a1a;--muted:#6b7280;--border:#e5e7eb;--warmup:#f59e0b;--lower:#3b82f6;--upper:#8b5cf6;--misc:#10b981;}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
   header{background:var(--primary);color:white;padding:16px 16px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
   header h1{font-size:1.1rem;font-weight:700;letter-spacing:.5px}
   header p{font-size:.8rem;opacity:.75;margin-top:2px}
-  .tabs{display:flex;margin-top:12px;gap:4px}
-  .tab-btn{flex:1;padding:10px 6px;background:transparent;border:none;color:rgba(255,255,255,.65);font-size:.82rem;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
-  .tab-btn.active-a{color:white;border-color:#60a5fa}.tab-btn.active-b{color:white;border-color:#4ade80}.tab-btn.active-c{color:white;border-color:#f87171}.tab-btn.active-storico{color:white;border-color:#f59e0b}
+  .tabs{display:flex;margin-top:12px;gap:4px;overflow-x:auto}
+  .tab-btn{flex:1;min-width:60px;padding:10px 6px;background:transparent;border:none;color:rgba(255,255,255,.65);font-size:.82rem;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
+  ${dynTabCss}
   .panel{display:none;padding:12px 12px 80px}.panel.active{display:block}
   .section-header{display:flex;align-items:center;gap:8px;margin:18px 0 10px}
   .section-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -774,7 +837,7 @@ function generateHtml(meta, programs, storageKey) {
   .session-card{background:var(--card);border-radius:12px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
   .session-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;user-select:none;gap:8px}.session-header:active{background:#f9fafb}
   .session-meta{flex:1}.session-date{font-size:.9rem;font-weight:700}.session-sub{font-size:.75rem;color:var(--muted);margin-top:2px}
-  .prog-badge{border-radius:6px;padding:3px 10px;font-size:.78rem;font-weight:700;color:white}.prog-badge.a{background:var(--accent-a)}.prog-badge.b{background:var(--accent-b)}.prog-badge.c{background:var(--accent-c)}
+  .prog-badge{border-radius:6px;padding:3px 10px;font-size:.78rem;font-weight:700;color:white}${dynBadgeCss}
   .chevron{font-size:.8rem;color:var(--muted);transition:transform .2s}.chevron.open{transform:rotate(180deg)}
   .session-body{display:none;border-top:1px solid var(--border);padding:10px 14px 14px}.session-body.open{display:block}
   .session-ex{padding:7px 0;border-bottom:1px solid #f3f4f6;cursor:pointer}.session-ex:last-child{border-bottom:none}
@@ -792,10 +855,7 @@ function generateHtml(meta, programs, storageKey) {
   <h1>🏋️ ${title}</h1>
   <p>${subtitle}</p>
   <div class="tabs">
-    <button class="tab-btn" id="tab-a"       onclick="showTab('a')">Prog. A</button>
-    <button class="tab-btn" id="tab-b"       onclick="showTab('b')">Prog. B</button>
-    <button class="tab-btn" id="tab-c"       onclick="showTab('c')">Prog. C</button>
-    <button class="tab-btn" id="tab-storico" onclick="showTab('storico')">📊 Storico</button>
+    ${tabButtonsHtml}
   </div>
 </header>
 
@@ -825,7 +885,7 @@ ${panelsHtml}
 <script>
   const NK=${NK}, HK=${HK};
   const EX=${exNamesJson};
-  let notes={}, currentTab='a';
+  let notes={}, currentTab=${firstKey};
 
   function loadNotes(){
     try{notes=JSON.parse(localStorage.getItem(NK)||'{}');}catch(e){notes={};}
@@ -883,10 +943,11 @@ ${panelsHtml}
   }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   function showTab(t){
-    ['a','b','c','storico'].forEach(x=>{
+    const allKeys=${allTabsJson};
+    allKeys.forEach(x=>{
       const p=document.getElementById('panel-'+x),b=document.getElementById('tab-'+x);
       if(p)p.classList.remove('active');
-      if(b)b.classList.remove('active-a','active-b','active-c','active-storico');
+      if(b)allKeys.forEach(k=>b.classList.remove('active-'+k));
     });
     document.getElementById('panel-'+t).classList.add('active');
     document.getElementById('tab-'+t).classList.add('active-'+t);
@@ -894,7 +955,7 @@ ${panelsHtml}
     document.getElementById('footer-bar').style.display=t==='storico'?'none':'flex';
     if(t==='storico')renderHistory();
   }
-  loadNotes(); showTab('a');
+  loadNotes(); showTab(${firstKey});
 <\/script>
 </body>
 </html>`;
@@ -910,6 +971,7 @@ function saveDraft() {
   const draft = {
     title:    document.getElementById('meta-title').value,
     weeks:    document.getElementById('meta-weeks').value,
+    progLabels: [...progLabels],
     sections: sections,
     _sc: sectionCounter,
     _ec: exerciseCounter
@@ -927,9 +989,18 @@ function loadDraft() {
     if (!confirm('Caricare la bozza? I dati attuali verranno sovrascritti.')) return;
     document.getElementById('meta-title').value = draft.title || '';
     document.getElementById('meta-weeks').value = draft.weeks || '';
+    if (draft.progLabels && Array.isArray(draft.progLabels)) progLabels = draft.progLabels;
     sections = draft.sections || [];
     sectionCounter = draft._sc || sections.length;
     exerciseCounter = draft._ec || 0;
+    // Backward compatibility: convert progA/progB/progC to progs[]
+    for (const sec of sections)
+      for (const ex of sec.exercises)
+        if (!ex.progs) {
+          ex.progs = [ex.progA || '', ex.progB || '', ex.progC || ''];
+          delete ex.progA; delete ex.progB; delete ex.progC;
+        }
+    renderProgTags();
     renderSections();
     showToast('✅ Bozza caricata');
   } catch(e) {
@@ -947,8 +1018,22 @@ function importCsv(input) {
       const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
       if (!lines.length) { showToast('❌ File CSV vuoto'); return; }
 
+      // Detect header row and program count
+      const headerLine = lines.find(l => /^esercizio/i.test(parseCsvLine(l)[0]));
+      let csvProgCount = 3;
+      if (headerLine) {
+        const headerCols = parseCsvLine(headerLine);
+        const lastIsLink = /link/i.test(headerCols[headerCols.length - 1]);
+        csvProgCount = headerCols.length - 1 - (lastIsLink ? 1 : 0);
+        const newLabels = headerCols.slice(1, lastIsLink ? -1 : undefined).map((lbl, i) => {
+          const m = lbl.match(/(?:prog(?:ramma?)?\s*)?([A-Z0-9]+)\s*$/i);
+          return m ? m[1].toUpperCase() : String.fromCharCode(65 + i);
+        });
+        if (newLabels.length > 0) progLabels = newLabels;
+      }
+
       // Skip header row
-      const dataLines = lines.filter(l => !/^esercizio/i.test(l.split(',')[0]));
+      const dataLines = lines.filter(l => !/^esercizio/i.test(parseCsvLine(l)[0]));
       if (!confirm(`Trovate ${dataLines.length} righe. Sostituire i dati attuali?`)) return;
 
       sections = [];
@@ -958,18 +1043,16 @@ function importCsv(input) {
 
       for (const line of lines) {
         const cols = parseCsvLine(line);
-        const name   = (cols[0] || '').trim();
-        const progA  = (cols[1] || '').trim();
-        const progB  = (cols[2] || '').trim();
-        const progC  = (cols[3] || '').trim();
-        const link   = (cols[4] || '').trim();
+        const name = (cols[0] || '').trim();
+        const firstProg = (cols[1] || '').trim();
+        const link = (cols[cols.length - 1] || '').trim();
 
         // Skip header
         if (/^esercizio$/i.test(name)) continue;
 
-        // Section header: col0 empty, col1 has name, col2+ empty
-        if (!name && progA && !progB && !progC) {
-          currentSec = { id: ++sectionCounter, name: progA, open: true, exercises: [] };
+        // Section header: col0 empty, col1 has name, rest empty
+        if (!name && firstProg && cols.slice(2).every(c => !c.trim())) {
+          currentSec = { id: ++sectionCounter, name: firstProg, open: true, exercises: [] };
           sections.push(currentSec);
           continue;
         }
@@ -981,15 +1064,21 @@ function importCsv(input) {
           sections.push(currentSec);
         }
 
+        const progs = [];
+        for (let i = 0; i < progLabels.length; i++) {
+          progs.push((cols[i + 1] || '').trim());
+        }
         currentSec.exercises.push({
           id: ++exerciseCounter,
-          name, progA, progB, progC,
+          name,
+          progs,
           link: /^https?:\/\//.test(link) ? link : ''
         });
       }
 
       // Set title from filename
       document.getElementById('meta-title').value = file.name.replace(/\.csv$/i, '');
+      renderProgTags();
       renderSections();
       saveDraft();
       showToast(`✅ Importate ${sections.length} sezioni`);
@@ -1018,14 +1107,14 @@ function parseCsvLine(line) {
 function getGeneratedHtml() {
   const title = document.getElementById('meta-title').value.trim() || 'Scheda Palestra';
   const weeks = document.getElementById('meta-weeks').value.trim();
-  const programs = buildPrograms();
+  const { programs, progKeys, progLabelsCopy } = buildPrograms();
   const totalEx = Object.values(programs).flat().reduce((s,sec) => s + sec.exercises.length, 0);
   if (!totalEx) {
     showToast('❌ Nessun esercizio con parametri compilati');
     return null;
   }
   const storageKey = 'palestra_' + slugify(title);
-  return { html: generateHtml({ title, weeks }, programs, storageKey), filename: slugify(title) + '.html' };
+  return { html: generateHtml({ title, weeks }, programs, progKeys, progLabelsCopy, storageKey), filename: slugify(title) + '.html' };
 }
 
 function previewHtml() {
@@ -1048,6 +1137,7 @@ function downloadHtml() {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderSections();
+renderProgTags();
 // Auto-load draft silently on open
 try {
   const raw = localStorage.getItem(DRAFT_KEY);
@@ -1055,9 +1145,18 @@ try {
     const draft = JSON.parse(raw);
     document.getElementById('meta-title').value = draft.title || '';
     document.getElementById('meta-weeks').value = draft.weeks || '';
+    if (draft.progLabels && Array.isArray(draft.progLabels)) progLabels = draft.progLabels;
     sections = draft.sections || [];
     sectionCounter = draft._sc || sections.length;
     exerciseCounter = draft._ec || 0;
+    // Backward compatibility: convert progA/progB/progC to progs[]
+    for (const sec of sections)
+      for (const ex of sec.exercises)
+        if (!ex.progs) {
+          ex.progs = [ex.progA || '', ex.progB || '', ex.progC || ''];
+          delete ex.progA; delete ex.progB; delete ex.progC;
+        }
+    renderProgTags();
     renderSections();
   }
 } catch(e) {}
