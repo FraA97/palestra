@@ -210,7 +210,7 @@
 
 <footer>
   Funziona interamente nel tuo browser · nessun dato inviato a server<br>
-  Richiede un PDF con tabella strutturata (Esercizio | Prog A | Prog B | Prog C | Link)<br>
+  Richiede un PDF con tabella strutturata (Esercizio | N colonne programma | Link)<br>
   <a href="istruzioni_template.html" target="_blank">📋 Guida per insegnanti</a>
   &nbsp;·&nbsp;
   <a href="editor_scheda.html">✏️ Editor guidato</a>
@@ -289,24 +289,24 @@ async function processFile(file) {
     log(`✅ Estratti ${texts.length} elementi di testo`, 'ok');
 
     log('📊 Ricostruzione tabella…');
-    const rows = buildTable(texts);
-    log(`✅ Trovate ${rows.length} righe`, 'ok');
+    const { table, colLabels } = buildTable(texts);
+    log(`✅ Trovate ${table.length} righe`, 'ok');
 
     log('🧩 Parsing esercizi…');
-    const { meta, programs } = parseRows(rows, baseName);
-    const counts = ['a','b','c'].map(k => {
+    const { meta, programs, progKeys, progLabels } = parseRows(table, colLabels, baseName);
+    const counts = progKeys.map((k, i) => {
       const n = programs[k].reduce((s, sec) => s + sec.exercises.length, 0);
-      return `Prog ${k.toUpperCase()}: ${n}`;
+      return `Prog ${progLabels[i]}: ${n}`;
     });
     log(`✅ ${counts.join(' | ')}`, 'ok');
 
-    if (counts.every(c => c.endsWith('0'))) {
+    if (progKeys.every(k => !programs[k].length || programs[k].every(sec => sec.exercises.length === 0))) {
       throw new Error('Nessun esercizio trovato. Il PDF potrebbe avere una struttura diversa o essere un\'immagine scansionata.');
     }
 
     log('⚙️ Generazione HTML…');
     const storageKey = 'palestra_' + slugify(baseName);
-    generatedHtml = generateHtml(meta, programs, storageKey);
+    generatedHtml = generateHtml(meta, programs, progKeys, progLabels, storageKey);
     log(`✅ HTML generato (${(generatedHtml.length/1024).toFixed(0)} KB)`, 'ok');
 
     setStatus('✅', 'Conversione completata!');
@@ -404,18 +404,33 @@ function buildTable(texts) {
     table.push(cells);
   }
 
-  return table;
+  return { table, colLabels: colDefs.map(c => c.str) };
 }
 
 // ── Parse table rows into programs ────────────────────────────────────────
-function parseRows(rows, baseName) {
+function parseRows(rows, colLabels, baseName) {
   const weeksMatch = rows.flat().join(' ').match(/Settimana[^\n·,]*/i);
   const meta = {
     title:  baseName,
     weeks:  weeksMatch ? weeksMatch[0].trim() : ''
   };
 
-  const programs = { a: [], b: [], c: [] };
+  // Detect link column (last column if header contains 'link')
+  const lastColIsLink = colLabels.length > 1 && /link/i.test(colLabels[colLabels.length - 1]);
+  const linkColIdx = lastColIsLink ? colLabels.length - 1 : -1;
+
+  // Program columns: everything between col 0 (exercise) and link col (or end)
+  const progColCount = colLabels.length - 1 - (lastColIsLink ? 1 : 0);
+  const KEYS = 'abcdefghijklmnopqrstuvwxyz';
+  const progKeys = Array.from({ length: progColCount }, (_, i) => KEYS[i] || String(i));
+
+  // Extract display labels from header (e.g., "Prog A" → "A", "Allenamento 1" → "1")
+  const progLabels = colLabels.slice(1, lastColIsLink ? -1 : undefined).map((lbl, i) => {
+    const m = lbl.match(/(?:prog(?:ramma?)?\s*)?([A-Z0-9]+)\s*$/i);
+    return m ? m[1].toUpperCase() : KEYS[i].toUpperCase();
+  });
+
+  const programs = Object.fromEntries(progKeys.map(k => [k, []]));
   let currentSection = { name: 'Generale', type: 'misc' };
   const idCounter = {};
 
@@ -434,27 +449,24 @@ function parseRows(rows, baseName) {
   }
 
   for (const row of rows) {
-    const name   = (row[0] || '').trim();
-    const prog_a = (row[1] || '').trim();
-    const prog_b = (row[2] || '').trim();
-    const prog_c = (row[3] || '').trim();
-    const link   = (row[4] || '').trim();
+    const name = (row[0] || '').trim();
+    const progVals = progKeys.map((_, i) => (row[i + 1] || '').trim());
+    const link = linkColIdx >= 0 ? (row[linkColIdx] || '').trim() : (row[progKeys.length + 1] || '').trim();
 
     // Section header: col0 empty, col1 has text, col2 absent/empty
-    if (!name && prog_a && (!row[2] || row[2].trim() === '')) {
-      currentSection = { name: prog_a, type: sectionType(prog_a) };
+    if (!name && progVals[0] && (!row[2] || (row[2] || '').trim() === '')) {
+      currentSection = { name: progVals[0], type: sectionType(progVals[0]) };
       continue;
     }
 
     if (!name) continue;
-
-    // Skip copyright / footer lines
     if (/vietata|copyright|physio/i.test(name)) continue;
 
-    for (const [progKey, val] of [['a', prog_a], ['b', prog_b], ['c', prog_c]]) {
+    for (let i = 0; i < progKeys.length; i++) {
+      const val = progVals[i];
       if (val) {
-        getSection(progKey).exercises.push({
-          id:     makeId(progKey, name),
+        getSection(progKeys[i]).exercises.push({
+          id:     makeId(progKeys[i], name),
           name:   name,
           params: val,
           link:   /^https?:\/\//.test(link) ? link : ''
@@ -463,7 +475,7 @@ function parseRows(rows, baseName) {
     }
   }
 
-  return { meta, programs };
+  return { meta, programs, progKeys, progLabels };
 }
 
 // ── Utility ────────────────────────────────────────────────────────────────
@@ -612,19 +624,36 @@ function renderPanel(progKey, sections) {
   return html;
 }
 
-function generateHtml(meta, programs, storageKey) {
+function generateHtml(meta, programs, progKeys, progLabels, storageKey) {
+  const TAB_COLORS    = ['#60a5fa','#4ade80','#f87171','#fb923c','#a78bfa','#34d399','#f472b6','#38bdf8'];
+  const ACCENT_COLORS = ['#2563eb','#16a34a','#dc2626','#ea580c','#7c3aed','#059669','#db2777','#0284c7'];
+
+  const dynTabCss = progKeys.map((k, i) =>
+    `.tab-btn.active-${k}{color:white;border-color:${TAB_COLORS[i % TAB_COLORS.length]}}`
+  ).join('') + `.tab-btn.active-storico{color:white;border-color:#f59e0b}`;
+
+  const dynBadgeCss = progKeys.map((k, i) =>
+    `.prog-badge.${k}{background:${ACCENT_COLORS[i % ACCENT_COLORS.length]}}`
+  ).join('');
+
   const exNames = {};
   for (const sections of Object.values(programs))
     for (const sec of sections)
       for (const ex of sec.exercises)
         exNames[ex.id] = ex.name;
 
-  const panelsHtml = ['a','b','c'].map(k => renderPanel(k, programs[k] || [])).join('');
+  const panelsHtml = progKeys.map(k => renderPanel(k, programs[k] || [])).join('');
   const title    = escHtml(meta.title);
   const subtitle = escHtml(meta.weeks || 'Scheda di allenamento');
   const exNamesJson = JSON.stringify(exNames);
   const NK = JSON.stringify(storageKey + '_notes');
   const HK = JSON.stringify(storageKey + '_history');
+  const allTabsJson = JSON.stringify([...progKeys, 'storico']);
+  const firstKey = JSON.stringify(progKeys[0] || 'a');
+  const tabButtonsHtml = [
+    ...progKeys.map((k, i) => `<button class="tab-btn" id="tab-${k}" onclick="showTab('${k}')">Prog. ${progLabels[i]}</button>`),
+    `<button class="tab-btn" id="tab-storico" onclick="showTab('storico')">📊 Storico</button>`
+  ].join('\n    ');
 
   return `<!DOCTYPE html>
 <html lang="it">
@@ -633,7 +662,7 @@ function generateHtml(meta, programs, storageKey) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>${title}</title>
 <style>
-  :root{--bg:#f5f5f5;--card:#fff;--primary:#1e3a5f;--accent-a:#2563eb;--accent-b:#16a34a;--accent-c:#dc2626;--text:#1a1a1a;--muted:#6b7280;--border:#e5e7eb;--warmup:#f59e0b;--lower:#3b82f6;--upper:#8b5cf6;--misc:#10b981;}
+  :root{--bg:#f5f5f5;--card:#fff;--primary:#1e3a5f;--text:#1a1a1a;--muted:#6b7280;--border:#e5e7eb;--warmup:#f59e0b;--lower:#3b82f6;--upper:#8b5cf6;--misc:#10b981;}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
   header{background:var(--primary);color:white;padding:16px 16px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
@@ -641,7 +670,7 @@ function generateHtml(meta, programs, storageKey) {
   header p{font-size:.8rem;opacity:.75;margin-top:2px}
   .tabs{display:flex;margin-top:12px;gap:4px}
   .tab-btn{flex:1;padding:10px 6px;background:transparent;border:none;color:rgba(255,255,255,.65);font-size:.82rem;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
-  .tab-btn.active-a{color:white;border-color:#60a5fa}.tab-btn.active-b{color:white;border-color:#4ade80}.tab-btn.active-c{color:white;border-color:#f87171}.tab-btn.active-storico{color:white;border-color:#f59e0b}
+  ${dynTabCss}
   .panel{display:none;padding:12px 12px 80px}.panel.active{display:block}
   .section-header{display:flex;align-items:center;gap:8px;margin:18px 0 10px}
   .section-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -667,7 +696,7 @@ function generateHtml(meta, programs, storageKey) {
   .session-card{background:var(--card);border-radius:12px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
   .session-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;user-select:none;gap:8px}.session-header:active{background:#f9fafb}
   .session-meta{flex:1}.session-date{font-size:.9rem;font-weight:700}.session-sub{font-size:.75rem;color:var(--muted);margin-top:2px}
-  .prog-badge{border-radius:6px;padding:3px 10px;font-size:.78rem;font-weight:700;color:white}.prog-badge.a{background:var(--accent-a)}.prog-badge.b{background:var(--accent-b)}.prog-badge.c{background:var(--accent-c)}
+  .prog-badge{border-radius:6px;padding:3px 10px;font-size:.78rem;font-weight:700;color:white}${dynBadgeCss}
   .chevron{font-size:.8rem;color:var(--muted);transition:transform .2s}.chevron.open{transform:rotate(180deg)}
   .session-body{display:none;border-top:1px solid var(--border);padding:10px 14px 14px}.session-body.open{display:block}
   .session-ex{padding:7px 0;border-bottom:1px solid #f3f4f6;cursor:pointer}.session-ex:last-child{border-bottom:none}
@@ -685,10 +714,7 @@ function generateHtml(meta, programs, storageKey) {
   <h1>🏋️ ${title}</h1>
   <p>${subtitle}</p>
   <div class="tabs">
-    <button class="tab-btn" id="tab-a"       onclick="showTab('a')">Prog. A</button>
-    <button class="tab-btn" id="tab-b"       onclick="showTab('b')">Prog. B</button>
-    <button class="tab-btn" id="tab-c"       onclick="showTab('c')">Prog. C</button>
-    <button class="tab-btn" id="tab-storico" onclick="showTab('storico')">📊 Storico</button>
+    ${tabButtonsHtml}
   </div>
 </header>
 
@@ -718,7 +744,7 @@ ${panelsHtml}
 <script>
   const NK=${NK}, HK=${HK};
   const EX=${exNamesJson};
-  let notes={}, currentTab='a';
+  let notes={}, currentTab=${firstKey};
 
   function loadNotes(){
     try{notes=JSON.parse(localStorage.getItem(NK)||'{}');}catch(e){notes={};}
@@ -776,10 +802,11 @@ ${panelsHtml}
   }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   function showTab(t){
-    ['a','b','c','storico'].forEach(x=>{
+    const allKeys=${allTabsJson};
+    allKeys.forEach(x=>{
       const p=document.getElementById('panel-'+x),b=document.getElementById('tab-'+x);
       if(p)p.classList.remove('active');
-      if(b)b.classList.remove('active-a','active-b','active-c','active-storico');
+      if(b)allKeys.forEach(k=>b.classList.remove('active-'+k));
     });
     document.getElementById('panel-'+t).classList.add('active');
     document.getElementById('tab-'+t).classList.add('active-'+t);
@@ -787,7 +814,7 @@ ${panelsHtml}
     document.getElementById('footer-bar').style.display=t==='storico'?'none':'flex';
     if(t==='storico')renderHistory();
   }
-  loadNotes(); showTab('a');
+  loadNotes(); showTab(${firstKey});
 <\/script>
 </body>
 </html>`;
