@@ -19,7 +19,7 @@ Apri direttamente da GitHub Pages → [`scheda.html`](./scheda.html)
 | [`istruzioni_template.html`](./istruzioni_template.html) | Guida per gli istruttori + scarica il template |
 | [`template_scheda.csv`](./template_scheda.csv) | Template CSV da compilare in Excel / Google Sheets |
 | [`genera_scheda.py`](./genera_scheda.py) | Convertitore da riga di comando (Python) |
-| [`scheda.html`](./scheda.html) | Esempio di scheda generata (Artibani Francesco) |
+| [`scheda.html`](./scheda.html) | Esempio di scheda generata (Mario Rossi) |
 
 ---
 
