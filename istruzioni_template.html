@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Istruzioni Template Scheda Palestra</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.6; }
+  h1 { color: #1e3a5f; border-bottom: 3px solid #1e3a5f; padding-bottom: 10px; }
+  h2 { color: #1e3a5f; margin-top: 32px; }
+  h3 { color: #374151; }
+  .step { background: #f0f7ff; border-left: 4px solid #3b82f6; padding: 14px 18px; margin: 16px 0; border-radius: 0 8px 8px 0; }
+  .step strong { display: block; margin-bottom: 6px; font-size: 1.05rem; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 0.9rem; }
+  th { background: #1e3a5f; color: white; padding: 10px 12px; text-align: left; }
+  td { border: 1px solid #d1d5db; padding: 8px 12px; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  .section-row td { background: #fef3c7; font-style: italic; font-weight: bold; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; margin: 2px; }
+  .badge.series { background: #dbeafe; color: #1e40af; }
+  .badge.rest   { background: #d1fae5; color: #065f46; }
+  .badge.load   { background: #fce7f3; color: #9d174d; }
+  .warn { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  .warn::before { content: "⚠️ "; }
+  .ok { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  .ok::before { content: "✅ "; }
+  code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+  .params-table td:first-child { font-family: monospace; background: #f3f4f6; }
+  @media print {
+    .no-print { display: none; }
+    body { margin: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🏋️ Istruzioni: Come creare una scheda per l'app</h1>
+<p>
+  Questa guida spiega come compilare il file <strong>template_scheda.csv</strong> per produrre una scheda
+  che, una volta convertita con <em>converter.html</em>, diventa un'app mobile pronta per il tuo cliente.
+</p>
+
+<div class="ok no-print" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+  <a href="editor_scheda.html" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;">✏️ Apri Editor guidato</a>
+  <a href="template_scheda.csv" download style="display:inline-flex;align-items:center;gap:6px;background:#1e3a5f;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;">⬇️ Scarica template CSV</a>
+  <span style="font-size:0.82rem;color:#374151;">L'editor è il modo più semplice per creare la scheda</span>
+</div>
+
+<h2>1. Strumenti necessari</h2>
+<div class="step">
+  <strong>Apri il CSV con uno di questi programmi:</strong>
+  <ul>
+    <li><strong>Google Sheets</strong> — File → Importa → seleziona il CSV (separatore virgola)</li>
+    <li><strong>Microsoft Excel</strong> — apri direttamente il file .csv</li>
+    <li><strong>LibreOffice Calc</strong> — apri il file, seleziona separatore "virgola"</li>
+  </ul>
+</div>
+
+<h2>2. Struttura del file — le 5 colonne</h2>
+<table>
+  <tr>
+    <th>A — Esercizio</th>
+    <th>B — Prog A</th>
+    <th>C — Prog B</th>
+    <th>D — Prog C</th>
+    <th>E — Link</th>
+  </tr>
+  <tr class="section-row">
+    <td><em>(vuota)</em></td>
+    <td>Warm-up</td>
+    <td><em>(vuota)</em></td>
+    <td><em>(vuota)</em></td>
+    <td><em>(vuota)</em></td>
+  </tr>
+  <tr>
+    <td>Squat</td>
+    <td>3x10 60%</td>
+    <td>4x8 70%</td>
+    <td>4x6 80%</td>
+    <td>https://youtube.com/...</td>
+  </tr>
+  <tr>
+    <td>Affondi</td>
+    <td>3x12 BW</td>
+    <td>3x12 BW</td>
+    <td>3x10 BW</td>
+    <td></td>
+  </tr>
+</table>
+
+<div class="warn">
+  La <strong>prima riga del file</strong> deve contenere esattamente la parola <code>Esercizio</code> nella colonna A.
+  Non rinominarla.
+</div>
+
+<h2>3. Come aggiungere una sezione (gruppo di esercizi)</h2>
+<p>
+  Per creare un'intestazione di sezione (es. "Parte Inferiore", "Warm-up"):
+</p>
+<ul>
+  <li>Colonna A: <strong>lascia vuota</strong></li>
+  <li>Colonna B: scrivi il <strong>nome della sezione</strong></li>
+  <li>Colonne C, D, E: <strong>lascia vuote</strong></li>
+</ul>
+<p>I colori delle sezioni nell'app vengono assegnati automaticamente in base al nome:</p>
+<table>
+  <tr><th>Nome contiene…</th><th>Colore nell'app</th></tr>
+  <tr><td>warm, riscaldamento</td><td>🟡 Giallo</td></tr>
+  <tr><td>inferior, basso, gambe, leg</td><td>🔵 Blu</td></tr>
+  <tr><td>superior, alto, petto, schiena, spalle, braccia</td><td>🟣 Viola</td></tr>
+  <tr><td>qualsiasi altro nome</td><td>🟢 Verde</td></tr>
+</table>
+
+<h2>4. Formato dei parametri (colonne B, C, D)</h2>
+<p>Il converter riconosce automaticamente tutti questi formati — puoi usare quello che preferisci:</p>
+
+<h3>Serie × Ripetizioni</h3>
+<table class="params-table">
+  <tr><th>Formato</th><th>Esempio</th><th>Badge generato</th></tr>
+  <tr><td>NxM (standard)</td><td>3x10</td><td><span class="badge series">3 × 10 serie</span></td></tr>
+  <tr><td>N serie x M</td><td>3 serie x 10</td><td><span class="badge series">3 × 10 serie</span></td></tr>
+  <tr><td>N set x M</td><td>4 set x 8</td><td><span class="badge series">4 × 8 serie</span></td></tr>
+  <tr><td>M rip x N serie (invertito)</td><td>10 rip x 3 serie</td><td><span class="badge series">3 × 10 serie</span></td></tr>
+  <tr><td>Solo serie</td><td>3 serie</td><td><span class="badge series">3 serie</span></td></tr>
+  <tr><td>Solo ripetizioni</td><td>10 ripetizioni</td><td><span class="badge series">× 10 rip</span></td></tr>
+  <tr><td>AMRAP</td><td>AMRAP 5min</td><td><span class="badge series">AMRAP 5min</span></td></tr>
+  <tr><td>EMOM</td><td>EMOM 10min</td><td><span class="badge series">EMOM 10min</span></td></tr>
+  <tr><td>elastic band</td><td>elastic band x3</td><td><span class="badge series">Elastic band × 3</span></td></tr>
+  <tr><td>sfinimento</td><td>3x sfinimento</td><td><span class="badge series">× 3 serie</span> <span class="badge load">a sfinimento</span></td></tr>
+</table>
+
+<h3>Recupero</h3>
+<table class="params-table">
+  <tr><th>Formato</th><th>Esempio</th><th>Badge generato</th></tr>
+  <tr><td>R30" / 30"</td><td>R45"</td><td><span class="badge rest">⏱ 45"</span></td></tr>
+  <tr><td>NNs / NNsec / NN secondi</td><td>30sec</td><td><span class="badge rest">⏱ 30"</span></td></tr>
+  <tr><td>Nmin</td><td>1min</td><td><span class="badge rest">⏱ 1'00"</span></td></tr>
+  <tr><td>Nmin NNs / N:NN / N'NN"</td><td>1min30s</td><td><span class="badge rest">⏱ 1'30"</span></td></tr>
+</table>
+
+<h3>Carico</h3>
+<table class="params-table">
+  <tr><th>Formato</th><th>Esempio</th><th>Badge generato</th></tr>
+  <tr><td>PP%</td><td>70%</td><td><span class="badge load">70%</span></td></tr>
+  <tr><td>NNkg / NN kg</td><td>20 kg</td><td><span class="badge load">20 kg</span></td></tr>
+  <tr><td>NNlbs / NN lb</td><td>45 lbs</td><td><span class="badge load">45 lbs</span></td></tr>
+  <tr><td>BW / peso corporeo</td><td>BW</td><td><span class="badge load">BW</span></td></tr>
+  <tr><td>RPE N</td><td>RPE 8</td><td><span class="badge load">RPE 8</span></td></tr>
+  <tr><td>RIR N</td><td>RIR 2</td><td><span class="badge load">RIR 2</span></td></tr>
+</table>
+
+<div class="ok">
+  Puoi <strong>combinare</strong> più formati nella stessa cella: es. <code>3x10 70% R60"</code> →
+  <span class="badge series">3 × 10 serie</span> <span class="badge load">70%</span> <span class="badge rest">⏱ 60"</span><br>
+  Se nessun formato viene riconosciuto, il testo viene mostrato così com'è.
+</div>
+
+<div class="ok">
+  Un esercizio può avere parametri diversi per i 3 programmi (A, B, C).
+  Se per un programma l'esercizio <strong>non è previsto</strong>, lascia la cella vuota.
+</div>
+
+<h2>5. Link video (colonna E)</h2>
+<p>
+  Inserisci un URL completo che inizia con <code>https://</code>.
+  Se presente, nell'app apparirà un pulsante <strong>▶ Video</strong>.
+  Lascia vuota se non hai un video di riferimento.
+</p>
+
+<h2>6. Esportare come PDF</h2>
+<div class="step">
+  <strong>Google Sheets:</strong>
+  File → Scarica → PDF → imposta orientamento <em>Orizzontale</em> → scarica
+</div>
+<div class="step">
+  <strong>Microsoft Excel:</strong>
+  File → Esporta → Crea PDF/XPS → Salva
+</div>
+<div class="step">
+  <strong>LibreOffice Calc:</strong>
+  File → Esporta come PDF → Esporta
+</div>
+
+<div class="warn">
+  Assicurati che tutte le 5 colonne siano <strong>visibili</strong> nel PDF (non tagliate).
+  Usa orientamento <strong>Orizzontale</strong> se necessario.
+  Evita di unire celle o usare layout multi-colonna.
+</div>
+
+<h2>7. Convertire il PDF nell'app</h2>
+<ol>
+  <li>Apri <strong>converter.html</strong> nel browser</li>
+  <li>Trascina il PDF appena creato</li>
+  <li>Clicca <strong>⬇️ Scarica HTML</strong></li>
+  <li>Invia il file HTML al tuo cliente — si apre direttamente dal telefono</li>
+</ol>
+
+<h2>Esempio completo</h2>
+<table>
+  <tr>
+    <th>Esercizio</th><th>Prog A</th><th>Prog B</th><th>Prog C</th><th>Link</th>
+  </tr>
+  <tr class="section-row">
+    <td></td><td>Warm-up</td><td></td><td></td><td></td>
+  </tr>
+  <tr><td>Cyclette</td><td>5' bassa intensità</td><td>5' bassa intensità</td><td>5' bassa intensità</td><td></td></tr>
+  <tr><td>Hip Circles</td><td>2x10</td><td>2x10</td><td>2x10</td><td>https://youtube.com/...</td></tr>
+  <tr class="section-row">
+    <td></td><td>Parte Inferiore</td><td></td><td></td><td></td>
+  </tr>
+  <tr><td>Squat</td><td>3x10 60%</td><td>4x8 70%</td><td>4x6 80%</td><td>https://youtube.com/...</td></tr>
+  <tr><td>Leg Press</td><td>3x12 BW</td><td>3x10 60%</td><td>4x8 70%</td><td>https://youtube.com/...</td></tr>
+  <tr><td>Leg Curl</td><td>3x12 R30"</td><td>3x12 R30"</td><td>3x10 R45"</td><td>https://youtube.com/...</td></tr>
+</table>
+
+<footer style="margin-top:48px; padding-top:16px; border-top:1px solid #e5e7eb; font-size:0.8rem; color:#6b7280; text-align:center;">
+  Scheda Palestra Converter · Istruzioni per insegnanti
+</footer>
+
+</body>
+</html>

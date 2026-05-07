@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Scheda Palestra – Artibani Francesco</title>
+<style>
+  :root {
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --primary: #1e3a5f;
+    --accent-a: #2563eb;
+    --accent-b: #16a34a;
+    --accent-c: #dc2626;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --warmup: #f59e0b;
+    --lower: #3b82f6;
+    --upper: #8b5cf6;
+    --misc: #10b981;
+    --badge-bg: #f3f4f6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--primary);
+    color: white;
+    padding: 16px 16px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  header p {
+    font-size: 0.8rem;
+    opacity: 0.75;
+    margin-top: 2px;
+  }
+
+  .tabs {
+    display: flex;
+    margin-top: 12px;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 10px 8px;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.65);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+
+  .tab-btn.active-a { color: white; border-color: #60a5fa; }
+  .tab-btn.active-b { color: white; border-color: #4ade80; }
+  .tab-btn.active-c { color: white; border-color: #f87171; }
+
+  .panel { display: none; padding: 12px 12px 80px; }
+  .panel.active { display: block; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 18px 0 10px;
+  }
+
+  .section-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .section-header h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    border-left: 4px solid var(--border);
+  }
+
+  .card.warmup  { border-left-color: var(--warmup); }
+  .card.lower   { border-left-color: var(--lower); }
+  .card.upper   { border-left-color: var(--upper); }
+  .card.misc    { border-left-color: var(--misc); }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .exercise-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.3;
+    flex: 1;
+  }
+
+  .yt-btn {
+    background: #ff0000;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 8px 0;
+  }
+
+  .badge {
+    background: var(--badge-bg);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .badge.series { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+  .badge.rest   { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+  .badge.load   { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+
+  .note-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 10px;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  .note-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    background: #fafafa;
+    color: var(--text);
+    resize: none;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    min-height: 38px;
+  }
+
+  .note-input:focus {
+    outline: none;
+    border-color: #93c5fd;
+    background: white;
+  }
+
+  .footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    background: white;
+    border-top: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 99;
+  }
+
+  .footer-bar small {
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  .reset-btn:active { background: #fee2e2; }
+
+  .saved-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #d1d5db;
+    transition: background 0.4s;
+    display: inline-block;
+    margin-left: 6px;
+  }
+  .saved-dot.saved { background: #22c55e; }
+
+  /* ── SAVE BUTTON ── */
+  .save-btn {
+    background: #16a34a;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .save-btn:active { background: #15803d; }
+
+  /* ── STORICO ── */
+  #panel-storico { padding: 12px 12px 80px; }
+
+  .storico-empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 20px;
+    font-size: 0.9rem;
+  }
+
+  .session-card {
+    background: var(--card);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    overflow: hidden;
+  }
+
+  .session-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .session-header:active { background: #f9fafb; }
+
+  .session-meta { flex: 1; }
+  .session-date { font-size: 0.9rem; font-weight: 700; }
+  .session-sub  { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  .prog-badge {
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: white;
+    margin-right: 8px;
+  }
+  .prog-badge.a { background: var(--accent-a); }
+  .prog-badge.b { background: var(--accent-b); }
+  .prog-badge.c { background: var(--accent-c); }
+
+  .chevron {
+    font-size: 0.8rem;
+    color: var(--muted);
+    transition: transform 0.2s;
+  }
+  .chevron.open { transform: rotate(180deg); }
+
+  .session-body {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 10px 14px 14px;
+  }
+  .session-body.open { display: block; }
+
+  .session-ex {
+    padding: 7px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .session-ex:last-child { border-bottom: none; }
+
+  .session-ex-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .session-ex-note {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .del-session-btn {
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    color: #9ca3af;
+  }
+
+  /* ── PROGRESSIONE MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal-sheet {
+    background: white;
+    border-radius: 18px 18px 0 0;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 20px 16px 40px;
+  }
+
+  .modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .modal-close {
+    float: right;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 28px;
+    text-align: center;
+  }
+
+  .prog-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .prog-row:last-child { border-bottom: none; }
+
+  .prog-row-date {
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: nowrap;
+    padding-top: 2px;
+    min-width: 80px;
+  }
+
+  .prog-row-note {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .tab-btn.active-storico { color: white; border-color: #f59e0b; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏋️ Scheda Allenamento</h1>
+  <p>Settimana 1–6 · Artibani Francesco · physioshoulder.it</p>
+  <div class="tabs">
+    <button class="tab-btn" id="tab-a" onclick="showTab('a')">Prog. A</button>
+    <button class="tab-btn" id="tab-b" onclick="showTab('b')">Prog. B</button>
+    <button class="tab-btn" id="tab-c" onclick="showTab('c')">Prog. C</button>
+    <button class="tab-btn" id="tab-storico" onclick="showTab('storico')">📊 Storico</button>
+  </div>
+</header>
+
+<!-- ======================== PROGRAMMA A ======================== -->
+<div class="panel" id="panel-a">
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--warmup)"></div>
+    <h2>Warm-up</h2>
+  </div>
+
+  <!-- Bike -->
+  <div class="card warmup" id="a-bike">
+    <div class="card-top">
+      <span class="exercise-name">🚲 Bike 5'</span>
+    </div>
+    <div class="badges">
+      <span class="badge series">70w</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. completato, 75w…" oninput="saveNote('a-bike',this.value)"></textarea>
+  </div>
+
+  <!-- Good morning -->
+  <div class="card warmup" id="a-good-morning">
+    <div class="card-top">
+      <span class="exercise-name">Good morning</span>
+      <a class="yt-btn" href="https://www.youtube.com/watch?v=YA-h3n9L4YU" target="_blank">▶ Video</a>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. BW, note tecniche…" oninput="saveNote('a-good-morning',this.value)"></textarea>
+  </div>
+
+  <!-- Quadruped Reach Through -->
+  <div class="card warmup" id="a-quadruped">
+    <div class="card-top">
+      <span class="exercise-name">Quadruped Reach Through</span>
+      <a class="yt-btn" href="https://youtu.be/f4EE_a_bVDE?si=BR3Y_TuOHhHNbFNz" target="_blank">▶ Video</a>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('a-quadruped',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--lower)"></div>
+    <h2>Parte Inferiore dominante</h2>
+  </div>
+
+  <!-- Front Squat Smith -->
+  <div class="card lower" id="a-front-squat">
+    <div class="card-top">
+      <span class="exercise-name">Front Squat Smith machine</span>
+      <a class="yt-btn" href="https://youtu.be/DIrbREWqofE?si=syQFBjI0sYWoVvpX" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8 × 4 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">65%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 60 kg, note…" oninput="saveNote('a-front-squat',this.value)"></textarea>
+  </div>
+
+  <!-- Romanian Deadlift -->
+  <div class="card lower" id="a-rdl">
+    <div class="card-top">
+      <span class="exercise-name">Romanian Deadlift</span>
+      <a class="yt-btn" href="https://youtu.be/bT5OOBgY4bc?si=t-BjAA0NGtOyqUQO" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">10 × 4 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">75%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 80 kg…" oninput="saveNote('a-rdl',this.value)"></textarea>
+  </div>
+
+  <!-- Back extension -->
+  <div class="card lower" id="a-back-ext">
+    <div class="card-top">
+      <span class="exercise-name">Back extension</span>
+      <a class="yt-btn" href="https://youtu.be/nk7x3eZgsmM?si=98NlbH-qJojsj0y3" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">10 × 3 serie</span>
+      <span class="badge rest">⏱ R60"</span>
+      <span class="badge load">10 kg o +</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 15 kg…" oninput="saveNote('a-back-ext',this.value)"></textarea>
+  </div>
+
+  <!-- Seated Calf Raise -->
+  <div class="card lower" id="a-calf-seated">
+    <div class="card-top">
+      <span class="exercise-name">Seated Calf Raise</span>
+      <a class="yt-btn" href="https://youtu.be/HSGjUouQZCQ?si=XEYUFEJ-j6frOB8D" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">15 × 3 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 40 kg…" oninput="saveNote('a-calf-seated',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--upper)"></div>
+    <h2>Parte Superiore dominante</h2>
+  </div>
+
+  <!-- Pull apart -->
+  <div class="card upper" id="a-pull-apart">
+    <div class="card-top">
+      <span class="exercise-name">Pull apart (warm-up)</span>
+      <a class="yt-btn" href="https://youtu.be/eZwnwWMkEL4?si=JVttlfOovHc5mQkd" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">Elastic band × 30</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('a-pull-apart',this.value)"></textarea>
+  </div>
+
+  <!-- Inclined DB bench press -->
+  <div class="card upper" id="a-incl-bench">
+    <div class="card-top">
+      <span class="exercise-name">Inclined DB bench press</span>
+      <a class="yt-btn" href="https://youtu.be/LUxWvGRpwrk?si=b4cvckmBmOWxLlLY" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8 × 5 serie</span>
+      <span class="badge rest">⏱ R45"</span>
+      <span class="badge load">60%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 22 kg…" oninput="saveNote('a-incl-bench',this.value)"></textarea>
+  </div>
+
+  <!-- Lat machine wide grip -->
+  <div class="card upper" id="a-lat-machine">
+    <div class="card-top">
+      <span class="exercise-name">Lat machine (wide grip)</span>
+      <a class="yt-btn" href="https://youtu.be/7JnP8dFbS14?si=YdRz5UmHbRjZPtjI" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">× 3 serie</span>
+      <span class="badge load">a sfinimento</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 50 kg, rip…" oninput="saveNote('a-lat-machine',this.value)"></textarea>
+  </div>
+
+  <!-- Single arm DB Rows -->
+  <div class="card upper" id="a-db-rows">
+    <div class="card-top">
+      <span class="exercise-name">Single arm DB Rows</span>
+      <a class="yt-btn" href="https://youtu.be/ZRSGpBUVcNw?si=7jsJFT1EzZXae3K9" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8+8 × 5 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">60%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 24 kg…" oninput="saveNote('a-db-rows',this.value)"></textarea>
+  </div>
+
+  <!-- Triceps pushdown -->
+  <div class="card upper" id="a-triceps">
+    <div class="card-top">
+      <span class="exercise-name">Triceps pushdown</span>
+      <a class="yt-btn" href="https://youtu.be/LXkCrxn3caQ?si=KznMsmjKzENtPlsk" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">12 × 3 serie</span>
+      <span class="badge rest">⏱ 30"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 20 kg…" oninput="saveNote('a-triceps',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--misc)"></div>
+    <h2>Complementari / Misc</h2>
+  </div>
+
+  <!-- Barbell Rollout -->
+  <div class="card misc" id="a-rollout">
+    <div class="card-top">
+      <span class="exercise-name">Barbell Rollout</span>
+      <a class="yt-btn" href="https://youtu.be/3C1TRMJveXo?si=YDyRuHjtcNgWwr6F" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8 × 4 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">BW</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('a-rollout',this.value)"></textarea>
+  </div>
+
+</div><!-- /panel-a -->
+
+<!-- ======================== PROGRAMMA B ======================== -->
+<div class="panel" id="panel-b">
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--warmup)"></div>
+    <h2>Warm-up</h2>
+  </div>
+
+  <!-- Bike B -->
+  <div class="card warmup" id="b-bike">
+    <div class="card-top">
+      <span class="exercise-name">🚲 Bike 5'</span>
+    </div>
+    <div class="badges">
+      <span class="badge series">40w · 2' / 90w · 30"</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('b-bike',this.value)"></textarea>
+  </div>
+
+  <!-- Good morning B -->
+  <div class="card warmup" id="b-good-morning">
+    <div class="card-top">
+      <span class="exercise-name">Good morning</span>
+      <a class="yt-btn" href="https://www.youtube.com/watch?v=YA-h3n9L4YU" target="_blank">▶ Video</a>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('b-good-morning',this.value)"></textarea>
+  </div>
+
+  <!-- Scorpion B -->
+  <div class="card warmup" id="b-scorpion">
+    <div class="card-top">
+      <span class="exercise-name">Scorpion</span>
+      <a class="yt-btn" href="https://www.youtube.com/watch?v=7GjzFFdUnQQ" target="_blank">▶ Video</a>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('b-scorpion',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--lower)"></div>
+    <h2>Parte Inferiore dominante</h2>
+  </div>
+
+  <!-- Sissy Squat -->
+  <div class="card lower" id="b-sissy-squat">
+    <div class="card-top">
+      <span class="exercise-name">Sissy Squat</span>
+      <a class="yt-btn" href="https://www.youtube.com/watch?v=VUiFlZ2FsKA" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">12 × 3 serie</span>
+      <span class="badge rest">⏱ R60"</span>
+      <span class="badge load">BW</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('b-sissy-squat',this.value)"></textarea>
+  </div>
+
+  <!-- DB alternate Forward Lunges -->
+  <div class="card lower" id="b-lunges">
+    <div class="card-top">
+      <span class="exercise-name">DB alternate Forward Lunges</span>
+      <a class="yt-btn" href="https://youtu.be/t7DBjlOTwAk?si=njq8cylp0qktkPn4" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8+8 × 4 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 16 kg…" oninput="saveNote('b-lunges',this.value)"></textarea>
+  </div>
+
+  <!-- Seated leg curl -->
+  <div class="card lower" id="b-leg-curl">
+    <div class="card-top">
+      <span class="exercise-name">Seated leg curl</span>
+      <a class="yt-btn" href="https://youtu.be/UqeOB0jve20?si=WuF2V74p4cY4IHag" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">15 × 2 serie</span>
+      <span class="badge rest">⏱ R45"</span>
+      <span class="badge load">70%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 35 kg…" oninput="saveNote('b-leg-curl',this.value)"></textarea>
+  </div>
+
+  <!-- Standing Calf Raise -->
+  <div class="card lower" id="b-calf-standing">
+    <div class="card-top">
+      <span class="exercise-name">Standing Calf Raise</span>
+      <a class="yt-btn" href="https://youtu.be/g_E7_q1z2bo?si=G7gqvUtKoTkOzy5I" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">10 × 3 serie</span>
+      <span class="badge rest">⏱ 30"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 60 kg…" oninput="saveNote('b-calf-standing',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--upper)"></div>
+    <h2>Parte Superiore dominante</h2>
+  </div>
+
+  <!-- Pull apart B -->
+  <div class="card upper" id="b-pull-apart">
+    <div class="card-top">
+      <span class="exercise-name">Pull apart (warm-up)</span>
+      <a class="yt-btn" href="https://youtu.be/eZwnwWMkEL4?si=JVttlfOovHc5mQkd" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">Elastic band × 30</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('b-pull-apart',this.value)"></textarea>
+  </div>
+
+  <!-- Landmine press -->
+  <div class="card upper" id="b-landmine">
+    <div class="card-top">
+      <span class="exercise-name">Landmine press</span>
+      <a class="yt-btn" href="https://youtu.be/9OW4SONxuGI?si=L3RkCL5pxXYTU6TE" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8 × 4 serie</span>
+      <span class="badge rest">⏱ 90"</span>
+      <span class="badge load">65%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 30 kg…" oninput="saveNote('b-landmine',this.value)"></textarea>
+  </div>
+
+  <!-- Seated close grip cable row -->
+  <div class="card upper" id="b-cable-row">
+    <div class="card-top">
+      <span class="exercise-name">Seated close grip cable row</span>
+      <a class="yt-btn" href="https://youtu.be/SLOtxuaStoQ?si=Wb0xtvHWdUuLQPrY" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">12 × 3 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 45 kg…" oninput="saveNote('b-cable-row',this.value)"></textarea>
+  </div>
+
+  <!-- Pull over machine -->
+  <div class="card upper" id="b-pullover">
+    <div class="card-top">
+      <span class="exercise-name">Pull over machine</span>
+      <a class="yt-btn" href="https://youtu.be/zpCCC0iCvdI?si=z7vkwTxu_2lnXXL1" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">15 × 3 serie</span>
+      <span class="badge rest">⏱ 45"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 40 kg…" oninput="saveNote('b-pullover',this.value)"></textarea>
+  </div>
+
+  <!-- Cable biceps curls -->
+  <div class="card upper" id="b-biceps">
+    <div class="card-top">
+      <span class="exercise-name">Cable biceps curls</span>
+      <a class="yt-btn" href="https://youtu.be/rfRdD5PKrko?si=7oEisHmauOrcxHak" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8 × 4 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">65%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 15 kg…" oninput="saveNote('b-biceps',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--misc)"></div>
+    <h2>Complementari / Misc</h2>
+  </div>
+
+  <!-- Turkish Get up -->
+  <div class="card misc" id="b-turkish">
+    <div class="card-top">
+      <span class="exercise-name">Turkish Get up</span>
+      <a class="yt-btn" href="https://youtu.be/-_zTytmHM94?si=fpWB9q9sQg8c4bRQ" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8+8 × 5 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">8 kg o +</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 10 kg…" oninput="saveNote('b-turkish',this.value)"></textarea>
+  </div>
+
+</div><!-- /panel-b -->
+
+<!-- ======================== PROGRAMMA C ======================== -->
+<div class="panel" id="panel-c">
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--warmup)"></div>
+    <h2>Warm-up</h2>
+  </div>
+
+  <!-- Bike C -->
+  <div class="card warmup" id="c-bike">
+    <div class="card-top">
+      <span class="exercise-name">🚲 Bike 5'</span>
+    </div>
+    <div class="badges">
+      <span class="badge series">70w</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('c-bike',this.value)"></textarea>
+  </div>
+
+  <!-- Quadruped C -->
+  <div class="card warmup" id="c-quadruped">
+    <div class="card-top">
+      <span class="exercise-name">Quadruped Reach Through</span>
+      <a class="yt-btn" href="https://youtu.be/f4EE_a_bVDE?si=BR3Y_TuOHhHNbFNz" target="_blank">▶ Video</a>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('c-quadruped',this.value)"></textarea>
+  </div>
+
+  <!-- Scorpion C -->
+  <div class="card warmup" id="c-scorpion">
+    <div class="card-top">
+      <span class="exercise-name">Scorpion</span>
+      <a class="yt-btn" href="https://www.youtube.com/watch?v=7GjzFFdUnQQ" target="_blank">▶ Video</a>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('c-scorpion',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--lower)"></div>
+    <h2>Parte Inferiore dominante</h2>
+  </div>
+
+  <!-- Back Squat -->
+  <div class="card lower" id="c-back-squat">
+    <div class="card-top">
+      <span class="exercise-name">Back Squat</span>
+      <a class="yt-btn" href="https://youtu.be/QcmonZUuumg?si=0UfG06yAx6hrD_jK" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8 × 4 serie</span>
+      <span class="badge rest">⏱ R90"</span>
+      <span class="badge load">75%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 80 kg…" oninput="saveNote('c-back-squat',this.value)"></textarea>
+  </div>
+
+  <!-- BB Deadlift -->
+  <div class="card lower" id="c-deadlift">
+    <div class="card-top">
+      <span class="exercise-name">BB Deadlift</span>
+      <a class="yt-btn" href="https://youtu.be/yPqv3ejnZvc?si=E2D9L_hCjTntx7hk" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">5 × 5 serie</span>
+      <span class="badge rest">⏱ R90"</span>
+      <span class="badge load">80%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 100 kg…" oninput="saveNote('c-deadlift',this.value)"></textarea>
+  </div>
+
+  <!-- Walking lunges -->
+  <div class="card lower" id="c-walk-lunges">
+    <div class="card-top">
+      <span class="exercise-name">Walking lunges</span>
+      <a class="yt-btn" href="https://youtu.be/DlhojghkaQ0?si=g0ZsgkmIM1WoaekM" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">10 × 4 serie</span>
+      <span class="badge rest">⏱ R30"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 20 kg…" oninput="saveNote('c-walk-lunges',this.value)"></textarea>
+  </div>
+
+  <!-- DB Split squat -->
+  <div class="card lower" id="c-split-squat">
+    <div class="card-top">
+      <span class="exercise-name">DB Split squat</span>
+      <a class="yt-btn" href="https://youtu.be/Wcmg-3iHwjQ?si=YMuEAb7s1oObsx2l" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">6+6 × 4 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 18 kg…" oninput="saveNote('c-split-squat',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--upper)"></div>
+    <h2>Parte Superiore dominante</h2>
+  </div>
+
+  <!-- Pull apart C -->
+  <div class="card upper" id="c-pull-apart">
+    <div class="card-top">
+      <span class="exercise-name">Pull apart (warm-up)</span>
+      <a class="yt-btn" href="https://youtu.be/eZwnwWMkEL4?si=JVttlfOovHc5mQkd" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">Elastic band × 30</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('c-pull-apart',this.value)"></textarea>
+  </div>
+
+  <!-- Australian pull up -->
+  <div class="card upper" id="c-aus-pullup">
+    <div class="card-top">
+      <span class="exercise-name">Australian pull up</span>
+      <a class="yt-btn" href="https://www.youtube.com/watch?v=-nn7X16rDG8" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8 × 4 serie</span>
+      <span class="badge rest">⏱ R90"</span>
+      <span class="badge load">BW</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="note…" oninput="saveNote('c-aus-pullup',this.value)"></textarea>
+  </div>
+
+  <!-- Rear delt fly machine -->
+  <div class="card upper" id="c-rear-delt">
+    <div class="card-top">
+      <span class="exercise-name">Rear delt fly machine</span>
+      <a class="yt-btn" href="https://youtu.be/gh0g-BR1koA?si=UjpmzNnKCA1oFn7l" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">10 × 4 serie</span>
+      <span class="badge rest">⏱ 30"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 20 kg…" oninput="saveNote('c-rear-delt',this.value)"></textarea>
+  </div>
+
+  <!-- Croci ai cavi bassi -->
+  <div class="card upper" id="c-croci">
+    <div class="card-top">
+      <span class="exercise-name">Croci ai cavi bassi</span>
+      <a class="yt-btn" href="https://www.youtube.com/watch?v=jzKDCuJVLjo" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">12 × 4 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">50%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 8 kg per lato…" oninput="saveNote('c-croci',this.value)"></textarea>
+  </div>
+
+  <!-- Cable Pull down -->
+  <div class="card upper" id="c-pulldown">
+    <div class="card-top">
+      <span class="exercise-name">Cable Pull down</span>
+      <a class="yt-btn" href="https://youtu.be/vvvNma1AVf0?si=PYkcOrOChi3QSaGl" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">15 × 3 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">40%</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 35 kg…" oninput="saveNote('c-pulldown',this.value)"></textarea>
+  </div>
+
+  <div class="section-header">
+    <div class="section-dot" style="background:var(--misc)"></div>
+    <h2>Complementari / Misc</h2>
+  </div>
+
+  <!-- Side Plank Reach Through -->
+  <div class="card misc" id="c-side-plank">
+    <div class="card-top">
+      <span class="exercise-name">Side Plank Reach Through</span>
+      <a class="yt-btn" href="https://youtu.be/-ruAdV34H54?si=sWNZSE43p5hZ1HVK" target="_blank">▶ Video</a>
+    </div>
+    <div class="badges">
+      <span class="badge series">8+8 × 3 serie</span>
+      <span class="badge rest">⏱ 60"</span>
+      <span class="badge load">2 kg o +</span>
+    </div>
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. 3 kg…" oninput="saveNote('c-side-plank',this.value)"></textarea>
+  </div>
+
+</div><!-- /panel-c -->
+
+<!-- ======================== STORICO ======================== -->
+<div class="panel" id="panel-storico">
+  <div id="storico-content">
+    <div class="storico-empty">
+      <div style="font-size:2.5rem;margin-bottom:12px">📋</div>
+      <strong>Nessun allenamento salvato</strong><br>
+      <span style="font-size:0.8rem">Completa un allenamento e premi "Salva allenamento"</span>
+    </div>
+  </div>
+</div>
+
+<!-- Progressione modal -->
+<div class="modal-overlay" id="prog-modal" onclick="closeProgModal(event)">
+  <div class="modal-sheet" id="prog-sheet">
+    <button class="modal-close" onclick="document.getElementById('prog-modal').classList.remove('open')">✕</button>
+    <div class="modal-title" id="prog-modal-title"></div>
+    <div style="font-size:0.75rem;color:var(--muted);margin-bottom:14px" id="prog-modal-sub"></div>
+    <div id="prog-modal-body"></div>
+  </div>
+</div>
+
+<div class="footer-bar" id="footer-bar">
+  <small>Note salvate automaticamente <span class="saved-dot" id="saved-dot"></span></small>
+  <button class="save-btn" onclick="saveWorkout()">💾 Salva allenamento</button>
+  <button class="reset-btn" onclick="resetNotes()">🗑</button>
+</div>
+
+<script>
+  const NOTES_KEY   = 'palestra_notes_v1';
+  const HISTORY_KEY = 'palestra_history_v1';
+
+  let notes = {};
+  let currentTab = 'a';
+
+  // ── Exercise name map (id → display name) ──
+  const EX_NAMES = {};
+  document.querySelectorAll('.card[id]').forEach(card => {
+    const name = card.querySelector('.exercise-name');
+    if (name) EX_NAMES[card.id] = name.textContent.trim();
+  });
+
+  // ── Notes (scratch pad) ──
+  function loadNotes() {
+    try { notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); }
+    catch(e) { notes = {}; }
+    document.querySelectorAll('.note-input').forEach(el => {
+      const id = el.closest('.card').id;
+      if (notes[id]) el.value = notes[id];
+    });
+  }
+
+  let saveTimer = null;
+  function saveNote(id, value) {
+    if (value.trim() === '') delete notes[id]; else notes[id] = value;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+      const dot = document.getElementById('saved-dot');
+      dot.classList.add('saved');
+      setTimeout(() => dot.classList.remove('saved'), 1500);
+    }, 500);
+  }
+
+  function resetNotes() {
+    if (!confirm('Azzera le note del workout corrente?')) return;
+    notes = {};
+    localStorage.removeItem(NOTES_KEY);
+    document.querySelectorAll('.note-input').forEach(el => el.value = '');
+  }
+
+  // ── Save workout to history ──
+  function saveWorkout() {
+    const hasNotes = Object.values(notes).some(v => v.trim() !== '');
+    if (!hasNotes) { alert('Nessuna nota da salvare. Aggiungi prima i pesi usati!'); return; }
+
+    const prog = currentTab.toUpperCase();
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('it-IT', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+    const timeStr = now.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+
+    const session = {
+      id:      now.getTime(),
+      date:    dateStr,
+      time:    timeStr,
+      program: prog,
+      notes:   { ...notes }
+    };
+
+    let history = loadHistory();
+    history.unshift(session);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+
+    // Clear scratch notes
+    notes = {};
+    localStorage.removeItem(NOTES_KEY);
+    document.querySelectorAll('.note-input').forEach(el => el.value = '');
+
+    alert(`✅ Allenamento Programma ${prog} salvato!\n${dateStr} alle ${timeStr}`);
+    renderHistoryPanel();
+  }
+
+  // ── Load history ──
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch(e) { return []; }
+  }
+
+  // ── Render storico panel ──
+  function renderHistoryPanel() {
+    const history = loadHistory();
+    const container = document.getElementById('storico-content');
+
+    if (history.length === 0) {
+      container.innerHTML = `<div class="storico-empty">
+        <div style="font-size:2.5rem;margin-bottom:12px">📋</div>
+        <strong>Nessun allenamento salvato</strong><br>
+        <span style="font-size:0.8rem">Completa un allenamento e premi "Salva allenamento"</span>
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = history.map((s, idx) => {
+      const exercisesWithNotes = Object.entries(s.notes).filter(([,v]) => v.trim() !== '');
+      const rows = exercisesWithNotes.map(([id, val]) => `
+        <div class="session-ex" onclick="showProgression('${id}')" style="cursor:pointer">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="session-ex-name">${EX_NAMES[id] || id}</span>
+            <span style="font-size:0.7rem;color:#93c5fd">progressione ▸</span>
+          </div>
+          <div class="session-ex-note">${escHtml(val)}</div>
+        </div>`).join('');
+
+      return `<div class="session-card">
+        <div class="session-header" onclick="toggleSession('sess-${s.id}')">
+          <div class="session-meta">
+            <div class="session-date">${s.date} · ${s.time}</div>
+            <div class="session-sub">${exercisesWithNotes.length} esercizi annotati</div>
+          </div>
+          <span class="prog-badge ${s.program.toLowerCase()}">Prog. ${s.program}</span>
+          <span class="chevron" id="chev-${s.id}">▼</span>
+          <button class="del-session-btn" onclick="deleteSession(event, ${s.id})">🗑</button>
+        </div>
+        <div class="session-body" id="sess-${s.id}">
+          ${rows || '<div style="color:var(--muted);font-size:0.8rem;padding:6px 0">Nessuna nota per questa sessione</div>'}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function toggleSession(bodyId) {
+    const body = document.getElementById(bodyId);
+    const sessId = bodyId.replace('sess-','');
+    const chev = document.getElementById('chev-' + sessId);
+    body.classList.toggle('open');
+    if (chev) chev.classList.toggle('open');
+  }
+
+  function deleteSession(e, id) {
+    e.stopPropagation();
+    if (!confirm('Eliminare questo allenamento dallo storico?')) return;
+    let history = loadHistory().filter(s => s.id !== id);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    renderHistoryPanel();
+  }
+
+  // ── Progressione esercizio ──
+  function showProgression(exId) {
+    const history = loadHistory();
+    const entries = history
+      .filter(s => s.notes[exId] && s.notes[exId].trim() !== '')
+      .map(s => ({ date: s.date + ' ' + s.time, prog: s.program, note: s.notes[exId] }));
+
+    document.getElementById('prog-modal-title').textContent = EX_NAMES[exId] || exId;
+    document.getElementById('prog-modal-sub').textContent = `${entries.length} allenament${entries.length===1?'o':'i'} registrat${entries.length===1?'o':'i'}`;
+
+    if (entries.length === 0) {
+      document.getElementById('prog-modal-body').innerHTML = '<p style="color:var(--muted);font-size:0.85rem">Nessun dato storico per questo esercizio.</p>';
+    } else {
+      document.getElementById('prog-modal-body').innerHTML = entries.map(e => `
+        <div class="prog-row">
+          <div class="prog-row-date">${e.date}<br><span class="prog-badge ${e.prog.toLowerCase()}" style="font-size:0.65rem;padding:1px 6px">Prog. ${e.prog}</span></div>
+          <div class="prog-row-note">${escHtml(e.note)}</div>
+        </div>`).join('');
+    }
+
+    document.getElementById('prog-modal').classList.add('open');
+  }
+
+  function closeProgModal(e) {
+    if (e.target === document.getElementById('prog-modal'))
+      document.getElementById('prog-modal').classList.remove('open');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Tab navigation ──
+  function showTab(t) {
+    ['a','b','c','storico'].forEach(x => {
+      const panel = document.getElementById('panel-' + x);
+      const btn   = document.getElementById('tab-' + x);
+      if (panel) panel.classList.remove('active');
+      if (btn)   btn.classList.remove('active-a','active-b','active-c','active-storico');
+    });
+    document.getElementById('panel-' + t).classList.add('active');
+    document.getElementById('tab-' + t).classList.add('active-' + t);
+    currentTab = t;
+    // hide save/reset buttons on storico tab
+    const footer = document.getElementById('footer-bar');
+    footer.style.display = (t === 'storico') ? 'none' : 'flex';
+    if (t === 'storico') renderHistoryPanel();
+  }
+
+  // ── Init ──
+  loadNotes();
+  showTab('a');
+</script>
+</body>
+</html>
