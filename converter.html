@@ -370,10 +370,10 @@ async function processFile(file) {
     log('🔍 Estrazione testo dal PDF…');
 
     const texts = await extractTexts(arrayBuffer);
-    log(`✅ Estratti ${texts.length} elementi di testo`, 'ok');
+    log(`✅ Estratti ${texts.texts.length} elementi di testo`, 'ok');
 
     log('📊 Ricostruzione tabella…');
-    const { table, colLabels } = buildTable(texts);
+    const { table, colLabels } = buildTable(texts.texts, texts.links);
     log(`✅ Trovate ${table.length} righe`, 'ok');
 
     log('🧩 Parsing esercizi…');
@@ -412,25 +412,36 @@ async function processFile(file) {
 // ── PDF text extraction ────────────────────────────────────────────────────
 async function extractTexts(arrayBuffer) {
   const pdf  = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const all  = [];
+  const texts = [];
+  const links = []; // {x1, y1, x2, y2, url}
   for (let p = 1; p <= pdf.numPages; p++) {
     const page    = await pdf.getPage(p);
     const content = await page.getTextContent();
     for (const item of content.items) {
       if (!item.str || !item.str.trim()) continue;
-      all.push({
+      texts.push({
         str: item.str.trim(),
         x:   Math.round(item.transform[4] * 10) / 10,
         y:   Math.round(item.transform[5] * 10) / 10,
         w:   item.width
       });
     }
+    // Extract hyperlink annotations (URLs embedded as PDF links, not visible text)
+    try {
+      const annotations = await page.getAnnotations();
+      for (const ann of annotations) {
+        if (ann.subtype === 'Link' && ann.url) {
+          const [x1, y1, x2, y2] = ann.rect;
+          links.push({ x1, y1, x2, y2, url: ann.url });
+        }
+      }
+    } catch (_) { /* annotation extraction is best-effort */ }
   }
-  return all;
+  return { texts, links };
 }
 
 // ── Table reconstruction ───────────────────────────────────────────────────
-function buildTable(texts) {
+function buildTable(texts, links = []) {
   // Group by Y with tolerance ±3 pts
   const TOL = 3;
   const rowMap = {};
@@ -488,10 +499,29 @@ function buildTable(texts) {
     table.push(cells);
   }
 
+  // Inject annotation-based URLs into table cells (handles PDFs where links are
+  // hyperlink annotations rather than visible text)
+  if (links.length > 0) {
+    for (let i = 0; i < table.length; i++) {
+      const rowY = rows[headerIdx + 1 + i].y;
+      for (const lnk of links) {
+        const linkMidY = (lnk.y1 + lnk.y2) / 2;
+        if (Math.abs(linkMidY - rowY) > 10) continue;
+        const linkMidX = (lnk.x1 + lnk.x2) / 2;
+        let colIdx = colDefs.length - 1;
+        for (let b = 0; b < boundaries.length; b++) {
+          if (linkMidX < boundaries[b]) { colIdx = b; break; }
+        }
+        // Inject URL only if cell doesn't already contain a URL
+        if (!/^https?:\/\//i.test((table[i][colIdx] || '').trim())) {
+          table[i][colIdx] = lnk.url;
+        }
+      }
+    }
+  }
+
   return { table, colLabels: colDefs.map(c => c.str) };
 }
-
-// ── Parse table rows into programs ────────────────────────────────────────
 function parseRows(rows, colLabels, baseName) {
   const weeksMatch = rows.flat().join(' ').match(/Settimana[^\n·,]*/i);
   const meta = {
@@ -499,13 +529,17 @@ function parseRows(rows, colLabels, baseName) {
     weeks:  weeksMatch ? weeksMatch[0].trim() : ''
   };
 
-  // Detect link column: last column if header suggests a URL, OR if last column cells contain URLs
+  // Detect link column:
+  // 1. Header contains link/video/youtube/url keyword
+  // 2. OR last column has cells containing URLs (including those injected from PDF annotations)
+  // 3. OR last column has cells that look like URLs (youtu.be, bit.ly, etc.) without https prefix
   const lastHeader = colLabels.length > 1 ? colLabels[colLabels.length - 1] : '';
   const headerSaysLink = /link|video|youtube|youtu|url/i.test(lastHeader);
-  // Also check: do at least some cells in the last column contain URLs?
   const lastColIdx = colLabels.length - 1;
-  const lastColHasUrls = rows.some(r => /^https?:\/\//i.test((r[lastColIdx] || '').trim()));
-  const lastColIsLink = colLabels.length > 1 && (headerSaysLink || lastColHasUrls);
+  const lastColHasUrls = rows.some(r => /https?:\/\/|youtu\.?be|youtube\.com/i.test((r[lastColIdx] || '').trim()));
+  // Also check: last column doesn't look like program params (no digits, no "x", no serie)
+  const lastColLooksLikeProg = rows.some(r => /\d/.test((r[lastColIdx] || '').trim()));
+  const lastColIsLink = colLabels.length > 1 && (headerSaysLink || lastColHasUrls || (!lastColLooksLikeProg && colLabels.length > 2));
   const linkColIdx = lastColIsLink ? colLabels.length - 1 : -1;
 
   // Program columns: everything between col 0 (exercise) and link col (or end)
