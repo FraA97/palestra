@@ -1258,7 +1258,17 @@ try {
 const WORKER_URL = 'https://gymsheet-worker.francescoartibani.workers.dev'; // ← aggiorna
 const TRAINER_KEY_STORAGE = 'gymsheet_trainer_key';
 
+// HTML pre-generato prima di aprire il paywall (come in converter.html)
+let _pendingHtml = null;
+let _pendingFilename = null;
+
 function requestDownload() {
+  // Genera subito l'HTML — se mancano esercizi, mostra il toast e non aprire il paywall
+  const result = getGeneratedHtml();
+  if (!result) return;
+  _pendingHtml     = result.html;
+  _pendingFilename = result.filename;
+
   const savedKey = localStorage.getItem(TRAINER_KEY_STORAGE);
   if (savedKey) {
     document.getElementById('trainer-key-input').value = savedKey;
@@ -1298,23 +1308,22 @@ async function checkTrainerKeyCredits(key, doDownload = false) {
 }
 
 async function downloadWithTrainerKey(key) {
-  const result = getGeneratedHtml();
-  if (!result) return;
+  if (!_pendingHtml) return;
   const btn = document.querySelector('.btn-key-use');
   btn.textContent = 'Download…'; btn.disabled = true;
   try {
     const res = await fetch(`${WORKER_URL}/trainer/download`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, html: result.html, filename: result.filename })
+      body: JSON.stringify({ key, html: _pendingHtml, filename: _pendingFilename })
     });
     if (!res.ok) { const d = await res.json(); alert('❌ ' + (d.error || 'Errore download')); return; }
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = result.filename;
+    a.download = _pendingFilename;
     a.click();
-    showToast('✅ HTML scaricato: ' + result.filename);
+    showToast('✅ HTML scaricato: ' + _pendingFilename);
     closePaywall();
     checkTrainerKeyCredits(key);
   } finally { btn.textContent = 'Usa chiave'; btn.disabled = false; }
@@ -1328,15 +1337,14 @@ function openSinglePayment() {
 async function confirmSinglePayment() {
   const email = document.getElementById('customer-email').value.trim();
   if (!email || !email.includes('@')) return alert("Inserisci un'email valida");
-  const result = getGeneratedHtml();
-  if (!result) return;
+  if (!_pendingHtml) return alert('❌ Nessuna scheda generata. Chiudi il paywall e riprova.');
   const btn = document.querySelector('#email-form button');
   btn.textContent = '…'; btn.disabled = true;
   try {
     const res = await fetch(`${WORKER_URL}/create-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html: result.html, filename: result.filename, email })
+      body: JSON.stringify({ html: _pendingHtml, filename: _pendingFilename, email })
     });
     const data = await res.json();
     if (data.url) window.location.href = data.url;
