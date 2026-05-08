@@ -496,25 +496,29 @@ function buildTable(texts, links = []) {
       }
       cells[colIdx] = (cells[colIdx] + ' ' + item.str).trim();
     }
+    // Post-process: URL-like text that landed in a non-last column gets moved to the last column
+    // This fixes the case where a long URL bleeds into the boundary of the adjacent program column
+    for (let c = 1; c < cells.length - 1; c++) {
+      if (/https?:\/\/|youtu\.?be|youtube\.com/i.test(cells[c])) {
+        if (!cells[cells.length - 1]) cells[cells.length - 1] = cells[c];
+        cells[c] = '';
+      }
+    }
     table.push(cells);
   }
 
   // Inject annotation-based URLs into table cells (handles PDFs where links are
-  // hyperlink annotations rather than visible text)
+  // hyperlink annotations rather than visible text, i.e. no visible URL text)
   if (links.length > 0) {
     for (let i = 0; i < table.length; i++) {
       const rowY = rows[headerIdx + 1 + i].y;
       for (const lnk of links) {
         const linkMidY = (lnk.y1 + lnk.y2) / 2;
         if (Math.abs(linkMidY - rowY) > 10) continue;
-        const linkMidX = (lnk.x1 + lnk.x2) / 2;
-        let colIdx = colDefs.length - 1;
-        for (let b = 0; b < boundaries.length; b++) {
-          if (linkMidX < boundaries[b]) { colIdx = b; break; }
-        }
-        // Inject URL only if cell doesn't already contain a URL
-        if (!/^https?:\/\//i.test((table[i][colIdx] || '').trim())) {
-          table[i][colIdx] = lnk.url;
+        // Always inject into the last column (link column), regardless of X position
+        const lastCol = table[i].length - 1;
+        if (!/^https?:\/\//i.test((table[i][lastCol] || '').trim())) {
+          table[i][lastCol] = lnk.url;
         }
       }
     }
@@ -585,16 +589,13 @@ function parseRows(rows, colLabels, baseName) {
     if (!name) continue;
     if (/vietata|copyright|physio/i.test(name)) continue;
 
-    // Resolve the effective link: from link column, or from any progVal that looks like a URL
-    // (handles misassignment when URL text bleeds into adjacent program column)
+    // Resolve the effective link from the link column
     const isUrl = v => /https?:\/\/|youtu\.?be|youtube\.com/i.test(v);
-    const urlInProgs = progVals.find(v => isUrl(v)) || '';
-    const effectiveLink = isUrl(link) ? link : (isUrl(urlInProgs) ? urlInProgs : '');
+    const effectiveLink = isUrl(link) ? link : '';
 
     for (let i = 0; i < progKeys.length; i++) {
       const val = progVals[i];
-      // Skip cells that contain only a URL (misassigned from link column)
-      if (!val || isUrl(val)) continue;
+      if (!val || isUrl(val)) continue; // skip empty or misassigned URL cells
       getSection(progKeys[i]).exercises.push({
         id:     makeId(progKeys[i], name),
         name:   name,
