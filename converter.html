@@ -499,8 +499,13 @@ function parseRows(rows, colLabels, baseName) {
     weeks:  weeksMatch ? weeksMatch[0].trim() : ''
   };
 
-  // Detect link column (last column if header contains 'link')
-  const lastColIsLink = colLabels.length > 1 && /link/i.test(colLabels[colLabels.length - 1]);
+  // Detect link column: last column if header suggests a URL, OR if last column cells contain URLs
+  const lastHeader = colLabels.length > 1 ? colLabels[colLabels.length - 1] : '';
+  const headerSaysLink = /link|video|youtube|youtu|url/i.test(lastHeader);
+  // Also check: do at least some cells in the last column contain URLs?
+  const lastColIdx = colLabels.length - 1;
+  const lastColHasUrls = rows.some(r => /^https?:\/\//i.test((r[lastColIdx] || '').trim()));
+  const lastColIsLink = colLabels.length > 1 && (headerSaysLink || lastColHasUrls);
   const linkColIdx = lastColIsLink ? colLabels.length - 1 : -1;
 
   // Program columns: everything between col 0 (exercise) and link col (or end)
