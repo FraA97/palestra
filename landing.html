@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymSheet — Schede di allenamento digitali</title>
+<style>
+  :root {
+    --primary: #1e3a5f;
+    --green:   #16a34a;
+    --blue:    #2563eb;
+    --bg:      #f5f7fa;
+    --card:    #ffffff;
+    --border:  #e5e7eb;
+    --text:    #1a1a1a;
+    --muted:   #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ── Nav ── */
+  nav {
+    background: var(--primary);
+    color: white;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  nav .logo { font-size: 1.15rem; font-weight: 800; letter-spacing: .5px; }
+  nav .nav-links { display: flex; gap: 12px; }
+  nav a { color: rgba(255,255,255,.85); text-decoration: none; font-size: .88rem; font-weight: 500; }
+  nav a:hover { color: white; }
+  nav .btn-nav { background: var(--green); color: white; padding: 7px 16px; border-radius: 8px; font-weight: 700; font-size: .85rem; }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    color: white;
+    padding: 72px 24px 80px;
+    text-align: center;
+  }
+  .hero h1 { font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 800; line-height: 1.2; margin-bottom: 16px; }
+  .hero p  { font-size: 1.1rem; opacity: .85; max-width: 560px; margin: 0 auto 32px; line-height: 1.6; }
+  .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-hero-primary { background: var(--green); color: white; padding: 14px 28px; border-radius: 12px; font-weight: 800; font-size: 1rem; text-decoration: none; display: inline-block; }
+  .btn-hero-outline { background: transparent; color: white; border: 2px solid rgba(255,255,255,.5); padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 1rem; text-decoration: none; display: inline-block; }
+  .hero-note { margin-top: 20px; font-size: .82rem; opacity: .65; }
+
+  /* ── Section wrapper ── */
+  .section { max-width: 900px; margin: 0 auto; padding: 64px 24px; }
+  .section-title { font-size: 1.6rem; font-weight: 800; text-align: center; margin-bottom: 8px; }
+  .section-sub   { text-align: center; color: var(--muted); margin-bottom: 40px; font-size: 1rem; }
+
+  /* ── Features grid ── */
+  .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; }
+  .feature-card { background: var(--card); border-radius: 14px; padding: 24px; box-shadow: 0 1px 6px rgba(0,0,0,.07); border-left: 4px solid var(--blue); }
+  .feature-icon { font-size: 1.8rem; margin-bottom: 10px; }
+  .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .feature-card p  { font-size: .88rem; color: var(--muted); line-height: 1.5; }
+
+  /* ── How it works ── */
+  .steps { display: flex; flex-direction: column; gap: 16px; max-width: 560px; margin: 0 auto; }
+  .step { display: flex; gap: 16px; align-items: flex-start; background: var(--card); border-radius: 12px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .step-num { background: var(--primary); color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .9rem; flex-shrink: 0; }
+  .step-content h4 { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
+  .step-content p  { font-size: .85rem; color: var(--muted); line-height: 1.4; }
+
+  /* ── Pricing ── */
+  .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; align-items: start; }
+  .pricing-card { background: var(--card); border-radius: 16px; padding: 28px 24px; box-shadow: 0 2px 10px rgba(0,0,0,.08); border: 2px solid var(--border); text-align: center; position: relative; }
+  .pricing-card.featured { border-color: var(--blue); box-shadow: 0 4px 20px rgba(37,99,235,.15); }
+  .pricing-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--blue); color: white; padding: 3px 14px; border-radius: 20px; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+  .pricing-tag { font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; }
+  .pricing-price { font-size: 2.2rem; font-weight: 900; color: var(--primary); line-height: 1; }
+  .pricing-price span { font-size: 1rem; font-weight: 500; color: var(--muted); }
+  .pricing-desc { font-size: .88rem; color: var(--muted); margin: 10px 0 20px; line-height: 1.4; }
+  .pricing-unit { font-size: .78rem; color: #94a3b8; margin-bottom: 20px; }
+  .pricing-features { text-align: left; margin-bottom: 24px; }
+  .pricing-features li { font-size: .85rem; padding: 5px 0; border-bottom: 1px solid #f3f4f6; display: flex; gap: 8px; align-items: flex-start; }
+  .pricing-features li:last-child { border-bottom: none; }
+  .pricing-features li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+  .btn-pricing { display: block; width: 100%; padding: 12px; border-radius: 10px; font-weight: 700; font-size: .95rem; text-align: center; text-decoration: none; cursor: pointer; border: none; }
+  .btn-pricing.primary { background: var(--blue); color: white; }
+  .btn-pricing.green   { background: var(--green); color: white; }
+  .btn-pricing.outline { background: transparent; border: 2px solid var(--border); color: var(--text); }
+
+  /* ── Divider ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+  /* ── Target sections ── */
+  .target-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 600px) { .target-grid { grid-template-columns: 1fr; } }
+  .target-card { background: var(--card); border-radius: 16px; padding: 28px; box-shadow: 0 1px 6px rgba(0,0,0,.07); }
+  .target-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
+  .target-card p  { font-size: .88rem; color: var(--muted); line-height: 1.5; margin-bottom: 16px; }
+
+  /* ── FAQ ── */
+  .faq { max-width: 640px; margin: 0 auto; }
+  .faq-item { background: var(--card); border-radius: 12px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+  .faq-q { padding: 16px 20px; font-weight: 700; font-size: .95rem; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+  .faq-q:hover { background: #f9fafb; }
+  .faq-a { display: none; padding: 0 20px 16px; font-size: .88rem; color: var(--muted); line-height: 1.6; }
+  .faq-item.open .faq-a { display: block; }
+  .faq-item.open .faq-arrow { transform: rotate(180deg); }
+  .faq-arrow { transition: transform .2s; font-size: .8rem; }
+
+  /* ── CTA finale ── */
+  .cta-final { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; text-align: center; padding: 72px 24px; }
+  .cta-final h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 12px; }
+  .cta-final p  { opacity: .8; margin-bottom: 28px; font-size: 1rem; }
+
+  /* ── Footer ── */
+  footer { background: var(--primary); color: rgba(255,255,255,.6); text-align: center; padding: 24px; font-size: .82rem; }
+  footer a { color: rgba(255,255,255,.7); text-decoration: none; margin: 0 8px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">🏋️ GymSheet</div>
+  <div class="nav-links">
+    <a href="#come-funziona">Come funziona</a>
+    <a href="#prezzi">Prezzi</a>
+    <a href="editor_scheda.html" class="btn-nav">Prova gratis →</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <h1>La tua scheda di allenamento<br>sempre con te, sul telefono</h1>
+  <p>Converti qualsiasi scheda PDF in un'app mobile pronta all'uso. Note, storico allenamenti, progressione dei carichi — tutto nel browser, senza installare nulla.</p>
+  <div class="hero-btns">
+    <a href="editor_scheda.html" class="btn-hero-primary">✏️ Crea scheda gratis</a>
+    <a href="converter.html" class="btn-hero-outline">📄 Converti un PDF</a>
+  </div>
+  <p class="hero-note">L'anteprima è sempre gratuita · Nessun account richiesto</p>
+</section>
+
+<!-- Features -->
+<section class="section">
+  <h2 class="section-title">Tutto quello che serve</h2>
+  <p class="section-sub">Un file HTML che funziona come un'app — senza installazioni, senza abbonamenti per i tuoi clienti</p>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <h3>Mobile-first</h3>
+      <p>Ottimizzata per smartphone. Funziona offline dopo il primo caricamento.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📝</div>
+      <h3>Note per esercizio</h3>
+      <p>Il cliente annota i pesi usati direttamente sulla scheda, salvati automaticamente nel browser.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Storico e progressioni</h3>
+      <p>Ogni sessione salvata. Tap su un esercizio → vedi la progressione del carico nel tempo.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">▶️</div>
+      <h3>Video dimostrativi</h3>
+      <p>Link YouTube integrati direttamente su ogni esercizio. Un tap e il video si apre.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎨</div>
+      <h3>N programmi</h3>
+      <p>Supporta qualsiasi numero di programmi (A, B, C, Lunedì, Mercoledì...) con tab colorati.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <h3>Privacy totale</h3>
+      <p>Nessun dato inviato a server. Le note restano sul telefono del cliente, solo sue.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- Come funziona -->
+<section class="section" id="come-funziona">
+  <h2 class="section-title">Come funziona</h2>
+  <p class="section-sub">Tre minuti e la scheda del tuo cliente è pronta</p>
+
+  <div class="target-grid" style="margin-bottom:40px">
+    <div class="target-card">
+      <h3>👨‍🏫 Per il Personal Trainer</h3>
+      <p>Crei la scheda direttamente nell'editor guidato — oppure carichi il tuo PDF esistente nel converter.</p>
+    </div>
+    <div class="target-card">
+      <h3>🏋️ Per il Cliente</h3>
+      <p>Riceve un link o un file HTML. Lo apre dal telefono come un'app, senza installare nulla. Annota pesi e note, tutto si salva automaticamente.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Crea la scheda nell'editor</h4>
+        <p>Aggiungi sezioni, esercizi, parametri (serie, recupero, carico) e link video. L'anteprima live mostra come apparirà al cliente.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Anteprima gratuita</h4>
+        <p>Vedi la scheda completa su smartphone prima di scaricarla. Nessun pagamento richiesto per l'anteprima.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Scarica e condividi</h4>
+        <p>Con un credito ottieni il file HTML. Mandalo via WhatsApp, email o caricalo su GitHub Pages — il cliente lo apre direttamente dal link.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- Prezzi -->
+<section class="section" id="prezzi">
+  <h2 class="section-title">Prezzi semplici e trasparenti</h2>
+  <p class="section-sub">Anteprima sempre gratis · Paghi solo quando scarichi</p>
+
+  <h3 style="text-align:center;margin-bottom:20px;font-size:1rem;color:var(--muted);font-weight:500">👨‍🏫 Per i Personal Trainer — crediti senza scadenza</h3>
+  <div class="pricing-grid" style="margin-bottom:40px">
+    <div class="pricing-card">
+      <div class="pricing-tag">Starter</div>
+      <div class="pricing-price">€9 <span></span></div>
+      <div class="pricing-desc">Per iniziare</div>
+      <div class="pricing-unit">5 schede · €1.80/scheda</div>
+      <ul class="pricing-features">
+        <li>5 download schede</li>
+        <li>Senza scadenza</li>
+        <li>Chiave API riutilizzabile</li>
+        <li>Tutti i formati supportati</li>
+      </ul>
+      <a href="#" class="btn-pricing outline" onclick="buyTrainerPack('pack5')">Acquista →</a>
+      <div class="pricing-badge">🔥 Più scelto</div>
+      <div class="pricing-tag">Pro</div>
+      <div class="pricing-price">€19 <span></span></div>
+      <div class="pricing-desc">Per chi ha più clienti</div>
+      <div class="pricing-unit">15 schede · €1.27/scheda</div>
+      <ul class="pricing-features">
+        <li>15 download schede</li>
+        <li>Senza scadenza</li>
+        <li>Chiave API riutilizzabile</li>
+        <li>Tutti i formati supportati</li>
+      </ul>
+      <a href="#" class="btn-pricing primary" onclick="buyTrainerPack('pack15')">Acquista →</a>
+    </div>
+    <div class="pricing-card">
+      <div class="pricing-tag">Studio</div>
+      <div class="pricing-price">€35 <span></span></div>
+      <div class="pricing-desc">Per palestre e studi</div>
+      <div class="pricing-unit">35 schede · €1.00/scheda</div>
+      <ul class="pricing-features">
+        <li>35 download schede</li>
+        <li>Senza scadenza</li>
+        <li>Chiave API riutilizzabile</li>
+        <li>Tutti i formati supportati</li>
+      </ul>
+      <a href="#" class="btn-pricing outline" onclick="buyTrainerPack('pack35')">Acquista →</a>
+    </div>
+  </div>
+
+  <h3 style="text-align:center;margin-bottom:20px;font-size:1rem;color:var(--muted);font-weight:500">🏋️ Per il Cliente finale — scheda singola</h3>
+  <div class="pricing-grid" style="max-width:300px;margin:0 auto">
+    <div class="pricing-card featured">
+      <div class="pricing-tag">Scheda singola</div>
+      <div class="pricing-price">€3 <span></span></div>
+      <div class="pricing-desc">La tua scheda, per sempre sul tuo telefono</div>
+      <ul class="pricing-features">
+        <li>1 scheda HTML personalizzata</li>
+        <li>Note e storico illimitati</li>
+        <li>Funziona offline</li>
+        <li>Nessun account richiesto</li>
+      </ul>
+      <a href="converter.html" class="btn-pricing green">Prova gratis l'anteprima →</a>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- FAQ -->
+<section class="section">
+  <h2 class="section-title">Domande frequenti</h2>
+  <div class="faq">
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        Cosa succede se perdo il file HTML? <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">Il file HTML si può riscaricare dal link originale entro 24h. Dopo di che, dovrai acquistare un nuovo download. Ti consigliamo di salvarlo su Google Drive o iCloud.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        Funziona su iPhone e Android? <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">Sì, funziona su qualsiasi browser moderno — Chrome, Safari, Firefox. Il cliente può anche aggiungere la pagina alla schermata Home come una vera app.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        I crediti scadono? <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">No. I crediti acquistati non hanno scadenza. Li usi quando vuoi, per le schede che vuoi.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        Posso usare il mio PDF esistente? <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">Sì. Il converter supporta PDF con testo selezionabile strutturato in tabella. Vai su <a href="istruzioni_template.html">istruzioni_template.html</a> per vedere il formato richiesto.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+        I dati del cliente sono al sicuro? <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">Assolutamente. Le note e lo storico allenamenti vengono salvati solo nel browser del cliente (localStorage). Nessun dato viene inviato a server. Neanche noi possiamo vederli.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA finale -->
+<section class="cta-final">
+  <h2>Prova subito, gratis</h2>
+  <p>Crea la prima scheda e vedi l'anteprima — zero costi, zero account</p>
+  <div class="hero-btns">
+    <a href="editor_scheda.html" class="btn-hero-primary">✏️ Apri l'editor guidato</a>
+    <a href="converter.html" class="btn-hero-outline">📄 Converti un PDF</a>
+  </div>
+</section>
+
+<footer>
+  <p>© 2025 GymSheet · <a href="istruzioni_template.html">Guida per trainer</a> · <a href="editor_scheda.html">Editor</a> · <a href="converter.html">Converter PDF</a></p>
+</footer>
+
+<script>
+const WORKER_URL = 'https://gymsheet-worker.francescoartibani.workers.dev'; // ← aggiorna
+
+async function buyTrainerPack(pack) {
+  const email = prompt('Inserisci la tua email per ricevere la chiave trainer dopo il pagamento:');
+  if (!email || !email.includes('@')) return;
+  const btn = event.target;
+  const origText = btn.textContent;
+  btn.textContent = '…'; btn.style.pointerEvents = 'none';
+  try {
+    const res = await fetch(`${WORKER_URL}/trainer/buy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pack, email })
+    });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else alert('❌ Errore: ' + (data.error || 'sconosciuto'));
+  } catch { alert('❌ Errore di connessione'); }
+  finally { btn.textContent = origText; btn.style.pointerEvents = ''; }
+}
+</script>
+</body>
+</html>
