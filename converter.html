@@ -585,14 +585,21 @@ function parseRows(rows, colLabels, baseName) {
     if (!name) continue;
     if (/vietata|copyright|physio/i.test(name)) continue;
 
+    // Resolve the effective link: from link column, or from any progVal that looks like a URL
+    // (handles misassignment when URL text bleeds into adjacent program column)
+    const isUrl = v => /https?:\/\/|youtu\.?be|youtube\.com/i.test(v);
+    const urlInProgs = progVals.find(v => isUrl(v)) || '';
+    const effectiveLink = isUrl(link) ? link : (isUrl(urlInProgs) ? urlInProgs : '');
+
     for (let i = 0; i < progKeys.length; i++) {
       const val = progVals[i];
-      if (val) {
-        getSection(progKeys[i]).exercises.push({
-          id:     makeId(progKeys[i], name),
-          name:   name,
-          params: val,
-          link:   /^https?:\/\//.test(link) ? link : ''
+      // Skip cells that contain only a URL (misassigned from link column)
+      if (!val || isUrl(val)) continue;
+      getSection(progKeys[i]).exercises.push({
+        id:     makeId(progKeys[i], name),
+        name:   name,
+        params: val,
+        link:   effectiveLink
         });
       }
     }
