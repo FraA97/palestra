@@ -291,6 +291,46 @@
     display: none;
     white-space: nowrap;
   }
+
+  /* ── Paywall Modal ── */
+  .paywall-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.5); z-index: 300;
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .paywall-overlay.open { display: flex; }
+  .paywall-modal {
+    background: white; border-radius: 18px;
+    padding: 28px 24px; width: 100%; max-width: 440px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  }
+  .paywall-modal h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
+  .paywall-modal p  { font-size: .88rem; color: #6b7280; margin-bottom: 20px; line-height: 1.5; }
+  .paywall-option {
+    border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px;
+    margin-bottom: 12px; cursor: pointer; transition: border-color .2s;
+  }
+  .paywall-option:hover { border-color: #2563eb; }
+  .paywall-option h3  { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
+  .paywall-option p   { font-size: .82rem; color: #6b7280; margin: 0; }
+  .paywall-option .price { font-size: 1.1rem; font-weight: 900; color: #1e3a5f; float: right; }
+  .paywall-divider { text-align: center; color: #9ca3af; font-size: .8rem; margin: 4px 0 12px; }
+  .trainer-key-section { margin-top: 4px; }
+  .trainer-key-row { display: flex; gap: 8px; align-items: center; }
+  .trainer-key-row input {
+    flex: 1; border: 2px solid #e5e7eb; border-radius: 8px;
+    padding: 9px 12px; font-size: .88rem; font-family: monospace;
+  }
+  .trainer-key-row input:focus { outline: none; border-color: #2563eb; }
+  .btn-key-use {
+    background: #1e3a5f; color: white; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: .85rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+  }
+  .key-credits { font-size: .8rem; color: #16a34a; margin-top: 6px; font-weight: 600; display: none; }
+  .btn-close-modal {
+    float: right; background: #f3f4f6; border: none; border-radius: 50%;
+    width: 28px; height: 28px; cursor: pointer; font-size: 1rem; line-height: 28px; text-align: center;
+  }
 </style>
 </head>
 <body>
@@ -356,7 +396,7 @@
   <span class="save-label"><span class="save-dot" id="save-dot" style="background:#d1d5db"></span>bozza</span>
   <button class="bottom-btn btn-import" onclick="document.getElementById('csv-input').click()">📂 Importa CSV</button>
   <button class="bottom-btn btn-preview" onclick="previewHtml()">👁 Anteprima</button>
-  <button class="bottom-btn btn-download" onclick="downloadHtml()">⬇️ Genera HTML</button>
+  <button class="bottom-btn btn-download" onclick="requestDownload()">⬇️ Genera HTML</button>
 </div>
 
 <div id="toast"></div>
@@ -1160,6 +1200,142 @@ try {
     renderSections();
   }
 } catch(e) {}
+</script>
+
+<!-- Paywall Modal -->
+<div class="paywall-overlay" id="paywall-overlay" onclick="if(event.target===this)closePaywall()">
+  <div class="paywall-modal">
+    <button class="btn-close-modal" onclick="closePaywall()">✕</button>
+    <h2>⬇️ Scarica la tua scheda</h2>
+    <p>L'anteprima è gratuita. Per scaricare il file HTML scegli un'opzione:</p>
+
+    <div class="trainer-key-section">
+      <p style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:8px">🔑 Hai una chiave trainer?</p>
+      <div class="trainer-key-row">
+        <input type="text" id="trainer-key-input" placeholder="trn_xxxxxxxxxxxxxxxx" />
+        <button class="btn-key-use" onclick="useTrainerKey()">Usa chiave</button>
+      </div>
+      <div class="key-credits" id="key-credits-info"></div>
+    </div>
+
+    <div class="paywall-divider">— oppure —</div>
+
+    <div class="paywall-option" onclick="openSinglePayment()">
+      <span class="price">€3</span>
+      <h3>🏋️ Scheda singola</h3>
+      <p>Scarica questa scheda. Ricevi il link via email entro pochi secondi.</p>
+    </div>
+
+    <div class="paywall-option" onclick="window.open('landing.html#prezzi','_blank')">
+      <span class="price">da €9</span>
+      <h3>👨‍🏫 Pacchetto trainer</h3>
+      <p>Acquista crediti senza scadenza per generare più schede. Ideale per personal trainer.</p>
+    </div>
+
+    <div id="email-form" style="display:none;margin-top:16px">
+      <p style="font-size:.85rem;font-weight:600;margin-bottom:8px">Inserisci la tua email per ricevere il link di download:</p>
+      <div style="display:flex;gap:8px">
+        <input type="email" id="customer-email" placeholder="email@esempio.com"
+          style="flex:1;border:2px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:.88rem"
+          onkeydown="if(event.key==='Enter')confirmSinglePayment()" />
+        <button onclick="confirmSinglePayment()"
+          style="background:#16a34a;color:white;border:none;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer">Paga →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Paywall ───────────────────────────────────────────────────────────────────
+const WORKER_URL = 'https://gymsheet-worker.francescoartibani.workers.dev'; // ← aggiorna
+const TRAINER_KEY_STORAGE = 'gymsheet_trainer_key';
+
+function requestDownload() {
+  const savedKey = localStorage.getItem(TRAINER_KEY_STORAGE);
+  if (savedKey) {
+    document.getElementById('trainer-key-input').value = savedKey;
+    checkTrainerKeyCredits(savedKey);
+  }
+  document.getElementById('paywall-overlay').classList.add('open');
+}
+
+function closePaywall() {
+  document.getElementById('paywall-overlay').classList.remove('open');
+  document.getElementById('email-form').style.display = 'none';
+}
+
+async function useTrainerKey() {
+  const key = document.getElementById('trainer-key-input').value.trim();
+  if (!key) return alert('Inserisci la chiave trainer');
+  await checkTrainerKeyCredits(key, true);
+}
+
+async function checkTrainerKeyCredits(key, doDownload = false) {
+  const info = document.getElementById('key-credits-info');
+  info.style.display = 'block';
+  info.style.color = '#6b7280';
+  info.textContent = 'Verifica chiave…';
+  try {
+    const res = await fetch(`${WORKER_URL}/trainer/credits?key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    if (!res.ok) { info.style.color = '#dc2626'; info.textContent = '❌ Chiave non valida'; return; }
+    info.style.color = '#16a34a';
+    info.textContent = `✅ Chiave valida · ${data.credits} crediti rimanenti`;
+    localStorage.setItem(TRAINER_KEY_STORAGE, key);
+    if (doDownload) {
+      if (data.credits <= 0) { info.style.color = '#dc2626'; info.textContent = '❌ Crediti esauriti'; return; }
+      await downloadWithTrainerKey(key);
+    }
+  } catch { info.style.color = '#dc2626'; info.textContent = '❌ Errore di connessione'; }
+}
+
+async function downloadWithTrainerKey(key) {
+  const result = getGeneratedHtml();
+  if (!result) return;
+  const btn = document.querySelector('.btn-key-use');
+  btn.textContent = 'Download…'; btn.disabled = true;
+  try {
+    const res = await fetch(`${WORKER_URL}/trainer/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, html: result.html, filename: result.filename })
+    });
+    if (!res.ok) { const d = await res.json(); alert('❌ ' + (d.error || 'Errore download')); return; }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = result.filename;
+    a.click();
+    showToast('✅ HTML scaricato: ' + result.filename);
+    closePaywall();
+    checkTrainerKeyCredits(key);
+  } finally { btn.textContent = 'Usa chiave'; btn.disabled = false; }
+}
+
+function openSinglePayment() {
+  document.getElementById('email-form').style.display = 'block';
+  document.getElementById('customer-email').focus();
+}
+
+async function confirmSinglePayment() {
+  const email = document.getElementById('customer-email').value.trim();
+  if (!email || !email.includes('@')) return alert("Inserisci un'email valida");
+  const result = getGeneratedHtml();
+  if (!result) return;
+  const btn = document.querySelector('#email-form button');
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    const res = await fetch(`${WORKER_URL}/create-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html: result.html, filename: result.filename, email })
+    });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else alert('❌ Errore: ' + (data.error || 'sconosciuto'));
+  } catch { alert('❌ Errore di connessione'); }
+  finally { btn.textContent = 'Paga →'; btn.disabled = false; }
+}
 </script>
 </body>
 </html>
