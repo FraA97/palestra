@@ -161,6 +161,7 @@
   #reset-btn:hover { color: var(--text); }
 
   /* ── Footer ── */
+  footer {
     margin-top: 40px;
     font-size: 0.75rem;
     color: var(--muted);
@@ -466,7 +467,6 @@ function buildTable(texts, links = []) {
 
   // Build column boundaries from header items
   const headerItems = [...rows[headerIdx].items].sort((a, b) => a.x - b.x);
-  // Merge adjacent items with same approximate x (sometimes header splits)
   const colDefs = [];
   for (const item of headerItems) {
     const last = colDefs[colDefs.length - 1];
@@ -496,29 +496,21 @@ function buildTable(texts, links = []) {
       }
       cells[colIdx] = (cells[colIdx] + ' ' + item.str).trim();
     }
-    // Post-process: URL-like text that landed in a non-last column gets moved to the last column
-    // This fixes the case where a long URL bleeds into the boundary of the adjacent program column
-    for (let c = 1; c < cells.length - 1; c++) {
-      if (/https?:\/\/|youtu\.?be|youtube\.com/i.test(cells[c])) {
-        if (!cells[cells.length - 1]) cells[cells.length - 1] = cells[c];
-        cells[c] = '';
-      }
-    }
     table.push(cells);
   }
 
-  // Inject annotation-based URLs into table cells (handles PDFs where links are
-  // hyperlink annotations rather than visible text, i.e. no visible URL text)
+  // Inject annotation URLs into last column where cell is empty or already has a URL
+  // (covers PDFs where link text is an annotation, not visible text)
   if (links.length > 0) {
     for (let i = 0; i < table.length; i++) {
       const rowY = rows[headerIdx + 1 + i].y;
+      const lastCol = table[i].length - 1;
+      if (/^https?:\/\//i.test(table[i][lastCol])) continue; // already has URL text
       for (const lnk of links) {
         const linkMidY = (lnk.y1 + lnk.y2) / 2;
-        if (Math.abs(linkMidY - rowY) > 10) continue;
-        // Always inject into the last column (link column), regardless of X position
-        const lastCol = table[i].length - 1;
-        if (!/^https?:\/\//i.test((table[i][lastCol] || '').trim())) {
+        if (Math.abs(linkMidY - rowY) <= 12) {
           table[i][lastCol] = lnk.url;
+          break;
         }
       }
     }
@@ -526,6 +518,8 @@ function buildTable(texts, links = []) {
 
   return { table, colLabels: colDefs.map(c => c.str) };
 }
+
+// ── Parse table rows into programs ────────────────────────────────────────
 function parseRows(rows, colLabels, baseName) {
   const weeksMatch = rows.flat().join(' ').match(/Settimana[^\n·,]*/i);
   const meta = {
@@ -533,25 +527,19 @@ function parseRows(rows, colLabels, baseName) {
     weeks:  weeksMatch ? weeksMatch[0].trim() : ''
   };
 
-  // Detect link column:
-  // 1. Header contains link/video/youtube/url keyword
-  // 2. OR last column has cells containing URLs (including those injected from PDF annotations)
-  // 3. OR last column has cells that look like URLs (youtu.be, bit.ly, etc.) without https prefix
-  const lastHeader = colLabels.length > 1 ? colLabels[colLabels.length - 1] : '';
-  const headerSaysLink = /link|video|youtube|youtu|url/i.test(lastHeader);
+  // Detect link column: header must contain link/video/youtube/url keyword
+  // OR last column cells contain URLs
   const lastColIdx = colLabels.length - 1;
-  const lastColHasUrls = rows.some(r => /https?:\/\/|youtu\.?be|youtube\.com/i.test((r[lastColIdx] || '').trim()));
-  // Also check: last column doesn't look like program params (no digits, no "x", no serie)
-  const lastColLooksLikeProg = rows.some(r => /\d/.test((r[lastColIdx] || '').trim()));
-  const lastColIsLink = colLabels.length > 1 && (headerSaysLink || lastColHasUrls || (!lastColLooksLikeProg && colLabels.length > 2));
-  const linkColIdx = lastColIsLink ? colLabels.length - 1 : -1;
+  const headerSaysLink = colLabels.length > 1 && /link|video|youtube|youtu|url/i.test(colLabels[lastColIdx]);
+  const lastColHasUrls = rows.some(r => /^https?:\/\//i.test((r[lastColIdx] || '').trim()));
+  const lastColIsLink = headerSaysLink || lastColHasUrls;
+  const linkColIdx = lastColIsLink ? lastColIdx : -1;
 
-  // Program columns: everything between col 0 (exercise) and link col (or end)
+  // Program columns: col[1] to col[last-1] (if link col) or col[last]
   const progColCount = colLabels.length - 1 - (lastColIsLink ? 1 : 0);
   const KEYS = 'abcdefghijklmnopqrstuvwxyz';
   const progKeys = Array.from({ length: progColCount }, (_, i) => KEYS[i] || String(i));
 
-  // Extract display labels from header (e.g., "Prog A" → "A", "Allenamento 1" → "1")
   const progLabels = colLabels.slice(1, lastColIsLink ? -1 : undefined).map((lbl, i) => {
     const m = lbl.match(/(?:prog(?:ramma?)?\s*)?([A-Z0-9]+)\s*$/i);
     return m ? m[1].toUpperCase() : KEYS[i].toUpperCase();
@@ -575,27 +563,35 @@ function parseRows(rows, colLabels, baseName) {
     return list[list.length - 1];
   }
 
+  const isUrl = v => /^https?:\/\//i.test(v);
+
   for (const row of rows) {
     const name = (row[0] || '').trim();
     const progVals = progKeys.map((_, i) => (row[i + 1] || '').trim());
-    const link = linkColIdx >= 0 ? (row[linkColIdx] || '').trim() : (row[progKeys.length + 1] || '').trim();
+    const linkCell = linkColIdx >= 0 ? (row[linkColIdx] || '').trim() : '';
+    const effectiveLink = isUrl(linkCell) ? linkCell : '';
 
     // Section header: col0 empty, col1 has text, col2 absent/empty
-    if (!name && progVals[0] && (!row[2] || (row[2] || '').trim() === '')) {
+    if (!name && progVals[0] && !isUrl(progVals[0]) && (!row[2] || (row[2] || '').trim() === '')) {
       currentSection = { name: progVals[0], type: sectionType(progVals[0]) };
       continue;
+    }
+
+    // Section header in any prog column (e.g. col2 for Prog B sections)
+    if (!name && progVals.some(v => v && !isUrl(v))) {
+      const sectionName = progVals.find(v => v && !isUrl(v));
+      if (sectionName) {
+        currentSection = { name: sectionName, type: sectionType(sectionName) };
+        continue;
+      }
     }
 
     if (!name) continue;
     if (/vietata|copyright|physio/i.test(name)) continue;
 
-    // Resolve the effective link from the link column
-    const isUrl = v => /https?:\/\/|youtu\.?be|youtube\.com/i.test(v);
-    const effectiveLink = isUrl(link) ? link : '';
-
     for (let i = 0; i < progKeys.length; i++) {
       const val = progVals[i];
-      if (!val || isUrl(val)) continue; // skip empty or misassigned URL cells
+      if (!val || isUrl(val)) continue;
       getSection(progKeys[i]).exercises.push({
         id:     makeId(progKeys[i], name),
         name:   name,
@@ -618,7 +614,7 @@ function slugify(s) {
 
 function sectionType(name) {
   const n = name.toLowerCase();
-  if (/warm/.test(n)) return 'warmup';
+  if (/warm|riscaldamento/.test(n)) return 'warmup';
   if (/inferior|basso|gamb|quad|leg/.test(n)) return 'lower';
   if (/superior|alto|petto|schiena|spalle|braccia/.test(n)) return 'upper';
   return 'misc';
@@ -626,6 +622,10 @@ function sectionType(name) {
 
 function parseParams(s) {
   if (!s || !s.trim()) return [];
+
+  // "X" da solo = esercizio presente senza parametri specificati
+  if (/^x$/i.test(s.trim())) return [['series', '✓']];
+
   const badges = [];
 
   // ── Special early-exit patterns ──────────────────────────────────────────
@@ -660,12 +660,15 @@ function parseParams(s) {
   if (mInv) {
     badges.push(['series', mInv[2] + ' serie × ' + mInv[1]]);
   } else {
-    // "N serie x M", "N set x M", "N sets x M", "N × M"
-    const mSer = s.match(/([\d+]+)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+)/i);
+    // "NxM", "N serie x M", "N+NxM" (bilaterale es. "8+8x4")
+    const mSer = s.match(/(\d+(?:\+\d+)?)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+)/i);
     if (mSer) {
-      const a = parseInt(mSer[1]), b = parseInt(mSer[2]);
-      const [series, rips] = a <= b ? [a, b] : [b, a];
-      badges.push(['series', series + ' serie × ' + rips]);
+      const rawA = mSer[1], b = parseInt(mSer[2]);
+      const a = parseInt(rawA); // primo numero (eventualmente bilaterale es. 8 di "8+8")
+      const bilateral = rawA.includes('+') ? rawA : null;
+      const [series, rips] = a <= b ? [a, bilateral || b] : [b, bilateral || a];
+      const ripsLabel = bilateral && a <= b ? bilateral : (bilateral && a > b ? bilateral : rips);
+      badges.push(['series', series + ' serie × ' + ripsLabel]);
     } else {
       // Solo serie: "3 serie", "3 set"
       const mOnlySer = s.match(/(\d+)\s*(?:serie|set|sets?)\b/i);

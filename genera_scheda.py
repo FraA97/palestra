@@ -40,6 +40,11 @@ def parse_params(s):
     if not s or not s.strip():
         return []
     s = s.strip()
+
+    # "X" da solo = esercizio presente senza parametri specificati
+    if re.fullmatch(r'x', s, re.IGNORECASE):
+        return [('series', '✓')]
+
     badges = []
 
     # ── Special early-exit patterns ─────────────────────────────────────────
@@ -71,12 +76,16 @@ def parse_params(s):
     if m_inv:
         badges.append(('series', f'{m_inv.group(2)} serie × {m_inv.group(1)}'))
     else:
-        # "N serie x M", "N set x M", "N × M", "NxM"
-        m_ser = re.search(r'([\d+]+)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+)', s, re.IGNORECASE)
+        # "NxM", "N serie x M", "N+NxM" (bilaterale es. "8+8x4")
+        m_ser = re.search(r'(\d+(?:\+\d+)?)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+)', s, re.IGNORECASE)
         if m_ser:
-            a, b = int(m_ser.group(1)), int(m_ser.group(2))
-            series, rips = (a, b) if a <= b else (b, a)
-            badges.append(('series', f'{series} serie × {rips}'))
+            raw_a = m_ser.group(1)
+            b = int(m_ser.group(2))
+            a = int(raw_a.split('+')[0])
+            bilateral = raw_a if '+' in raw_a else None
+            series, rips_num = (a, b) if a <= b else (b, a)
+            rips_label = bilateral if bilateral else str(rips_num)
+            badges.append(('series', f'{series} serie × {rips_label}'))
         else:
             # Solo serie
             m_only_ser = re.search(r'(\d+)\s*(?:serie|set|sets?)\b', s, re.IGNORECASE)
@@ -88,18 +97,14 @@ def parse_params(s):
                 badges.append(('series', f'× {m_only_rep.group(1)} rip'))
 
     # ── Recupero ─────────────────────────────────────────────────────────────
-    # "1:30", "1min30s", "1min 30sec", "1'30""
     m_minsec = re.search(r"(\d+)\s*(?:min(?:uto?)?|')\s*[:\s]?\s*(\d+)\s*(?:s(?:ec(?:ondi?)?)?|[\u201d\u2019\"'])", s, re.IGNORECASE)
     if m_minsec:
         badges.append(('rest', f'⏱ {m_minsec.group(1)}\'{m_minsec.group(2).zfill(2)}"'))
     else:
-        # Solo minuti
-        # Solo minuti: solo se a fine stringa (es: "1min", "2 minuti", "5'") — non "5 min bassa intensità"
         m_min = re.search(r"(?:^|[\s\bR])(\d+)\s*(?:min(?:ut[oi]?)?|minut[oi]|')\s*$", s, re.IGNORECASE)
         if m_min:
             badges.append(('rest', f"⏱ {m_min.group(1)}'00\""))
         else:
-            # Secondi: R30" / 30" / 30s / 30sec / 30 secondi (curly quotes only — ' = minuti)
             m_sec = re.search(r"R?(\d+)\s*(?:[\u201d\u2019\"]|s(?:ec(?:ondi?)?)?(?:\b|$))", s, re.IGNORECASE)
             if m_sec:
                 badges.append(('rest', f'⏱ {m_sec.group(1)}"'))
@@ -126,7 +131,6 @@ def parse_params(s):
     if m_rir:
         badges.append(('load', f'RIR {m_rir.group(1)}'))
 
-    # Fallback: mostra stringa grezza come badge singolo
     if not badges:
         badges.append(('series', s))
 
@@ -142,7 +146,7 @@ SECTION_COLORS = {
 
 def section_type(name):
     n = name.lower()
-    if 'warm' in n:
+    if 'warm' in n or 'riscaldamento' in n:
         return 'warmup'
     if any(k in n for k in ('inferior', 'basso', 'gamb', 'quad', 'squat', 'leg')):
         return 'lower'
@@ -187,8 +191,14 @@ def parse_pdf(pdf_path):
 
     header_row = table[header_idx]
 
-    # Detect link column
-    last_col_is_link = len(header_row) > 1 and bool(re.search(r'link', str(header_row[-1] or ''), re.IGNORECASE))
+    rows = table[header_idx + 1:]
+
+    # Detect link column: by header keyword OR by presence of URLs in last column cells
+    last_header = str(header_row[-1] or '') if len(header_row) > 1 else ''
+    header_says_link = bool(re.search(r'link|video|youtube|youtu|url', last_header, re.IGNORECASE))
+    last_col_idx = len(header_row) - 1
+    last_col_has_urls = any(re.match(r'https?://', str(r[last_col_idx] if last_col_idx < len(r) else '').strip()) for r in rows)
+    last_col_is_link = len(header_row) > 1 and (header_says_link or last_col_has_urls)
     prog_col_count = len(header_row) - 1 - (1 if last_col_is_link else 0)
     keys = 'abcdefghijklmnopqrstuvwxyz'
     prog_keys = list(keys[:prog_col_count])
@@ -200,8 +210,6 @@ def parse_pdf(pdf_path):
         lbl = str(col or '')
         m = re.search(r'(?:prog(?:ramma?)?\s*)?([A-Z0-9]+)\s*$', lbl, re.IGNORECASE)
         prog_labels.append(m.group(1).upper() if m else keys[i].upper())
-
-    rows = table[header_idx + 1:]
 
     programs = {k: [] for k in prog_keys}
     current_section = {'name': 'Generale', 'type': 'misc'}

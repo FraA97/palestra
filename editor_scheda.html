@@ -426,7 +426,7 @@ function slugify(s) {
 
 function sectionType(name) {
   const n = name.toLowerCase();
-  if (/warm/.test(n)) return 'warmup';
+  if (/warm|riscaldamento/.test(n)) return 'warmup';
   if (/inferior|basso|gamb|quad|leg/.test(n)) return 'lower';
   if (/superior|alto|petto|schiena|spalle|braccia/.test(n)) return 'upper';
   return 'misc';
@@ -444,6 +444,10 @@ function showToast(msg, duration=2200) {
 // ── Parse params (same logic as converter.html) ─────────────────────────────
 function parseParams(s) {
   if (!s || !s.trim()) return [];
+
+  // "X" da solo = esercizio presente senza parametri specificati
+  if (/^x$/i.test(s.trim())) return [['series', '✓']];
+
   const badges = [];
 
   if (/elastic\s*band/i.test(s)) {
@@ -472,11 +476,15 @@ function parseParams(s) {
   if (mInv) {
     badges.push(['series', mInv[2] + ' serie × ' + mInv[1]]);
   } else {
-    const mSer = s.match(/([\d+]+)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+)/i);
+    // "NxM", "N serie x M", "N+NxM" (bilaterale es. "8+8x4")
+    const mSer = s.match(/(\d+(?:\+\d+)?)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+)/i);
     if (mSer) {
-      const a = parseInt(mSer[1]), b = parseInt(mSer[2]);
-      const [series, rips] = a <= b ? [a, b] : [b, a];
-      badges.push(['series', series + ' serie × ' + rips]);
+      const rawA = mSer[1], b = parseInt(mSer[2]);
+      const a = parseInt(rawA);
+      const bilateral = rawA.includes('+') ? rawA : null;
+      const [series, ripsNum] = a <= b ? [a, b] : [b, a];
+      const ripsLabel = bilateral ? bilateral : ripsNum;
+      badges.push(['series', series + ' serie × ' + ripsLabel]);
     } else {
       const mOnlySer = s.match(/(\d+)\s*(?:serie|set|sets?)\b/i);
       if (mOnlySer) badges.push(['series', mOnlySer[1] + ' serie']);
