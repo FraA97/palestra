@@ -22,27 +22,27 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 24px 16px 60px;
   }
 
-  .logo { font-size: 2.5rem; margin-bottom: 8px; }
+  /* ── App nav ── */
+  .app-nav{background:var(--primary);color:white;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+  .nav-logo{font-size:1.05rem;font-weight:800;color:white;text-decoration:none;letter-spacing:.3px}
+  .nav-links{display:flex;gap:4px;align-items:center}
+  .nav-links a{color:rgba(255,255,255,.75);text-decoration:none;font-size:.82rem;font-weight:500;padding:6px 10px;border-radius:6px;transition:all .15s}
+  .nav-links a:hover{color:white;background:rgba(255,255,255,.12)}
+  .nav-links a.active{color:white;background:rgba(255,255,255,.2);font-weight:700}
 
-  h1 {
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: var(--primary);
-    text-align: center;
-  }
+  /* ── App footer ── */
+  .app-footer{background:var(--primary);color:rgba(255,255,255,.7);padding:18px 24px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-size:.85rem;margin-top:auto}
+  .app-footer a{color:rgba(255,255,255,.75);text-decoration:none;font-weight:500}
+  .app-footer a:hover{color:white}
 
-  .subtitle {
-    font-size: 0.88rem;
-    color: var(--muted);
-    text-align: center;
-    margin-top: 6px;
-    margin-bottom: 32px;
-    max-width: 420px;
-  }
+  /* ── Page main wrapper ── */
+  .main{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 16px 40px}
+
+  .page-header{text-align:center;margin-bottom:28px}
+  .page-header h1{font-size:1.35rem;font-weight:800;color:var(--primary);margin-top:10px}
+  .page-header p{font-size:.88rem;color:var(--muted);margin-top:6px;max-width:420px;line-height:1.5}
 
   .card {
     background: var(--card);
@@ -161,14 +161,9 @@
   #reset-btn:hover { color: var(--text); }
 
   /* ── Footer ── */
-  footer {
+  footer.app-footer {
     margin-top: 40px;
-    font-size: 0.75rem;
-    color: var(--muted);
-    text-align: center;
-    line-height: 1.6;
   }
-  footer a { color: var(--muted); }
 
   /* ── Paywall Modal ── */
   .paywall-overlay {
@@ -214,11 +209,21 @@
 </head>
 <body>
 
-<div class="logo">🏋️</div>
-<h1>Scheda Palestra Converter</h1>
-<p class="subtitle">
-  Carica il PDF della tua scheda e ottieni una pagina HTML mobile-first con note, storico allenamenti e progressione dei carichi.
-</p>
+<nav class="app-nav">
+  <a href="landing.html" class="nav-logo">🏋️ GymSheet</a>
+  <div class="nav-links">
+    <a href="editor_scheda.html">✏️ Editor</a>
+    <a href="converter.html" class="active">📄 Converter</a>
+    <a href="istruzioni_template.html">📋 Guida</a>
+  </div>
+</nav>
+
+<div class="main">
+
+<div class="page-header">
+  <h1>Scheda Palestra Converter</h1>
+  <p>Carica il PDF della tua scheda e ottieni una pagina HTML mobile-first con note, storico allenamenti e progressione dei carichi.</p>
+</div>
 
 <div class="card">
   <div class="drop-zone" id="drop-zone">
@@ -250,12 +255,13 @@
   <button id="reset-btn" onclick="resetAll()">↩ Converti un altro PDF</button>
 </div>
 
-<footer>
-  Funziona interamente nel tuo browser · nessun dato inviato a server<br>
-  Richiede un PDF con tabella strutturata (Esercizio | N colonne programma | Link)<br>
-  <a href="istruzioni_template.html" target="_blank">📋 Guida per insegnanti</a>
-  &nbsp;·&nbsp;
-  <a href="editor_scheda.html">✏️ Editor guidato</a>
+</div><!-- /main -->
+
+<footer class="app-footer">
+  <a href="landing.html">🏠 Home</a>
+  <a href="editor_scheda.html">✏️ Editor</a>
+  <a href="converter.html">📄 Converter</a>
+  <a href="istruzioni_template.html">📋 Guida</a>
 </footer>
 
 <!-- Paywall Modal -->

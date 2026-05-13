@@ -23,37 +23,13 @@
     min-height: 100vh;
     padding-bottom: 80px;
   }
-  /* ── Top bar ── */
-  .topbar {
-    background: var(--primary);
-    color: white;
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,.2);
-  }
-  .topbar h1 { font-size: 1.1rem; font-weight: 800; }
-  .topbar-actions { display: flex; gap: 8px; }
-  .topbar-btn {
-    background: rgba(255,255,255,.15);
-    border: none;
-    color: white;
-    border-radius: 8px;
-    padding: 7px 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .2s;
-    white-space: nowrap;
-  }
-  .topbar-btn:hover { background: rgba(255,255,255,.25); }
-  .topbar-btn.green { background: var(--green); }
-  .topbar-btn.green:hover { background: #15803d; }
+  /* ── App nav ── */
+  .app-nav{background:var(--primary);color:white;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+  .nav-logo{font-size:1.05rem;font-weight:800;color:white;text-decoration:none;letter-spacing:.3px}
+  .nav-links{display:flex;gap:4px;align-items:center}
+  .nav-links a,.nav-links button{color:rgba(255,255,255,.75);text-decoration:none;font-size:.82rem;font-weight:500;padding:6px 10px;border-radius:6px;transition:all .15s;background:transparent;border:none;cursor:pointer}
+  .nav-links a:hover,.nav-links button:hover{color:white;background:rgba(255,255,255,.12)}
+  .nav-links a.active{color:white;background:rgba(255,255,255,.2);font-weight:700}
   /* ── Page layout ── */
   .page { max-width: 680px; margin: 0 auto; padding: 20px 16px; }
   /* ── Cards ── */
@@ -335,14 +311,15 @@
 </head>
 <body>
 
-<div class="topbar">
-  <h1>📝 Editor Scheda</h1>
-  <div class="topbar-actions">
-    <button class="topbar-btn" onclick="loadDraft()" title="Carica bozza">📂</button>
-    <a href="converter.html" class="topbar-btn" style="text-decoration:none">🔄 Converter</a>
-    <a href="istruzioni_template.html" target="_blank" class="topbar-btn" style="text-decoration:none">❓</a>
+<nav class="app-nav">
+  <a href="landing.html" class="nav-logo">🏋️ GymSheet</a>
+  <div class="nav-links">
+    <a href="editor_scheda.html" class="active">✏️ Editor</a>
+    <a href="converter.html">📄 Converter</a>
+    <a href="istruzioni_template.html">📋 Guida</a>
+    <button onclick="loadDraft()" title="Carica bozza salvata">📂</button>
   </div>
-</div>
+</nav>
 
 <div class="page">
 
