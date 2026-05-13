@@ -112,12 +112,28 @@
   .cta-final h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 12px; }
   .cta-final p  { opacity: .8; margin-bottom: 28px; font-size: 1rem; }
 
-  /* ── Footer ── */
-  footer { background: var(--primary); color: rgba(255,255,255,.6); text-align: center; padding: 24px; font-size: .82rem; }
-  footer a { color: rgba(255,255,255,.7); text-decoration: none; margin: 0 8px; }
+  /* ── Success banner ── */
+  .success-banner { display: none; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 14px; padding: 18px 20px 18px 16px; margin: 16px; position: relative; }
+  .success-banner.show { display: flex; gap: 14px; align-items: flex-start; }
+  .success-icon { font-size: 1.8rem; flex-shrink: 0; line-height: 1; }
+  .success-text { flex: 1; }
+  .success-text h3 { font-size: 1rem; font-weight: 800; color: #15803d; margin-bottom: 5px; }
+  .success-text p  { font-size: .88rem; color: #166534; line-height: 1.5; }
+  .success-text .email-pill { display: inline-block; background: #dcfce7; border: 1px solid #86efac; border-radius: 20px; padding: 2px 10px; font-weight: 700; font-size: .82rem; color: #15803d; margin-top: 5px; }
+  .success-close { position: absolute; top: 10px; right: 12px; background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #4ade80; line-height: 1; }
 </style>
 </head>
 <body>
+
+<!-- Success banner (shown after Stripe redirect) -->
+<div class="success-banner" id="success-banner">
+  <div class="success-icon">✅</div>
+  <div class="success-text">
+    <h3 id="success-title">Pagamento completato!</h3>
+    <p id="success-msg"></p>
+  </div>
+  <button class="success-close" onclick="document.getElementById('success-banner').classList.remove('show')" aria-label="Chiudi">✕</button>
+</div>
 
 <nav>
   <div class="logo">🏋️ GymSheet</div>
@@ -355,11 +371,47 @@ async function buyTrainerPack(pack) {
       body: JSON.stringify({ pack, email })
     });
     const data = await res.json();
-    if (data.url) window.location.href = data.url;
+    if (data.url) { localStorage.setItem('gymsheet_pending_email', email); window.location.href = data.url; }
     else alert('❌ Errore: ' + (data.error || 'sconosciuto'));
   } catch { alert('❌ Errore di connessione'); }
   finally { btn.textContent = origText; btn.style.pointerEvents = ''; }
 }
+
+(function checkSuccessRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const type = params.get('success');
+  if (!type) return;
+
+  const email = localStorage.getItem('gymsheet_pending_email') || '';
+  localStorage.removeItem('gymsheet_pending_email');
+
+  const banner  = document.getElementById('success-banner');
+  const title   = document.getElementById('success-title');
+  const msg     = document.getElementById('success-msg');
+
+  const emailHtml = email
+    ? `<br><span class="email-pill">📧 ${email}</span>`
+    : '';
+
+  if (type === 'trainer') {
+    title.textContent = '🎉 Acquisto completato!';
+    msg.innerHTML = 'La tua <strong>chiave trainer</strong> e i tuoi crediti ti sono stati inviati via email.' + emailHtml
+      + '<br><span style="font-size:.8rem;color:#166534;display:block;margin-top:6px">Controlla anche la cartella spam. La chiave non ha scadenza.</span>';
+  } else if (type === 'download') {
+    title.textContent = '✅ Pagamento ricevuto!';
+    msg.innerHTML = 'La tua <strong>scheda HTML</strong> ti è stata inviata via email.' + emailHtml
+      + '<br><span style="font-size:.8rem;color:#166534;display:block;margin-top:6px">Controlla anche la cartella spam. Il link è valido per 24 ore.</span>';
+  } else {
+    title.textContent = '✅ Pagamento completato!';
+    msg.innerHTML = 'Controlla la tua email per i dettagli.' + emailHtml;
+  }
+
+  banner.classList.add('show');
+
+  // Clean URL (remove ?success=... without reload)
+  const clean = window.location.pathname + (window.location.hash || '');
+  history.replaceState(null, '', clean);
+})();
 </script>
 </body>
 </html>

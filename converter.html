@@ -308,6 +308,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 let generatedHtml = null;
+let generatedPreviewHtml = null;
 let generatedFilename = 'scheda.html';
 
 // ── UI helpers ─────────────────────────────────────────────────────────────
@@ -331,6 +332,7 @@ function showSection(id) {
 
 function resetAll() {
   generatedHtml = null;
+  generatedPreviewHtml = null;
   document.getElementById('status-area').style.display = 'none';
   document.getElementById('result-area').style.display = 'none';
   document.getElementById('reset-btn').style.display   = 'none';
@@ -392,6 +394,7 @@ async function processFile(file) {
     log('⚙️ Generazione HTML…');
     const storageKey = 'palestra_' + slugify(baseName);
     generatedHtml = generateHtml(meta, programs, progKeys, progLabels, storageKey);
+    generatedPreviewHtml = generateHtml(meta, programs, progKeys, progLabels, storageKey, true);
     log(`✅ HTML generato (${(generatedHtml.length/1024).toFixed(0)} KB)`, 'ok');
 
     setStatus('✅', 'Conversione completata!');
@@ -723,26 +726,55 @@ function escHtml(s) {
 // ── HTML Generation ────────────────────────────────────────────────────────
 const SECTION_COLORS = { warmup:'#f59e0b', lower:'#3b82f6', upper:'#8b5cf6', misc:'#10b981' };
 
-function renderExerciseCard(ex, stype) {
-  const ytBtn = ex.link
-    ? `<a class="yt-btn" href="${escHtml(ex.link)}" target="_blank">▶ Video</a>`
-    : '';
+function ytIdFromUrl(url) {
+  if (!url) return null;
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function renderExerciseCard(ex, stype, locked = false) {
+  const ytId = ytIdFromUrl(ex.link);
+  const ytBtn = ytId
+    ? `<button class="yt-btn" onclick="openVideo('${ytId}')">▶ Video</button>`
+    : (ex.link ? `<a class="yt-btn" href="${escHtml(ex.link)}" target="_blank">▶ Video</a>` : '');
   const badges = parseParams(ex.params)
-    .map(([t,txt]) => `<span class="badge ${t}">${escHtml(txt)}</span>`).join('');
+    .map(([t,txt]) => {
+      if (t === 'rest') {
+        const secs = parseRestSecs(txt);
+        return secs > 0
+          ? `<button class="badge rest" onclick="startTimer(${secs})">${escHtml(txt)}</button>`
+          : `<span class="badge rest">${escHtml(txt)}</span>`;
+      }
+      return `<span class="badge ${t}">${escHtml(txt)}</span>`;
+    }).join('');
   const badgesHtml = badges ? `<div class="badges">${badges}</div>` : '';
-  return `  <div class="card ${stype}" id="${ex.id}">
+  const noteArea = locked ? '' : `
+    <div class="note-label">📝 Note / Peso usato</div>
+    <textarea class="note-input" rows="1" placeholder="es. peso, note…" oninput="saveNote('${ex.id}',this.value)"></textarea>`;
+  return `  <div class="card ${stype}${locked ? ' card-locked' : ''}" id="${ex.id}">
     <div class="card-top">
       <span class="exercise-name">${escHtml(ex.name)}</span>
       ${ytBtn}
     </div>
-    ${badgesHtml}
-    <div class="note-label">📝 Note / Peso usato</div>
-    <textarea class="note-input" rows="1" placeholder="es. peso, note…" oninput="saveNote('${ex.id}',this.value)"></textarea>
+    ${badgesHtml}${noteArea}
   </div>`;
 }
 
-function renderPanel(progKey, sections) {
+function parseRestSecs(txt) {
+  // "⏱ 1'30"" → 90s | "⏱ 60"" → 60s | "⏱ 2'00"" → 120s
+  const mMinSec = txt.match(/(\d+)['′]\s*(\d+)/);
+  if (mMinSec) return parseInt(mMinSec[1]) * 60 + parseInt(mMinSec[2]);
+  const mSec = txt.match(/(\d+)/);
+  return mSec ? parseInt(mSec[1]) : 0;
+}
+
+const PREVIEW_FREE = 3; // exercises shown for free per program tab
+
+function renderPanel(progKey, sections, isPreview = false) {
   let html = `\n<div class="panel" id="panel-${progKey}">\n`;
+  let count = 0;
+  let gateOpened = false;
+
   for (const sec of sections) {
     if (!sec.exercises.length) continue;
     const color = SECTION_COLORS[sec.stype] || '#6b7280';
@@ -751,19 +783,38 @@ function renderPanel(progKey, sections) {
     <div class="section-dot" style="background:${color}"></div>
     <h2>${escHtml(sec.section)}</h2>
   </div>\n`;
-    for (const ex of sec.exercises) html += renderExerciseCard(ex, sec.stype) + '\n';
+    for (const ex of sec.exercises) {
+      const locked = isPreview && count >= PREVIEW_FREE;
+      if (locked && !gateOpened) {
+        html += `<div class="preview-gate"><div class="preview-fade"></div>\n`;
+        gateOpened = true;
+      }
+      html += renderExerciseCard(ex, sec.stype, locked) + '\n';
+      count++;
+    }
   }
+
+  if (isPreview && gateOpened) {
+    const hidden = count - PREVIEW_FREE;
+    html += `  <div class="gate-card">
+    <div style="font-size:2rem;margin-bottom:8px">🔒</div>
+    <h3>${hidden} esercizi nascosti</h3>
+    <p>Stai vedendo l'anteprima gratuita. Acquista la scheda completa per sbloccare tutti gli esercizi e usarla sul tuo smartphone.</p>
+    <button class="gate-btn" onclick="buyFull()">🛒 Acquista la scheda — €3</button>
+  </div>\n</div>\n`;
+  }
+
   html += `</div><!-- /panel-${progKey} -->\n`;
   return html;
 }
 
-function generateHtml(meta, programs, progKeys, progLabels, storageKey) {
+function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPreview = false) {
   const TAB_COLORS    = ['#60a5fa','#4ade80','#f87171','#fb923c','#a78bfa','#34d399','#f472b6','#38bdf8'];
   const ACCENT_COLORS = ['#2563eb','#16a34a','#dc2626','#ea580c','#7c3aed','#059669','#db2777','#0284c7'];
 
   const dynTabCss = progKeys.map((k, i) =>
     `.tab-btn.active-${k}{color:white;border-color:${TAB_COLORS[i % TAB_COLORS.length]}}`
-  ).join('') + `.tab-btn.active-storico{color:white;border-color:#f59e0b}`;
+  ).join('') + (isPreview ? '' : `.tab-btn.active-storico{color:white;border-color:#f59e0b}`);
 
   const dynBadgeCss = progKeys.map((k, i) =>
     `.prog-badge.${k}{background:${ACCENT_COLORS[i % ACCENT_COLORS.length]}}`
@@ -775,18 +826,20 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey) {
       for (const ex of sec.exercises)
         exNames[ex.id] = ex.name;
 
-  const panelsHtml = progKeys.map(k => renderPanel(k, programs[k] || [])).join('');
+  const panelsHtml = progKeys.map(k => renderPanel(k, programs[k] || [], isPreview)).join('');
   const title    = escHtml(meta.title);
   const subtitle = escHtml(meta.weeks || 'Scheda di allenamento');
   const exNamesJson = JSON.stringify(exNames);
   const NK = JSON.stringify(storageKey + '_notes');
   const HK = JSON.stringify(storageKey + '_history');
-  const allTabsJson = JSON.stringify([...progKeys, 'storico']);
+  const allTabsJson = isPreview ? JSON.stringify(progKeys) : JSON.stringify([...progKeys, 'storico']);
   const firstKey = JSON.stringify(progKeys[0] || 'a');
-  const tabButtonsHtml = [
-    ...progKeys.map((k, i) => `<button class="tab-btn" id="tab-${k}" onclick="showTab('${k}')">Prog. ${progLabels[i]}</button>`),
-    `<button class="tab-btn" id="tab-storico" onclick="showTab('storico')">📊 Storico</button>`
-  ].join('\n    ');
+  const tabButtonsHtml = isPreview
+    ? progKeys.map((k, i) => `<button class="tab-btn" id="tab-${k}" onclick="showTab('${k}')">Prog. ${progLabels[i]}</button>`).join('\n    ')
+    : [
+        ...progKeys.map((k, i) => `<button class="tab-btn" id="tab-${k}" onclick="showTab('${k}')">Prog. ${progLabels[i]}</button>`),
+        `<button class="tab-btn" id="tab-storico" onclick="showTab('storico')">📊 Storico</button>`
+      ].join('\n    ');
 
   return `<!DOCTYPE html>
 <html lang="it">
@@ -840,6 +893,34 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey) {
   .modal-title{font-size:1rem;font-weight:700;margin-bottom:4px}.modal-close{float:right;background:#f3f4f6;border:none;border-radius:50%;width:28px;height:28px;font-size:1rem;cursor:pointer;line-height:28px;text-align:center}
   .prog-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}.prog-row:last-child{border-bottom:none}
   .prog-row-date{font-size:.75rem;color:var(--muted);white-space:nowrap;padding-top:2px;min-width:80px}.prog-row-note{font-size:.85rem;font-weight:500}
+  /* ── Timer widget ── */
+  .badge.rest{cursor:pointer;}.badge.rest:active{filter:brightness(.92)}
+  .timer-widget{display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:300;background:white;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.22);padding:16px 20px 14px;min-width:220px;text-align:center;border:2px solid var(--border)}
+  .timer-widget.active{display:block}
+  .timer-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:1rem;cursor:pointer;color:var(--muted);line-height:1}
+  .timer-display{font-size:2.6rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--primary);line-height:1;margin:4px 0 10px}
+  .timer-display.running{color:#16a34a}.timer-display.done{color:#dc2626}
+  .timer-progress{width:100%;height:4px;background:#f3f4f6;border-radius:4px;margin-bottom:12px;overflow:hidden}
+  .timer-bar{height:100%;background:#16a34a;border-radius:4px;transition:width .9s linear}
+  .timer-bar.done{background:#dc2626}
+  .timer-btns{display:flex;gap:8px;justify-content:center}
+  .timer-btn{border:none;border-radius:10px;padding:8px 16px;font-size:.85rem;font-weight:700;cursor:pointer}
+  .timer-btn.play{background:#16a34a;color:white}.timer-btn.play:active{background:#15803d}
+  .timer-btn.reset{background:#f3f4f6;color:var(--text)}.timer-btn.reset:active{background:#e5e7eb}
+  /* ── Preview paywall ── */
+  .card-locked{filter:blur(5px);user-select:none;pointer-events:none;opacity:.7}
+  .preview-gate{position:relative}
+  .preview-fade{position:absolute;top:0;left:0;right:0;height:60px;background:linear-gradient(transparent,var(--bg));z-index:5;pointer-events:none}
+  .gate-card{background:white;border-radius:16px;margin:16px 12px;padding:24px 20px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.12);position:relative;z-index:10}
+  .gate-card h3{font-size:1.1rem;font-weight:700;margin-bottom:8px}
+  .gate-card p{font-size:.85rem;color:var(--muted);margin-bottom:18px;line-height:1.5}
+  .gate-btn{background:#2563eb;color:white;border:none;border-radius:12px;padding:14px 28px;font-size:1rem;font-weight:700;cursor:pointer;width:100%;max-width:320px}
+  .gate-btn:active{background:#1d4ed8}
+  .preview-banner{position:fixed;bottom:0;left:0;right:0;z-index:200;background:#1e3a5f;color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 -2px 12px rgba(0,0,0,.2)}
+  .preview-banner-text{font-size:.82rem;line-height:1.4;flex:1}
+  .preview-banner-text strong{display:block;font-size:.9rem}
+  .preview-banner-btn{background:#f59e0b;color:#1a1a1a;border:none;border-radius:10px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap}
+  .preview-banner-btn:active{background:#d97706}
 </style>
 </head>
 <body>
@@ -853,11 +934,11 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey) {
 
 ${panelsHtml}
 
-<div class="panel" id="panel-storico">
+${isPreview ? '' : `<div class="panel" id="panel-storico">
   <div id="storico-content">
     <div class="storico-empty"><div style="font-size:2.5rem;margin-bottom:12px">📋</div><strong>Nessun allenamento salvato</strong><br><span style="font-size:.8rem">Premi "Salva allenamento" al termine</span></div>
   </div>
-</div>
+</div>`}
 
 <div class="modal-overlay" id="prog-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
@@ -868,16 +949,50 @@ ${panelsHtml}
   </div>
 </div>
 
-<div class="footer-bar" id="footer-bar">
+<!-- Timer widget -->
+<div class="timer-widget" id="timer-widget">
+  <button class="timer-close" onclick="closeTimer()">✕</button>
+  <div class="timer-display" id="timer-display">0:00</div>
+  <div class="timer-progress"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+  <div class="timer-btns">
+    <button class="timer-btn play" id="timer-play-btn" onclick="toggleTimer()">▶ Start</button>
+    <button class="timer-btn reset" onclick="resetTimer()">↺ Reset</button>
+  </div>
+</div>
+
+<!-- Video modal -->
+<div class="video-overlay" id="video-overlay" onclick="if(event.target===this)closeVideo()">
+  <div class="video-sheet">
+    <div class="video-header"><button class="video-close" onclick="closeVideo()">✕</button></div>
+    <div class="video-frame"><iframe id="video-iframe" src="" allow="autoplay;encrypted-media" allowfullscreen></iframe></div>
+  </div>
+</div>
+
+<div class="footer-bar" id="footer-bar" style="${isPreview ? 'display:none' : ''}">
   <small>Note salvate <span class="saved-dot" id="saved-dot"></span></small>
   <button class="save-btn" onclick="saveWorkout()">💾 Salva allenamento</button>
   <button class="reset-btn" onclick="resetNotes()">🗑</button>
 </div>
 
+${isPreview ? `<div class="preview-banner">
+  <div class="preview-banner-text"><strong>Anteprima gratuita</strong>Solo i primi 3 esercizi per programma. Acquista per sbloccare tutto.</div>
+  <button class="preview-banner-btn" onclick="buyFull()">🛒 Acquista — €3</button>
+</div>` : ''}
+
 <script>
   const NK=${NK}, HK=${HK};
   const EX=${exNamesJson};
+  const IS_PREVIEW=${isPreview ? 'true' : 'false'};
   let notes={}, currentTab=${firstKey};
+
+  function buyFull(){
+    if(window.opener && typeof window.opener.requestDownload==='function'){
+      window.opener.requestDownload();
+      window.close();
+    } else {
+      alert('Torna alla pagina precedente e clicca su "Scarica / Paga" per acquistare la scheda completa.');
+    }
+  }
 
   function loadNotes(){
     try{notes=JSON.parse(localStorage.getItem(NK)||'{}');}catch(e){notes={};}
@@ -948,6 +1063,70 @@ ${panelsHtml}
     if(t==='storico')renderHistory();
   }
   loadNotes(); showTab(${firstKey});
+  // ── Timer ──────────────────────────────────────────────────────────────────
+  let _tmTotal=0,_tmLeft=0,_tmInterval=null,_tmRunning=false;
+  function startTimer(secs){
+    clearInterval(_tmInterval);_tmRunning=false;
+    _tmTotal=secs;_tmLeft=secs;
+    _updateTimerUI();
+    document.getElementById('timer-widget').classList.add('active');
+  }
+  function toggleTimer(){
+    if(_tmLeft<=0)return;
+    _tmRunning=!_tmRunning;
+    if(_tmRunning){
+      _tmInterval=setInterval(()=>{
+        _tmLeft--;
+        _updateTimerUI();
+        if(_tmLeft<=0){clearInterval(_tmInterval);_tmRunning=false;_timerDone();}
+      },1000);
+    } else {
+      clearInterval(_tmInterval);
+    }
+    document.getElementById('timer-play-btn').textContent=_tmRunning?'⏸ Pausa':'▶ Riprendi';
+  }
+  function resetTimer(){
+    clearInterval(_tmInterval);_tmRunning=false;_tmLeft=_tmTotal;_updateTimerUI();
+  }
+  function closeTimer(){
+    clearInterval(_tmInterval);_tmRunning=false;
+    document.getElementById('timer-widget').classList.remove('active');
+  }
+  function _updateTimerUI(){
+    const m=Math.floor(_tmLeft/60),s=_tmLeft%60;
+    const disp=document.getElementById('timer-display');
+    const bar=document.getElementById('timer-bar');
+    const btn=document.getElementById('timer-play-btn');
+    disp.textContent=m+':'+(s<10?'0':'')+s;
+    disp.className='timer-display'+(_tmLeft<=0?' done':(_tmRunning?' running':''));
+    const pct=_tmTotal>0?(_tmLeft/_tmTotal)*100:0;
+    bar.style.width=pct+'%';
+    bar.className='timer-bar'+(_tmLeft<=0?' done':'');
+    if(!_tmRunning&&_tmLeft>0) btn.textContent='▶ '+((_tmLeft<_tmTotal&&_tmLeft>0)?'Riprendi':'Start');
+  }
+  function _timerDone(){
+    try{if(navigator.vibrate)navigator.vibrate([300,100,300]);}catch(e){}
+    try{
+      const ac=new(window.AudioContext||window.webkitAudioContext)();
+      [0,0.3,0.6].forEach(t=>{
+        const o=ac.createOscillator(),g=ac.createGain();
+        o.connect(g);g.connect(ac.destination);
+        o.frequency.value=880;g.gain.setValueAtTime(.4,ac.currentTime+t);
+        g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+t+0.25);
+        o.start(ac.currentTime+t);o.stop(ac.currentTime+t+0.3);
+      });
+    }catch(e){}
+    document.getElementById('timer-play-btn').textContent='✅ Fine!';
+  }
+  // ── Video ──────────────────────────────────────────────────────────────────
+  function openVideo(ytId){
+    document.getElementById('video-iframe').src='https://www.youtube-nocookie.com/embed/'+ytId+'?autoplay=1&rel=0';
+    document.getElementById('video-overlay').classList.add('open');
+  }
+  function closeVideo(){
+    document.getElementById('video-iframe').src='';
+    document.getElementById('video-overlay').classList.remove('open');
+  }
 <\/script>
 </body>
 </html>`;
@@ -958,7 +1137,8 @@ const WORKER_URL = 'https://gymsheet-worker.francescoartibani.workers.dev'; // �
 const TRAINER_KEY_STORAGE = 'gymsheet_trainer_key';
 
 function openPreview() {
-  const blob = new Blob([generatedHtml], { type: 'text/html' });
+  const html = generatedPreviewHtml || generatedHtml;
+  const blob = new Blob([html], { type: 'text/html' });
   window.open(URL.createObjectURL(blob), '_blank');
 }
 
@@ -1055,7 +1235,7 @@ async function confirmSinglePayment() {
       body: JSON.stringify({ html: generatedHtml, filename: generatedFilename, email })
     });
     const data = await res.json();
-    if (data.url) window.location.href = data.url;
+    if (data.url) { localStorage.setItem('gymsheet_pending_email', email); window.location.href = data.url; }
     else alert('❌ Errore: ' + (data.error || 'sconosciuto'));
   } catch {
     alert('❌ Errore di connessione');
