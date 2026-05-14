@@ -1036,6 +1036,7 @@ ${isPreview ? `<div class="preview-banner">
   const EX=${exNamesJson};
   const IS_PREVIEW=${isPreview ? 'true' : 'false'};
   let notes={}, currentTab=${firstKey};
+  const _ls=(()=>{try{localStorage.setItem('_t','1');localStorage.removeItem('_t');return localStorage;}catch(e){const m={};return{getItem:k=>m[k]??null,setItem:(k,v)=>{m[k]=v;},removeItem:k=>{delete m[k];}};} })();
   /*GYMSHEET_DATA_START*/const EMBEDDED_DATA={"ts":0,"notes":{},"history":[]};/*GYMSHEET_DATA_END*/
 
   function buyFull(){
@@ -1048,10 +1049,10 @@ ${isPreview ? `<div class="preview-banner">
   }
 
   function loadNotes(){
-    if(!localStorage.getItem(NK)&&Object.keys(EMBEDDED_DATA.notes).length){
-      localStorage.setItem(NK,JSON.stringify(EMBEDDED_DATA.notes));
+    if(!_ls.getItem(NK)&&Object.keys(EMBEDDED_DATA.notes).length){
+      _ls.setItem(NK,JSON.stringify(EMBEDDED_DATA.notes));
     }
-    try{notes=JSON.parse(localStorage.getItem(NK)||'{}');}catch(e){notes={};}
+    try{notes=JSON.parse(_ls.getItem(NK)||'{}');}catch(e){notes={};}
     document.querySelectorAll('.note-input').forEach(el=>{
       const id=el.closest('.card').id; if(notes[id])el.value=notes[id];
     });
@@ -1061,14 +1062,14 @@ ${isPreview ? `<div class="preview-banner">
     if(v.trim()==='')delete notes[id];else notes[id]=v;
     clearTimeout(st);
     st=setTimeout(()=>{
-      localStorage.setItem(NK,JSON.stringify(notes));
+      _ls.setItem(NK,JSON.stringify(notes));
       const d=document.getElementById('saved-dot');
       d.classList.add('saved');setTimeout(()=>d.classList.remove('saved'),1500);
     },500);
   }
   function resetNotes(){
     if(!confirm('Azzera le note correnti?'))return;
-    notes={};localStorage.removeItem(NK);
+    notes={};_ls.removeItem(NK);
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
   }
   function saveWorkout(){
@@ -1079,24 +1080,24 @@ ${isPreview ? `<div class="preview-banner">
     const ts=now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
     const sess={id:now.getTime(),date:ds,time:ts,program:prog,notes:{...notes}};
     let h=loadHistory();h.unshift(sess);
-    localStorage.setItem(HK,JSON.stringify(h));
-    notes={};localStorage.removeItem(NK);
+    _ls.setItem(HK,JSON.stringify(h));
+    notes={};_ls.removeItem(NK);
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
     alert('\\u2705 Programma '+prog+' salvato!\\n'+ds+' alle '+ts);
     renderHistory();
   }
   function loadHistory(){
-    if(!localStorage.getItem(HK)&&EMBEDDED_DATA.history.length){
-      localStorage.setItem(HK,JSON.stringify(EMBEDDED_DATA.history));
+    if(!_ls.getItem(HK)&&EMBEDDED_DATA.history.length){
+      _ls.setItem(HK,JSON.stringify(EMBEDDED_DATA.history));
     }
-    try{return JSON.parse(localStorage.getItem(HK)||'[]');}catch(e){return[];}}
+    try{return JSON.parse(_ls.getItem(HK)||'[]');}catch(e){return[];}}
   // ── Export / Import / Update file ─────────────────────────────────────────
   function exportData(){
-    const data={notes:JSON.parse(localStorage.getItem(NK)||'{}'),history:JSON.parse(localStorage.getItem(HK)||'[]'),exportedAt:new Date().toISOString()};
+    const data={notes:JSON.parse(_ls.getItem(NK)||'{}'),history:JSON.parse(_ls.getItem(HK)||'[]'),exportedAt:new Date().toISOString()};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download='gymsheet-backup-'+new Date().toLocaleDateString('it-IT').replace(/\\/g,'-')+'.json';
+    a.download='gymsheet-backup-'+new Date().toLocaleDateString('it-IT').split('/').join('-')+'.json';
     a.click();URL.revokeObjectURL(a.href);
   }
   function importData(){
@@ -1110,8 +1111,8 @@ ${isPreview ? `<div class="preview-banner">
           const d=JSON.parse(ev.target.result);
           if(!d.notes||!d.history)throw new Error('Formato non valido');
           if(!confirm('Importare i dati? Le note attuali verranno sostituite.'))return;
-          localStorage.setItem(NK,JSON.stringify(d.notes));
-          localStorage.setItem(HK,JSON.stringify(d.history));
+          _ls.setItem(NK,JSON.stringify(d.notes));
+          _ls.setItem(HK,JSON.stringify(d.history));
           loadNotes();renderHistory();
           alert('✅ Dati importati!');
         }catch(err){alert('❌ File non valido: '+err.message);}
@@ -1121,8 +1122,8 @@ ${isPreview ? `<div class="preview-banner">
     input.click();
   }
   function updateFile(){
-    const n=JSON.parse(localStorage.getItem(NK)||'{}');
-    const h=JSON.parse(localStorage.getItem(HK)||'[]');
+    const n=JSON.parse(_ls.getItem(NK)||'{}');
+    const h=JSON.parse(_ls.getItem(HK)||'[]');
     const newData=JSON.stringify({ts:Date.now(),notes:n,history:h});
     let html=document.documentElement.outerHTML;
     html=html.replace(/\\/\\*GYMSHEET_DATA_START\\*\\/.*?\\/\\*GYMSHEET_DATA_END\\*\\//s,
@@ -1151,7 +1152,7 @@ ${isPreview ? `<div class="preview-banner">
     }).join('');
   }
   function togSess(id){const b=document.getElementById(id),sid=id.replace('sess-',''),ch=document.getElementById('chev-'+sid);b.classList.toggle('open');if(ch)ch.classList.toggle('open');}
-  function delSess(e,id){e.stopPropagation();if(!confirm('Eliminare?'))return;localStorage.setItem(HK,JSON.stringify(loadHistory().filter(s=>s.id!==id)));renderHistory();}
+  function delSess(e,id){e.stopPropagation();if(!confirm('Eliminare?'))return;_ls.setItem(HK,JSON.stringify(loadHistory().filter(s=>s.id!==id)));renderHistory();}
   function showProg(exId){
     const entries=loadHistory().filter(s=>s.notes[exId]&&s.notes[exId].trim()).map(s=>({date:s.date+' '+s.time,prog:s.program,note:s.notes[exId]}));
     document.getElementById('prog-modal-title').textContent=EX[exId]||exId;
@@ -1258,14 +1259,14 @@ function saveDraft() {
     _sc: sectionCounter,
     _ec: exerciseCounter
   };
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  _ls.setItem(DRAFT_KEY, JSON.stringify(draft));
   const dot = document.getElementById('save-dot');
   if (dot) { dot.style.background = '#22c55e'; setTimeout(() => dot.style.background = '#d1d5db', 1500); }
 }
 
 function loadDraft() {
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = _ls.getItem(DRAFT_KEY);
     if (!raw) { showToast('Nessuna bozza salvata'); return; }
     const draft = JSON.parse(raw);
     if (!confirm('Caricare la bozza? I dati attuali verranno sovrascritti.')) return;
