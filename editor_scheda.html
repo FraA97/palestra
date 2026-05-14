@@ -1040,8 +1040,8 @@ ${isPreview ? `<div class="preview-banner">
   /*GYMSHEET_DATA_START*/const EMBEDDED_DATA={"ts":0,"notes":{},"history":[]};/*GYMSHEET_DATA_END*/
 
   function buyFull(){
-    if(window.opener && typeof window.opener.requestDownload==='function'){
-      window.opener.requestDownload();
+    if(window.opener){
+      window.opener.postMessage({type:'gymsheet_buy'},'*');
       window.close();
     } else {
       alert('Torna alla pagina precedente e clicca su "Scarica / Paga" per acquistare la scheda completa.');
@@ -1259,14 +1259,14 @@ function saveDraft() {
     _sc: sectionCounter,
     _ec: exerciseCounter
   };
-  _ls.setItem(DRAFT_KEY, JSON.stringify(draft));
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   const dot = document.getElementById('save-dot');
   if (dot) { dot.style.background = '#22c55e'; setTimeout(() => dot.style.background = '#d1d5db', 1500); }
 }
 
 function loadDraft() {
   try {
-    const raw = _ls.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) { showToast('Nessuna bozza salvata'); return; }
     const draft = JSON.parse(raw);
     if (!confirm('Caricare la bozza? I dati attuali verranno sovrascritti.')) return;
@@ -1406,6 +1406,10 @@ function previewHtml() {
   const blob = new Blob([result.html], { type: 'text/html' });
   window.open(URL.createObjectURL(blob), '_blank');
 }
+
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'gymsheet_buy') requestDownload();
+});
 
 function downloadHtml() {
   const result = getGeneratedHtml();

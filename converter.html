@@ -1010,8 +1010,8 @@ ${isPreview ? `<div class="preview-banner">
   /*GYMSHEET_DATA_START*/const EMBEDDED_DATA={"ts":0,"notes":{},"history":[]};/*GYMSHEET_DATA_END*/
 
   function buyFull(){
-    if(window.opener && typeof window.opener.requestDownload==='function'){
-      window.opener.requestDownload();
+    if(window.opener){
+      window.opener.postMessage({type:'gymsheet_buy'},'*');
       window.close();
     } else {
       alert('Torna alla pagina precedente e clicca su "Scarica / Paga" per acquistare la scheda completa.');
@@ -1224,9 +1224,13 @@ function openPreview() {
   window.open(URL.createObjectURL(blob), '_blank');
 }
 
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'gymsheet_buy') requestDownload();
+});
+
 function requestDownload() {
   // Controlla se c'è già una chiave salvata
-  const savedKey = _ls.getItem(TRAINER_KEY_STORAGE);
+  const savedKey = localStorage.getItem(TRAINER_KEY_STORAGE);
   if (savedKey) {
     document.getElementById('trainer-key-input').value = savedKey;
     checkTrainerKeyCredits(savedKey);
@@ -1261,7 +1265,7 @@ async function checkTrainerKeyCredits(key, doDownload = false) {
     }
     info.style.color = '#16a34a';
     info.textContent = `✅ Chiave valida · ${data.credits} crediti rimanenti`;
-    _ls.setItem(TRAINER_KEY_STORAGE, key);
+    localStorage.setItem(TRAINER_KEY_STORAGE, key);
     if (doDownload) {
       if (data.credits <= 0) { info.style.color = '#dc2626'; info.textContent = '❌ Crediti esauriti'; return; }
       await downloadWithTrainerKey(key);
@@ -1317,7 +1321,7 @@ async function confirmSinglePayment() {
       body: JSON.stringify({ html: generatedHtml, filename: generatedFilename, email })
     });
     const data = await res.json();
-    if (data.url) { _ls.setItem('gymsheet_pending_email', email); window.location.href = data.url; }
+    if (data.url) { localStorage.setItem('gymsheet_pending_email', email); window.location.href = data.url; }
     else alert('❌ Errore: ' + (data.error || 'sconosciuto'));
   } catch {
     alert('❌ Errore di connessione');
