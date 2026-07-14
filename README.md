@@ -98,9 +98,76 @@ Il PDF deve contenere una tabella con queste colonne:
 
 MIT — libero uso, modifica e distribuzione.
 
+## ✨ Converter universale AI
 
-### Correzioni luglio 2026 (v3)
-- Apertura video tramite link esterno YouTube.
-- Warning non bloccante per note mancanti.
-- Timer riavviabile con un clic e persistenza del tab.
-- URL estratti in colonne programma esclusi dai badge.
+Il nuovo `converter_universale.html` accetta PDF, DOCX, XLSX, XLS, CSV, TSV e TXT e invia il file al backend Cloudflare Worker. Il backend:
+
+1. verifica formato, dimensione e firma del file;
+2. applica rate limiting tramite KV;
+3. invia il documento al provider AI usando una chiave conservata esclusivamente come secret server-side;
+4. richiede un output conforme a `workout-plan.schema.json`;
+5. valida e normalizza il risultato;
+6. restituisce il piano JSON alla pagina di revisione.
+
+Dal piano revisionato il browser genera deterministicamente:
+
+- `scheda_normalizzata.csv` compatibile con il formato GymSheet;
+- backup JSON versionato;
+- app HTML standalone con tab persistenti, video esterni, note/storico e warning non bloccante.
+
+### Deploy backend
+
+1. Copia `wrangler.toml.example` in `wrangler.toml` e configura URL e KV ID.
+2. Configura i secret sul Worker:
+
+```bash
+wrangler secret put OPENAI_API_KEY
+wrangler secret put STRIPE_SECRET_KEY
+wrangler secret put STRIPE_WEBHOOK_SECRET
+wrangler secret put RESEND_API_KEY
+```
+
+3. Pubblica il Worker:
+
+```bash
+wrangler deploy
+```
+
+4. Verifica `GET /ai/health`.
+5. Se l'hostname del Worker è diverso, aggiorna `API_BASE` in `converter_universale.html`.
+6. Pubblica i file statici su GitHub Pages.
+
+### Configurazione AI
+
+Le variabili non segrete sono in `wrangler.toml`:
+
+```toml
+AI_MODEL = "gpt-4.1"
+AI_RATE_LIMIT_PER_HOUR = "10"
+```
+
+`OPENAI_API_KEY` non deve essere inserita nel repository né nel codice frontend.
+
+### Contratto dati
+
+`workout-plan.schema.json` è il formato canonico. Il CSV è un formato di compatibilità/export; non è la fonte dati interna.
+
+### Sicurezza implementata
+
+- allowlist dei formati;
+- limite applicativo di 8 MB;
+- controllo firma PDF/ZIP Office/XLS e rifiuto di contenuto binario nei file testuali;
+- sanitizzazione del filename;
+- CORS limitabile tramite `FRONTEND_URL`;
+- rate limiting per IP via KV;
+- prompt che tratta il documento come dato non attendibile;
+- JSON Schema strict e validazione business server-side;
+- nessuna chiave AI nel codice pubblico;
+- nessuna persistenza del file sorgente nell'implementazione corrente.
+
+### Limiti intenzionali dell'MVP
+
+- `.doc` legacy e immagini non sono nella allowlist iniziale;
+- il risultato AI deve sempre essere revisionato dall'utente prima dell'export;
+- la conversione è sincrona e non mantiene job in background;
+- i crediti AI non sono ancora scalati dai pacchetti trainer: il rate limit impedisce abuso di base, ma per monetizzazione va aggiunta una policy commerciale esplicita.

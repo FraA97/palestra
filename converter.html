@@ -572,16 +572,13 @@ function parseRows(rows, colLabels, baseName) {
     return list[list.length - 1];
   }
 
-  const isUrl = v => /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test((v||'').trim()) || /^https?:\/\//i.test((v||'').trim());
-  const normalizeUrl = v => { const x=(v||'').trim(); return isUrl(x) && !/^https?:\/\//i.test(x) ? 'https://'+x : x; };
+  const isUrl = v => /^https?:\/\//i.test(v);
 
   for (const row of rows) {
     const name = (row[0] || '').trim();
     const progVals = progKeys.map((_, i) => (row[i + 1] || '').trim());
     const linkCell = linkColIdx >= 0 ? (row[linkColIdx] || '').trim() : '';
-    // Il testo del link può essere estratto da PDF.js in una colonna programma.
-    const rowUrl = row.slice(1).find(isUrl) || '';
-    const effectiveLink = normalizeUrl(isUrl(linkCell) ? linkCell : rowUrl);
+    const effectiveLink = isUrl(linkCell) ? linkCell : '';
 
     // Section header: col0 empty, col1 has text, col2 absent/empty
     if (!name && progVals[0] && !isUrl(progVals[0]) && (!row[2] || (row[2] || '').trim() === '')) {
@@ -648,9 +645,8 @@ function parseParams(s) {
   }
 
   if (/sfinimento/i.test(s)) {
-    const m = s.match(/(?:[x×]\s*(\d+)|(\d+)\s*[x×])/i);
-    const count = m ? (m[1] || m[2]) : null;
-    if (count) badges.push(['series', '× ' + count + ' serie']);
+    const m = s.match(/[x×]\s*(\d+)/);
+    if (m) badges.push(['series', '× ' + m[1] + ' serie']);
     badges.push(['load', 'a sfinimento']);
     return badges;
   }
@@ -704,7 +700,7 @@ function parseParams(s) {
       badges.push(['rest', '⏱ ' + mMin[1] + '\'00"']);
     } else {
       // Secondi: R30" / 30" / 30s / 30sec / 30 secondi (curly quotes only — straight ' = minuti)
-      const mSec = s.match(/(?:^|\s)R?(\d+)\s*(?:[\u201d"]|s(?:ec(?:ondi?)?)?\b)/i);
+      const mSec = s.match(/R?(\d+)\s*(?:[\u201d\u2019"]|s(?:ec(?:ondi?)?)?(?:\b|$))/i);
       if (mSec) badges.push(['rest', '⏱ ' + mSec[1] + '"']);
     }
   }
@@ -744,10 +740,9 @@ function ytIdFromUrl(url) {
 
 function renderExerciseCard(ex, stype, locked = false) {
   const ytId = ytIdFromUrl(ex.link);
-  const videoUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : ex.link;
-  const ytBtn = videoUrl
-    ? `<a class="yt-btn" href="${escHtml(videoUrl)}" target="_blank" rel="noopener external">▶ Apri video</a>`
-    : '';
+  const ytBtn = ytId
+    ? `<button class="yt-btn" onclick="openVideo('${ytId}',${escHtml(JSON.stringify(ex.name))})">▶ Video</button>`
+    : (ex.link ? `<a class="yt-btn" href="${escHtml(ex.link)}" target="_blank">▶ Video</a>` : '');
   const badges = parseParams(ex.params)
     .map(([t,txt]) => {
       if (t === 'rest') {
@@ -883,10 +878,6 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPrevie
   .note-label{font-size:.72rem;color:var(--muted);margin-top:10px;margin-bottom:4px;font-weight:500}
   .note-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85rem;background:#fafafa;color:var(--text);resize:none;font-family:inherit;transition:border-color .2s;min-height:38px}
   .note-input:focus{outline:none;border-color:#93c5fd;background:white}
-
-  /* GYMSHEET_FIX_V3 */
-  .note-input:placeholder-shown{border:2px solid #ef4444;background:#fff1f2}
-  .note-input:not(:placeholder-shown){border-color:#86efac;background:#f0fdf4}
   .footer-bar{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;z-index:99;gap:8px}
   .footer-bar small{font-size:.7rem;color:var(--muted);flex:1}
   .save-btn{background:#16a34a;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:.82rem;font-weight:700;cursor:pointer}.save-btn:active{background:#15803d}
@@ -987,7 +978,7 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
   <div class="timer-progress"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
   <div class="timer-btns">
     <button class="timer-btn play" id="timer-play-btn" onclick="toggleTimer()">▶ Start</button>
-    <button class="timer-btn reset" onclick="resetTimer()">↻ Riavvia</button>
+    <button class="timer-btn reset" onclick="resetTimer()">↺ Reset</button>
   </div>
 </div>
 
@@ -1041,23 +1032,6 @@ ${isPreview ? `<div class="preview-banner">
     }
   }
 
-
-  /* GYMSHEET_FIX_V3 */
-  const TAB_KEY=NK+'_active_tab';
-  function savedTabOr(fallback){
-    const saved=_ls.getItem(TAB_KEY);
-    return document.getElementById('tab-'+saved)?saved:fallback;
-  }
-  function confirmIncompleteWorkout(){
-    const panel=document.getElementById('panel-'+currentTab);
-    if(!panel)return true;
-    const missing=[...panel.querySelectorAll('.note-input')].filter(el=>!el.value.trim()).length;
-    if(!missing)return true;
-    return confirm('Attenzione: '+missing+' esercizi non hanno una nota.\\n\\nGli esercizi senza nota non saranno riportati come eseguiti nello storico.\\n\\nVuoi salvare comunque l’allenamento?');
-  }
-  window.addEventListener('pageshow',()=>{const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);}});
-
   function loadNotes(){
     if(!_ls.getItem(NK)&&Object.keys(EMBEDDED_DATA.notes).length){
       _ls.setItem(NK,JSON.stringify(EMBEDDED_DATA.notes));
@@ -1083,7 +1057,7 @@ ${isPreview ? `<div class="preview-banner">
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
   }
   function saveWorkout(){
-    if(!confirmIncompleteWorkout())return;
+    if(!Object.values(notes).some(v=>v.trim())){alert('Nessuna nota da salvare!');return;}
     const prog=currentTab.toUpperCase();
     const now=new Date();
     const ds=now.toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
@@ -1181,11 +1155,10 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('panel-'+t).classList.add('active');
     document.getElementById('tab-'+t).classList.add('active-'+t);
     currentTab=t;
-    _ls.setItem(TAB_KEY,t);
     document.getElementById('footer-bar').style.display=t==='storico'?'none':'flex';
     if(t==='storico')renderHistory();
   }
-  loadNotes(); showTab(savedTabOr(${firstKey}));
+  loadNotes(); showTab(${firstKey});
   // ── Timer ──────────────────────────────────────────────────────────────────
   let _tmTotal=0,_tmLeft=0,_tmInterval=null,_tmRunning=false;
   function startTimer(secs){
@@ -1195,7 +1168,7 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('timer-widget').classList.add('active');
   }
   function toggleTimer(){
-    if(_tmLeft<=0){_tmLeft=_tmTotal;_tmRunning=false;}
+    if(_tmLeft<=0)return;
     _tmRunning=!_tmRunning;
     if(_tmRunning){
       _tmInterval=setInterval(()=>{
@@ -1209,7 +1182,7 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('timer-play-btn').textContent=_tmRunning?'⏸ Pausa':'▶ Riprendi';
   }
   function resetTimer(){
-    clearInterval(_tmInterval);_tmRunning=false;_tmLeft=_tmTotal;_updateTimerUI();toggleTimer();
+    clearInterval(_tmInterval);_tmRunning=false;_tmLeft=_tmTotal;_updateTimerUI();
   }
   function closeTimer(){
     clearInterval(_tmInterval);_tmRunning=false;
@@ -1239,7 +1212,7 @@ ${isPreview ? `<div class="preview-banner">
         o.start(ac.currentTime+t);o.stop(ac.currentTime+t+0.3);
       });
     }catch(e){}
-    document.getElementById('timer-play-btn').textContent='↻ Riavvia';
+    document.getElementById('timer-play-btn').textContent='✅ Fine!';
   }
   // ── Video ──────────────────────────────────────────────────────────────────
   function openVideo(ytId,title){
