@@ -572,13 +572,17 @@ function parseRows(rows, colLabels, baseName) {
     return list[list.length - 1];
   }
 
-  const isUrl = v => /^https?:\/\//i.test(v);
+  const isUrl = v => /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test((v || '').trim()) || /^https?:\/\//i.test((v || '').trim());
+  const normalizeUrl = v => { const x=(v || '').trim(); return isUrl(x) && !/^https?:\/\//i.test(x) ? 'https://' + x : x; };
 
   for (const row of rows) {
     const name = (row[0] || '').trim();
     const progVals = progKeys.map((_, i) => (row[i + 1] || '').trim());
     const linkCell = linkColIdx >= 0 ? (row[linkColIdx] || '').trim() : '';
-    const effectiveLink = isUrl(linkCell) ? linkCell : '';
+    // PDF.js può collocare il testo del link nella prima cella vuota disponibile.
+    // Cerca quindi l’URL in tutta la riga, ma non passarlo mai ai badge programma.
+    const urlFromAnyCell = row.slice(1).find(isUrl) || '';
+    const effectiveLink = normalizeUrl(isUrl(linkCell) ? linkCell : urlFromAnyCell);
 
     // Section header: col0 empty, col1 has text, col2 absent/empty
     if (!name && progVals[0] && !isUrl(progVals[0]) && (!row[2] || (row[2] || '').trim() === '')) {
@@ -645,8 +649,9 @@ function parseParams(s) {
   }
 
   if (/sfinimento/i.test(s)) {
-    const m = s.match(/[x×]\s*(\d+)/);
-    if (m) badges.push(['series', '× ' + m[1] + ' serie']);
+    const m = s.match(/(?:[x×]\s*(\d+)|(\d+)\s*[x×])/i);
+    const seriesCount = m ? (m[1] || m[2]) : null;
+    if (seriesCount) badges.push(['series', '× ' + seriesCount + ' serie']);
     badges.push(['load', 'a sfinimento']);
     return badges;
   }
@@ -700,7 +705,7 @@ function parseParams(s) {
       badges.push(['rest', '⏱ ' + mMin[1] + '\'00"']);
     } else {
       // Secondi: R30" / 30" / 30s / 30sec / 30 secondi (curly quotes only — straight ' = minuti)
-      const mSec = s.match(/R?(\d+)\s*(?:[\u201d\u2019"]|s(?:ec(?:ondi?)?)?(?:\b|$))/i);
+      const mSec = s.match(/(?:^|\s)R?(\d+)\s*(?:[\u201d"]|s(?:ec(?:ondi?)?)?\b)/i);
       if (mSec) badges.push(['rest', '⏱ ' + mSec[1] + '"']);
     }
   }
@@ -740,9 +745,13 @@ function ytIdFromUrl(url) {
 
 function renderExerciseCard(ex, stype, locked = false) {
   const ytId = ytIdFromUrl(ex.link);
-  const ytBtn = ytId
-    ? `<button class="yt-btn" onclick="openVideo('${ytId}')">▶ Video</button>`
-    : (ex.link ? `<a class="yt-btn" href="${escHtml(ex.link)}" target="_blank">▶ Video</a>` : '');
+  // Un normale link top-level funziona anche da file:// e consente al dispositivo
+  // di aprire l'app YouTube. Evitiamo iframe/webview interni, che possono fallire
+  // per assenza di un'origine/referrer HTTP nel file HTML scaricato.
+  const videoUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : ex.link;
+  const ytBtn = videoUrl
+    ? `<a class="yt-btn" href="${escHtml(videoUrl)}" target="_blank" rel="noopener external">▶ Apri video</a>`
+    : '';
   const badges = parseParams(ex.params)
     .map(([t,txt]) => {
       if (t === 'rest') {
@@ -878,6 +887,11 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPrevie
   .note-label{font-size:.72rem;color:var(--muted);margin-top:10px;margin-bottom:4px;font-weight:500}
   .note-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85rem;background:#fafafa;color:var(--text);resize:none;font-family:inherit;transition:border-color .2s;min-height:38px}
   .note-input:focus{outline:none;border-color:#93c5fd;background:white}
+
+  /* GYMSHEET_FIX_V2: note informative, non obbligatorie */
+  .note-input.note-missing{border:2px solid #ef4444;background:#fff1f2}
+  .note-input.note-ok{border-color:#86efac;background:#f0fdf4}
+  .note-label.note-missing-label{color:#b91c1c;font-weight:700}
   .footer-bar{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;z-index:99;gap:8px}
   .footer-bar small{font-size:.7rem;color:var(--muted);flex:1}
   .save-btn{background:#16a34a;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:.82rem;font-weight:700;cursor:pointer}.save-btn:active{background:#15803d}
@@ -936,12 +950,13 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPrevie
   .preview-banner-btn{background:#f59e0b;color:#1a1a1a;border:none;border-radius:10px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap}
   .preview-banner-btn:active{background:#d97706}
   /* ── Video modal ── */
-  .video-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;align-items:flex-end}.video-overlay.open{display:flex}
-  .video-sheet{background:#000;border-radius:18px 18px 0 0;width:100%;padding-bottom:env(safe-area-inset-bottom,0)}
-  .video-header{display:flex;justify-content:flex-end;padding:10px 12px 6px}
-  .video-close{background:rgba(255,255,255,.15);border:none;border-radius:50%;width:32px;height:32px;font-size:1.1rem;cursor:pointer;color:white;line-height:32px;text-align:center}
-  .video-frame{position:relative;width:100%;padding-bottom:56.25%}
-  .video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+  .video-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:flex-end;justify-content:center}.video-overlay.open{display:flex}
+  .video-sheet{background:white;border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:24px 20px 36px;text-align:center}
+  .video-header{display:flex;justify-content:flex-end;margin-bottom:12px}
+  .video-close{background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;font-size:1rem;cursor:pointer;line-height:32px;text-align:center}
+  .video-title{font-size:1rem;font-weight:700;margin-bottom:8px;color:var(--text)}
+  .video-yt-btn{display:inline-flex;align-items:center;gap:8px;background:#ff0000;color:white;border:none;border-radius:12px;padding:14px 24px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;text-decoration:none}
+  .video-yt-btn:active{background:#cc0000}
 </style>
 </head>
 <body>
@@ -977,7 +992,7 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
   <div class="timer-progress"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
   <div class="timer-btns">
     <button class="timer-btn play" id="timer-play-btn" onclick="toggleTimer()">▶ Start</button>
-    <button class="timer-btn reset" onclick="resetTimer()">↺ Reset</button>
+    <button class="timer-btn reset" onclick="resetTimer()">↻ Riavvia</button>
   </div>
 </div>
 
@@ -985,7 +1000,13 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
 <div class="video-overlay" id="video-overlay" onclick="if(event.target===this)closeVideo()">
   <div class="video-sheet">
     <div class="video-header"><button class="video-close" onclick="closeVideo()">✕</button></div>
-    <div class="video-frame"><iframe id="video-iframe" src="" allow="autoplay;encrypted-media" allowfullscreen></iframe></div>
+    <div style="font-size:2.5rem;margin-bottom:8px">▶️</div>
+    <div class="video-title" id="video-title">Guarda il video</div>
+    <p style="font-size:.82rem;color:var(--muted);margin:6px 0 16px">Il video si aprirà su YouTube</p>
+    <a class="video-yt-btn" id="video-yt-link" href="#" target="_blank" rel="noopener" onclick="closeVideo()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 00.5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 002.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 002.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.8 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+      Apri su YouTube
+    </a>
   </div>
 </div>
 
@@ -1025,17 +1046,49 @@ ${isPreview ? `<div class="preview-banner">
     }
   }
 
+
+  /* GYMSHEET_FIX_V2 */
+  const TAB_KEY=NK+'_active_tab';
+  function updateNoteState(el){
+    if(!el)return;
+    const missing=!el.value.trim();
+    el.classList.toggle('note-missing',missing);
+    el.classList.toggle('note-ok',!missing);
+    const label=el.previousElementSibling;
+    if(label&&label.classList.contains('note-label')){
+      label.classList.toggle('note-missing-label',missing);
+      label.textContent=missing?'⚠️ Nota vuota: l’esercizio non comparirà nello storico':'✅ Nota presente: l’esercizio sarà registrato';
+    }
+  }
+  function updateAllNoteStates(){document.querySelectorAll('.note-input').forEach(updateNoteState);}
+  function warnAboutMissingNotes(){
+    const panel=document.getElementById('panel-'+currentTab);
+    if(!panel)return true;
+    const fields=[...panel.querySelectorAll('.note-input')];
+    fields.forEach(updateNoteState);
+    const missing=fields.filter(el=>!el.value.trim());
+    if(!missing.length)return true;
+    return confirm('Attenzione: '+missing.length+' esercizi non hanno una nota.\n\nGli esercizi senza nota non saranno riportati come eseguiti nello storico.\n\nVuoi salvare comunque l’allenamento?');
+  }
+  function savedTabOr(fallback){
+    const saved=_ls.getItem(TAB_KEY);
+    return document.getElementById('tab-'+saved)?saved:fallback;
+  }
+  window.addEventListener('pageshow',()=>{const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);}});
+
   function loadNotes(){
     if(!_ls.getItem(NK)&&Object.keys(EMBEDDED_DATA.notes).length){
       _ls.setItem(NK,JSON.stringify(EMBEDDED_DATA.notes));
     }
     try{notes=JSON.parse(_ls.getItem(NK)||'{}');}catch(e){notes={};}
     document.querySelectorAll('.note-input').forEach(el=>{
-      const id=el.closest('.card').id; if(notes[id])el.value=notes[id];
+      const id=el.closest('.card').id; if(notes[id])el.value=notes[id]; updateNoteState(el);
     });
   }
   let st=null;
   function saveNote(id,v){
+    const el=document.getElementById(id)?.querySelector('.note-input');updateNoteState(el);
     if(v.trim()==='')delete notes[id];else notes[id]=v;
     clearTimeout(st);
     st=setTimeout(()=>{
@@ -1047,10 +1100,11 @@ ${isPreview ? `<div class="preview-banner">
   function resetNotes(){
     if(!confirm('Azzera le note correnti?'))return;
     notes={};_ls.removeItem(NK);
-    document.querySelectorAll('.note-input').forEach(el=>el.value='');
+    document.querySelectorAll('.note-input').forEach(el=>{el.value='';updateNoteState(el);});
   }
   function saveWorkout(){
-    if(!Object.values(notes).some(v=>v.trim())){alert('Nessuna nota da salvare!');return;}
+    if(!warnAboutMissingNotes())return;
+    // Il warning precedente è informativo: il salvataggio resta sempre possibile.
     const prog=currentTab.toUpperCase();
     const now=new Date();
     const ds=now.toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
@@ -1059,7 +1113,7 @@ ${isPreview ? `<div class="preview-banner">
     let h=loadHistory();h.unshift(sess);
     _ls.setItem(HK,JSON.stringify(h));
     notes={};_ls.removeItem(NK);
-    document.querySelectorAll('.note-input').forEach(el=>el.value='');
+    document.querySelectorAll('.note-input').forEach(el=>{el.value='';updateNoteState(el);});
     alert('✅ Programma '+prog+' salvato!\\n'+ds+' alle '+ts);
     renderHistory();
   }
@@ -1148,10 +1202,11 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('panel-'+t).classList.add('active');
     document.getElementById('tab-'+t).classList.add('active-'+t);
     currentTab=t;
+    _ls.setItem(TAB_KEY,t);
     document.getElementById('footer-bar').style.display=t==='storico'?'none':'flex';
     if(t==='storico')renderHistory();
   }
-  loadNotes(); showTab(${firstKey});
+  loadNotes(); showTab(savedTabOr(${firstKey})); updateAllNoteStates();
   // ── Timer ──────────────────────────────────────────────────────────────────
   let _tmTotal=0,_tmLeft=0,_tmInterval=null,_tmRunning=false;
   function startTimer(secs){
@@ -1161,7 +1216,7 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('timer-widget').classList.add('active');
   }
   function toggleTimer(){
-    if(_tmLeft<=0)return;
+    if(_tmLeft<=0){_tmLeft=_tmTotal;_tmRunning=false;}
     _tmRunning=!_tmRunning;
     if(_tmRunning){
       _tmInterval=setInterval(()=>{
@@ -1175,7 +1230,7 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('timer-play-btn').textContent=_tmRunning?'⏸ Pausa':'▶ Riprendi';
   }
   function resetTimer(){
-    clearInterval(_tmInterval);_tmRunning=false;_tmLeft=_tmTotal;_updateTimerUI();
+    clearInterval(_tmInterval);_tmRunning=false;_tmLeft=_tmTotal;_updateTimerUI();toggleTimer();
   }
   function closeTimer(){
     clearInterval(_tmInterval);_tmRunning=false;
@@ -1205,15 +1260,15 @@ ${isPreview ? `<div class="preview-banner">
         o.start(ac.currentTime+t);o.stop(ac.currentTime+t+0.3);
       });
     }catch(e){}
-    document.getElementById('timer-play-btn').textContent='✅ Fine!';
+    document.getElementById('timer-play-btn').textContent='↻ Riavvia';
   }
   // ── Video ──────────────────────────────────────────────────────────────────
-  function openVideo(ytId){
-    document.getElementById('video-iframe').src='https://www.youtube-nocookie.com/embed/'+ytId+'?autoplay=1&rel=0';
+  function openVideo(ytId,title){
+    document.getElementById('video-yt-link').href='https://www.youtube.com/watch?v='+ytId;
+    document.getElementById('video-title').textContent=title||'Guarda il video';
     document.getElementById('video-overlay').classList.add('open');
   }
   function closeVideo(){
-    document.getElementById('video-iframe').src='';
     document.getElementById('video-overlay').classList.remove('open');
   }
 <\/script>

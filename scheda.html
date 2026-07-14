@@ -400,6 +400,12 @@
   }
 
   .tab-btn.active-storico { color: white; border-color: #f59e0b; }
+
+  /* GYMSHEET_FIX_V2: note informative, non obbligatorie */
+  .note-input.note-missing{border:2px solid #ef4444;background:#fff1f2}
+  .note-input.note-ok{border-color:#86efac;background:#f0fdf4}
+  .note-label.note-missing-label{color:#b91c1c;font-weight:700}
+
 </style>
 </head>
 <body>
@@ -1071,17 +1077,49 @@
   });
 
   // ── Notes (scratch pad) ──
+
+  /* GYMSHEET_FIX_V2 */
+  const TAB_KEY=NOTES_KEY+'_active_tab';
+  function updateNoteState(el){
+    if(!el)return;
+    const missing=!el.value.trim();
+    el.classList.toggle('note-missing',missing);
+    el.classList.toggle('note-ok',!missing);
+    const label=el.previousElementSibling;
+    if(label&&label.classList.contains('note-label')){
+      label.classList.toggle('note-missing-label',missing);
+      label.textContent=missing?'⚠️ Nota vuota: l’esercizio non comparirà nello storico':'✅ Nota presente: l’esercizio sarà registrato';
+    }
+  }
+  function updateAllNoteStates(){document.querySelectorAll('.note-input').forEach(updateNoteState);}
+  function warnAboutMissingNotes(){
+    const panel=document.getElementById('panel-'+currentTab);
+    if(!panel)return true;
+    const fields=[...panel.querySelectorAll('.note-input')];
+    fields.forEach(updateNoteState);
+    const missing=fields.filter(el=>!el.value.trim());
+    if(!missing.length)return true;
+    return confirm('Attenzione: '+missing.length+' esercizi non hanno una nota.\n\nGli esercizi senza nota non saranno riportati come eseguiti nello storico.\n\nVuoi salvare comunque l’allenamento?');
+  }
+  function savedTabOr(fallback){
+    const saved=localStorage.getItem(TAB_KEY);
+    return document.getElementById('tab-'+saved)?saved:fallback;
+  }
+  window.addEventListener('pageshow',()=>{const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);}});
+
   function loadNotes() {
     try { notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); }
     catch(e) { notes = {}; }
     document.querySelectorAll('.note-input').forEach(el => {
       const id = el.closest('.card').id;
-      if (notes[id]) el.value = notes[id];
+      if (notes[id]) el.value = notes[id]; updateNoteState(el);
     });
   }
 
   let saveTimer = null;
   function saveNote(id, value) {
+    updateNoteState(document.getElementById(id)?.querySelector('.note-input'));
     if (value.trim() === '') delete notes[id]; else notes[id] = value;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -1096,13 +1134,14 @@
     if (!confirm('Azzera le note del workout corrente?')) return;
     notes = {};
     localStorage.removeItem(NOTES_KEY);
-    document.querySelectorAll('.note-input').forEach(el => el.value = '');
+    document.querySelectorAll('.note-input').forEach(el => { el.value = ''; updateNoteState(el); });
   }
 
   // ── Save workout to history ──
   function saveWorkout() {
+    if (!warnAboutMissingNotes()) return;
     const hasNotes = Object.values(notes).some(v => v.trim() !== '');
-    if (!hasNotes) { alert('Nessuna nota da salvare. Aggiungi prima i pesi usati!'); return; }
+    // Il warning precedente è informativo: anche una sessione senza note può essere salvata.
 
     const prog = currentTab.toUpperCase();
     const now = new Date();
@@ -1124,7 +1163,7 @@
     // Clear scratch notes
     notes = {};
     localStorage.removeItem(NOTES_KEY);
-    document.querySelectorAll('.note-input').forEach(el => el.value = '');
+    document.querySelectorAll('.note-input').forEach(el => { el.value = ''; updateNoteState(el); });
 
     alert(`✅ Allenamento Programma ${prog} salvato!\n${dateStr} alle ${timeStr}`);
     renderHistoryPanel();
@@ -1237,6 +1276,7 @@
     document.getElementById('panel-' + t).classList.add('active');
     document.getElementById('tab-' + t).classList.add('active-' + t);
     currentTab = t;
+    localStorage.setItem(TAB_KEY, t);
     // hide save/reset buttons on storico tab
     const footer = document.getElementById('footer-bar');
     footer.style.display = (t === 'storico') ? 'none' : 'flex';
@@ -1245,7 +1285,7 @@
 
   // ── Init ──
   loadNotes();
-  showTab('a');
+  showTab(savedTabOr('a')); updateAllNoteStates();
 </script>
 </body>
 </html>
