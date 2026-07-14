@@ -99,9 +99,8 @@ Il PDF deve contenere una tabella con queste colonne:
 MIT — libero uso, modifica e distribuzione.
 
 
-### Correzioni funzionali (luglio 2026)
-- I video vengono aperti come navigazione esterna a YouTube, non in un iframe/webview interno: è la modalità compatibile con una scheda scaricata e aperta come `file://`.
-- Le note vuote sono evidenziate, ma non sono obbligatorie. Al salvataggio viene mostrato un avviso: gli esercizi senza nota non compariranno come eseguiti nello storico; l'utente può comunque proseguire.
-- Il timer può essere riavviato con un solo clic.
-- L'ultimo tab selezionato viene conservato nel browser.
-- Il parser esclude gli URL dai badge anche quando PDF.js li colloca in una colonna programma e riconosce `x 3 sfinimento` senza trasformarlo in secondi.
+### Correzioni luglio 2026 (v3)
+- Apertura video tramite link esterno YouTube.
+- Warning non bloccante per note mancanti.
+- Timer riavviabile con un clic e persistenza del tab.
+- URL estratti in colonne programma esclusi dai badge.
