@@ -882,10 +882,13 @@ function renderPanel(progKey, sections, isPreview = false) {
 
 function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPreview = false) {
   const exNames = {};
+  const exSections = {};
   for (const secs of Object.values(programs))
     for (const sec of secs)
-      for (const ex of sec.exercises)
+      for (const ex of sec.exercises) {
         exNames[ex.id] = ex.name;
+        exSections[ex.id] = sec.section || 'Generale';
+      }
 
   const dynTabCss = progKeys.map((k, i) =>
     `.tab-btn.active-${k}{color:white;border-color:${TAB_COLORS[i % TAB_COLORS.length]}}`
@@ -910,6 +913,7 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
   const title       = escHtml(meta.title);
   const subtitle    = escHtml(meta.weeks || 'Scheda di allenamento');
   const exNamesJson = JSON.stringify(exNames);
+  const exSectionsJson = JSON.stringify(exSections);
   const NK = JSON.stringify(storageKey + '_notes');
   const HK = JSON.stringify(storageKey + '_history');
 
@@ -962,7 +966,8 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
   .chevron{font-size:.8rem;color:var(--muted);transition:transform .2s}.chevron.open{transform:rotate(180deg)}
   .session-body{display:none;border-top:1px solid var(--border);padding:10px 14px 14px}.session-body.open{display:block}
   .session-ex{padding:7px 0;border-bottom:1px solid #f3f4f6;cursor:pointer}.session-ex:last-child{border-bottom:none}
-  .session-ex-name{font-size:.82rem;font-weight:600}.session-ex-note{font-size:.8rem;color:var(--muted);margin-top:2px}
+  .session-ex-name{font-size:.82rem;font-weight:600}.session-ex-section{font-size:.68rem;color:#64748b;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.35px}.session-ex-note{font-size:.8rem;color:var(--muted);margin-top:3px}
+  .prog-modal-section{display:inline-block;font-size:.68rem;color:#475569;background:#f1f5f9;border-radius:5px;padding:2px 6px;margin-top:4px;font-weight:600}
   .del-session-btn{background:transparent;border:none;font-size:1rem;cursor:pointer;padding:2px 4px;color:#9ca3af}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end}.modal-overlay.open{display:flex}
   .modal-sheet{background:white;border-radius:18px 18px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:20px 16px 40px}
@@ -1088,6 +1093,7 @@ ${isPreview ? `<div class="preview-banner">
 <script>
   const NK=${NK}, HK=${HK};
   const EX=${exNamesJson};
+  const EX_SECTION=${exSectionsJson};
   const IS_PREVIEW=${isPreview ? 'true' : 'false'};
   let notes={}, currentTab=${firstKey};
   const _ls=(()=>{try{localStorage.setItem('_t','1');localStorage.removeItem('_t');return localStorage;}catch(e){const m={};return{getItem:k=>m[k]??null,setItem:(k,v)=>{m[k]=v;},removeItem:k=>{delete m[k];}};} })();
@@ -1218,7 +1224,7 @@ ${isPreview ? `<div class="preview-banner">
     if(!h.length){c.innerHTML='<div class="storico-empty"><div style="font-size:2.5rem;margin-bottom:12px">\\u{1F4CB}</div><strong>Nessun allenamento salvato</strong><br><span style="font-size:.8rem">Premi &quot;Salva allenamento&quot; al termine</span></div>';return;}
     c.innerHTML=h.map(s=>{
       const exs=Object.entries(s.notes).filter(([,v])=>v.trim());
-      const rows=exs.map(([id,val])=>'<div class="session-ex" onclick="showProg(\\''+id+'\\')"><div style="display:flex;justify-content:space-between"><span class="session-ex-name">'+(EX[id]||id)+'</span><span style="font-size:.7rem;color:#93c5fd">&#9656;</span></div><div class="session-ex-note">'+esc(val)+'</div></div>').join('');
+      const rows=exs.map(([id,val])=>'<div class="session-ex" onclick="showProg(\\''+id+'\\')"><div style="display:flex;justify-content:space-between"><div><div class="session-ex-name">'+esc(EX[id]||id)+'</div><div class="session-ex-section">'+esc(EX_SECTION[id]||'Generale')+'</div></div><span style="font-size:.7rem;color:#93c5fd">&#9656;</span></div><div class="session-ex-note">'+esc(val)+'</div></div>').join('');
       return '<div class="session-card"><div class="session-header" onclick="togSess(\\'sess-'+s.id+'\\')"><div class="session-meta"><div class="session-date">'+s.date+' \xb7 '+s.time+'</div><div class="session-sub">'+exs.length+' esercizi</div></div><span class="prog-badge '+s.program.toLowerCase()+'">Prog. '+s.program+'</span><span class="chevron" id="chev-'+s.id+'">&#9660;</span><button class="del-session-btn" onclick="delSess(event,'+s.id+')">&#128465;</button></div><div class="session-body" id="sess-'+s.id+'">'+(rows||'<div style="color:var(--muted);font-size:.8rem">Nessuna nota</div>')+'</div></div>';
     }).join('');
   }
@@ -1227,7 +1233,8 @@ ${isPreview ? `<div class="preview-banner">
   function showProg(exId){
     const entries=loadHistory().filter(s=>s.notes[exId]&&s.notes[exId].trim()).map(s=>({date:s.date+' '+s.time,prog:s.program,note:s.notes[exId]}));
     document.getElementById('prog-modal-title').textContent=EX[exId]||exId;
-    document.getElementById('prog-modal-sub').textContent=entries.length+' allenament'+(entries.length===1?'o':'i')+' registrat'+(entries.length===1?'o':'i');
+    const sectionName=EX_SECTION[exId]||'Generale';
+    document.getElementById('prog-modal-sub').innerHTML='<span class="prog-modal-section">'+esc(sectionName)+'</span><br>'+entries.length+' allenament'+(entries.length===1?'o':'i')+' registrat'+(entries.length===1?'o':'i');
     document.getElementById('prog-modal-body').innerHTML=entries.length?entries.map(e=>'<div class="prog-row"><div class="prog-row-date">'+e.date+'<br><span class="prog-badge '+e.prog.toLowerCase()+'" style="font-size:.65rem;padding:1px 6px">Prog. '+e.prog+'</span></div><div class="prog-row-note">'+esc(e.note)+'</div></div>').join(''):'<p style="color:var(--muted);font-size:.85rem">Nessun dato.</p>';
     document.getElementById('prog-modal').classList.add('open');
   }
