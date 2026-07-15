@@ -804,7 +804,7 @@ function ytIdFromUrl(url) {
   return m ? m[1] : null;
 }
 
-function renderExerciseCard(ex, stype, locked = false) {
+function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale') {
   const ytId = ytIdFromUrl(ex.link);
   const videoUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : ex.link;
   const ytBtn = videoUrl
@@ -824,7 +824,7 @@ function renderExerciseCard(ex, stype, locked = false) {
   const noteArea = locked ? '' : `
     <div class="note-label">📝 Note / Peso usato</div>
     <textarea class="note-input" rows="1" placeholder="es. peso, note…" oninput="saveNote('${ex.id}',this.value)"></textarea>`;
-  return `  <div class="card ${stype}${locked ? ' card-locked' : ''}" id="${ex.id}">
+  return `  <div class="card ${stype}${locked ? ' card-locked' : ''}" id="${ex.id}" data-section="${escHtml(sectionName || 'Generale')}">
     <div class="card-top">
       <span class="exercise-name">${escHtml(ex.name)}</span>
       ${ytBtn}
@@ -847,13 +847,14 @@ function renderPanel(progKey, sections, isPreview = false) {
   let count = 0;
   let gateOpened = false;
 
-  for (const sec of sections) {
-    if (!sec.exercises.length) continue;
+  const visibleSections = (sections || []).filter(sec => Array.isArray(sec.exercises) && sec.exercises.length > 0);
+  for (const sec of visibleSections) {
+    const sectionName = (sec.section || 'Generale').trim() || 'Generale';
     const color = SECTION_COLORS[sec.stype] || '#6b7280';
     html += `
-  <div class="section-header">
+  <div class="section-header" data-section-header="${escHtml(sectionName)}">
     <div class="section-dot" style="background:${color}"></div>
-    <h2>${escHtml(sec.section)}</h2>
+    <h2>${escHtml(sectionName)}</h2>
   </div>\n`;
     for (const ex of sec.exercises) {
       const locked = isPreview && count >= PREVIEW_FREE;
@@ -861,7 +862,7 @@ function renderPanel(progKey, sections, isPreview = false) {
         html += `<div class="preview-gate"><div class="preview-fade"></div>\n`;
         gateOpened = true;
       }
-      html += renderExerciseCard(ex, sec.stype, locked) + '\n';
+      html += renderExerciseCard(ex, sec.stype, locked, sectionName) + '\n';
       count++;
     }
   }
@@ -934,7 +935,7 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
   .tab-btn{flex:1;min-width:60px;padding:10px 6px;background:transparent;border:none;color:rgba(255,255,255,.65);font-size:.82rem;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
   ${dynTabCss}
   .panel{display:none;padding:12px 12px 80px}.panel.active{display:block}
-  .section-header{display:flex;align-items:center;gap:8px;margin:18px 0 10px}
+  .section-header{display:flex;align-items:center;gap:8px;margin:18px 0 10px;min-height:20px}.panel>.section-header:first-child{margin-top:8px}
   .section-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
   .section-header h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.8px;font-weight:700;color:var(--muted)}
   .card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-left:4px solid var(--border)}
@@ -1239,6 +1240,22 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('prog-modal').classList.add('open');
   }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function ensureFirstSectionHeaders(){
+    document.querySelectorAll('.panel:not(#panel-storico)').forEach(panel=>{
+      const firstCard=panel.querySelector('.card[data-section]');
+      if(!firstCard)return;
+      let previous=firstCard.previousElementSibling;
+      while(previous&&previous.classList.contains('preview-gate'))previous=previous.previousElementSibling;
+      if(previous&&previous.classList.contains('section-header'))return;
+      const sectionName=firstCard.dataset.section||'Generale';
+      const header=document.createElement('div');
+      header.className='section-header';
+      header.dataset.sectionHeader=sectionName;
+      const color=getComputedStyle(firstCard).borderLeftColor||'#6b7280';
+      header.innerHTML='<div class="section-dot" style="background:'+color+'"></div><h2>'+esc(sectionName)+'</h2>';
+      panel.insertBefore(header,firstCard);
+    });
+  }
   function showTab(t){
     const allKeys=${allTabsJson};
     allKeys.forEach(x=>{
@@ -1253,6 +1270,7 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('footer-bar').style.display=t==='storico'?'none':'flex';
     if(t==='storico')renderHistory();
   }
+  ensureFirstSectionHeaders();
   loadNotes(); showTab(savedTabOr(${firstKey}));
   // ── Timer ──────────────────────────────────────────────────────────────────
   let _tmTotal=0,_tmLeft=0,_tmInterval=null,_tmRunning=false;
