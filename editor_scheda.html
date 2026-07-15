@@ -439,6 +439,43 @@ function parseParams(s) {
     badges.push(['load', 'a sfinimento']);
     return badges;
   }
+  // ── Prescrizioni strutturate generiche ──────────────────────────────
+  // Copre serie fisse/intervallo, ripetizioni fisse/intervallo, AMRAP/TMAX
+  // e carichi %, kg, RPE o RIR, con eventuale spiegazione tra parentesi.
+  const structured = s.match(/^\s*(\d+(?:\s*[-–—]\s*\d+)?)\s*[xX×]\s*(AMRAP|(?:T\s*MAX|TMAX|TEMPO\s+MASSIMO)|\d+(?:\s*[-–—]\s*\d+)?)\s*(?:[xX×]\s*(?:(\d+(?:[.,]\d+)?(?:\s*%?\s*[-–—]\s*\d+(?:[.,]\d+)?)?\s*%)|(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?\s*(?:kg|kgs|lb|lbs))|(RPE\s*\d+(?:[.,]\d+)?)|(RIR\s*\d+)))?\s*(?:\((.+)\))?\s*$/i);
+  if (structured) {
+    const normalizeRange = value => String(value || '')
+      .replace(/\s*[-–—]\s*/g, '-')
+      .replace(/,/g, '.');
+    const series = normalizeRange(structured[1]);
+    const workRaw = structured[2].trim();
+    let work;
+    if (/^AMRAP$/i.test(workRaw)) work = 'AMRAP';
+    else if (/^(?:T\s*MAX|TMAX|TEMPO\s+MASSIMO)$/i.test(workRaw)) work = 'tempo massimo';
+    else work = normalizeRange(workRaw) + ' rip';
+    badges.push(['series', series + ' serie × ' + work]);
+
+    if (structured[3]) {
+      badges.push(['load', normalizeRange(structured[3].replace(/%/g, '').trim()) + ' %']);
+    } else if (structured[4]) {
+      const m = structured[4].match(/^(.+?)\s*(kg|kgs|lb|lbs)$/i);
+      const unit = /^kg/i.test(m[2]) ? 'kg' : 'lbs';
+      badges.push(['load', normalizeRange(m[1]) + ' ' + unit]);
+    } else if (structured[5]) {
+      badges.push(['load', structured[5].toUpperCase().replace(',', '.')]);
+    } else if (structured[6]) {
+      badges.push(['load', structured[6].toUpperCase()]);
+    }
+
+    if (structured[7] && structured[7].trim()) {
+      const explanation = structured[7].trim()
+        .replace(/(\d+(?:[.,]\d+)?)\s*%\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %')
+        .replace(/(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %');
+      badges.push(['load', explanation]);
+    }
+    return badges;
+  }
+
   // ── Serie speciali: intervalli, tempo massimo, piramidali/scalate ───
   // Accetta entrambe le notazioni percentuali:
   //   65-70%  e  65%-70%
