@@ -443,6 +443,21 @@ function parseParams(s) {
   // Accetta entrambe le notazioni percentuali:
   //   65-70%  e  65%-70%
   // e conserva un'eventuale spiegazione tra parentesi.
+  // Serie e ripetizioni fisse con intervallo di carico:
+  // "3 x 5 x 60-65%" oppure "3 x 5 x 60%-65%".
+  const mFixedRepLoadRange = s.match(/^(\d+)\s*[xX×]\s*(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%\s*(?:\((.+)\))?\s*$/i);
+  if (mFixedRepLoadRange) {
+    badges.push(['series', mFixedRepLoadRange[1] + ' serie × ' + mFixedRepLoadRange[2] + ' rip']);
+    badges.push(['load', mFixedRepLoadRange[3].replace(',', '.') + '-' + mFixedRepLoadRange[4].replace(',', '.') + ' %']);
+    if (mFixedRepLoadRange[5] && mFixedRepLoadRange[5].trim()) {
+      const explanation = mFixedRepLoadRange[5].trim()
+        .replace(/(\d+(?:[.,]\d+)?)\s*%\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %')
+        .replace(/(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %');
+      badges.push(['load', explanation]);
+    }
+    return badges;
+  }
+
   const mRange = s.match(/^(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%\s*(?:\((.+)\))?\s*$/i);
   if (mRange) {
     badges.push(['series', mRange[1] + '-' + mRange[2] + ' serie × ' + mRange[3] + '-' + mRange[4] + ' rip']);
