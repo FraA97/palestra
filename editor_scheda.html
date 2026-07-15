@@ -307,10 +307,6 @@
     float: right; background: #f3f4f6; border: none; border-radius: 50%;
     width: 28px; height: 28px; cursor: pointer; font-size: 1rem; line-height: 28px; text-align: center;
   }
-
-  /* ── AI import report ── */
-  .ai-import-banner{display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:14px;padding:16px;margin-bottom:16px}
-  .ai-import-banner.show{display:block}.ai-import-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.ai-import-title{font-weight:800;color:#1e3a5f}.ai-import-meta{font-size:.76rem;color:#6b7280;margin-top:3px}.ai-import-list{margin:10px 0 0;padding-left:20px;font-size:.8rem;color:#9a3412;max-height:180px;overflow:auto}.ai-import-close{border:0;background:#dbeafe;border-radius:50%;width:28px;height:28px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -327,11 +323,6 @@
 
 <div class="page">
 
-
-  <div id="ai-import-banner" class="ai-import-banner">
-    <div class="ai-import-head"><div><div class="ai-import-title">✨ Scheda importata con AI nello stesso editor</div><div class="ai-import-meta" id="ai-import-meta"></div></div><button class="ai-import-close" onclick="dismissAiReport()">✕</button></div>
-    <ul class="ai-import-list" id="ai-import-list"></ul>
-  </div>
   <!-- Meta info -->
   <div class="card">
     <div class="card-title">📋 Informazioni scheda</div>
@@ -448,6 +439,29 @@ function parseParams(s) {
     badges.push(['load', 'a sfinimento']);
     return badges;
   }
+  // ── Serie speciali: tempo massimo e piramidali/scalate ────────────────
+  // Esempi: "3xtmax", "3 x t max", "3×tempo massimo"
+  const mTMax = s.match(/^(\d+)\s*[xX×]\s*(?:t\s*max|tmax|tempo\s+massimo)$/i);
+  if (mTMax) {
+    badges.push(['series', mTMax[1] + ' serie × tempo massimo']);
+    return badges;
+  }
+
+  // Esempi: "3x15-12-10", "3 x 15 / 12 / 10".
+  // Il primo numero è il numero di serie; la sequenza seguente descrive
+  // le ripetizioni di ciascuna serie, nell'ordine indicato.
+  const mRepSequence = s.match(/^(\d+)\s*[xX×]\s*(\d+(?:\s*[-\/–—]\s*\d+)+)$/);
+  if (mRepSequence) {
+    const seriesCount = parseInt(mRepSequence[1], 10);
+    const reps = mRepSequence[2].split(/\s*[-\/–—]\s*/).filter(Boolean);
+    const coherent = reps.length === seriesCount;
+    badges.push(['series', seriesCount + ' serie: ' + reps.join(' · ') + ' rip']);
+    if (!coherent) {
+      badges.push(['load', 'sequenza da verificare']);
+    }
+    return badges;
+  }
+
   if (/\bAMRAP\b/i.test(s)) {
     const m = s.match(/(\d+)\s*min/i);
     badges.push(['series', 'AMRAP' + (m ? ' ' + m[1] + 'min' : '')]);
@@ -1462,28 +1476,6 @@ function downloadHtml() {
   showToast('✅ HTML scaricato: ' + result.filename);
 }
 
-
-// ── AI handoff: same traditional editor and same generator ─────────────────
-const AI_REPORT_KEY = 'editor_scheda_ai_report';
-function showAiImportReport() {
-  let report = null;
-  try { report = JSON.parse(localStorage.getItem(AI_REPORT_KEY) || 'null'); } catch(e) {}
-  const fromAi = new URLSearchParams(location.search).get('source') === 'ai';
-  if (!fromAi && !report) return;
-  const banner = document.getElementById('ai-import-banner');
-  if (!banner) return;
-  banner.classList.add('show');
-  const summary = report?.summary || {};
-  document.getElementById('ai-import-meta').textContent = [report?.sourceFile, summary.programs != null ? summary.programs+' programmi' : '', summary.exercises != null ? summary.exercises+' esercizi' : ''].filter(Boolean).join(' · ') || 'Controlla i dati prima di generare la scheda.';
-  const items = report?.items || [];
-  document.getElementById('ai-import-list').innerHTML = items.length ? items.map(x => '<li>'+escHtml(x.text)+'</li>').join('') : '<li style="color:#166534">Nessun avviso specifico. È comunque consigliato controllare esercizi, parametri e link.</li>';
-}
-function dismissAiReport() {
-  localStorage.removeItem(AI_REPORT_KEY);
-  document.getElementById('ai-import-banner')?.classList.remove('show');
-  if (new URLSearchParams(location.search).has('source')) history.replaceState(null,'',location.pathname);
-}
-
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderSections();
 renderProgTags();
@@ -1509,7 +1501,6 @@ try {
     renderSections();
   }
 } catch(e) {}
-showAiImportReport();
 </script>
 
 <!-- Paywall Modal -->

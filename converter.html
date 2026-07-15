@@ -655,6 +655,29 @@ function parseParams(s) {
     return badges;
   }
 
+  // ── Serie speciali: tempo massimo e piramidali/scalate ────────────────
+  // Esempi: "3xtmax", "3 x t max", "3×tempo massimo"
+  const mTMax = s.match(/^(\d+)\s*[xX×]\s*(?:t\s*max|tmax|tempo\s+massimo)$/i);
+  if (mTMax) {
+    badges.push(['series', mTMax[1] + ' serie × tempo massimo']);
+    return badges;
+  }
+
+  // Esempi: "3x15-12-10", "3 x 15 / 12 / 10".
+  // Il primo numero è il numero di serie; la sequenza seguente descrive
+  // le ripetizioni di ciascuna serie, nell'ordine indicato.
+  const mRepSequence = s.match(/^(\d+)\s*[xX×]\s*(\d+(?:\s*[-\/–—]\s*\d+)+)$/);
+  if (mRepSequence) {
+    const seriesCount = parseInt(mRepSequence[1], 10);
+    const reps = mRepSequence[2].split(/\s*[-\/–—]\s*/).filter(Boolean);
+    const coherent = reps.length === seriesCount;
+    badges.push(['series', seriesCount + ' serie: ' + reps.join(' · ') + ' rip']);
+    if (!coherent) {
+      badges.push(['load', 'sequenza da verificare']);
+    }
+    return badges;
+  }
+
   if (/\bAMRAP\b/i.test(s)) {
     const m = s.match(/(\d+)\s*min/i);
     badges.push(['series', 'AMRAP' + (m ? ' ' + m[1] + 'min' : '')]);
