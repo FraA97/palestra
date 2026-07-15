@@ -656,12 +656,21 @@ function parseParams(s) {
   }
 
   // ── Serie speciali: intervalli, tempo massimo, piramidali/scalate ───
-  // Intervalli completi: "2-4 x 8-10 x 65-70%".
-  // Conserva tutti i limiti invece di ridurli ai valori massimi.
-  const mRange = s.match(/^(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%$/i);
+  // Accetta entrambe le notazioni percentuali:
+  //   65-70%  e  65%-70%
+  // e conserva un'eventuale spiegazione tra parentesi.
+  const mRange = s.match(/^(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%\s*(?:\((.+)\))?\s*$/i);
   if (mRange) {
     badges.push(['series', mRange[1] + '-' + mRange[2] + ' serie × ' + mRange[3] + '-' + mRange[4] + ' rip']);
     badges.push(['load', mRange[5].replace(',', '.') + '-' + mRange[6].replace(',', '.') + ' %']);
+    if (mRange[7] && mRange[7].trim()) {
+      // Normalizza anche le percentuali presenti nella spiegazione,
+      // senza eliminare il significato originale.
+      const explanation = mRange[7].trim()
+        .replace(/(\d+(?:[.,]\d+)?)\s*%\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %')
+        .replace(/(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %');
+      badges.push(['load', explanation]);
+    }
     return badges;
   }
 
@@ -672,14 +681,12 @@ function parseParams(s) {
     return badges;
   }
 
-  // Esempi: "3xtmax", "3 x t max", "3×tempo massimo".
   const mTMax = s.match(/^(\d+)\s*[xX×]\s*(?:t\s*max|tmax|tempo\s+massimo)$/i);
   if (mTMax) {
     badges.push(['series', mTMax[1] + ' serie × tempo massimo']);
     return badges;
   }
 
-  // Esempi: "3x15-12-10", "3 x 15 / 12 / 10".
   const mRepSequence = s.match(/^(\d+)\s*[xX×]\s*(\d+(?:\s*[-\/–—]\s*\d+)+)$/);
   if (mRepSequence) {
     const seriesCount = parseInt(mRepSequence[1], 10);
