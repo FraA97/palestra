@@ -648,6 +648,26 @@ function parsePrescription(value) {
 
   if (/^x$/i.test(original)) return exact([['series','✓']]);
 
+  // Template avanzati: full-match strict-or-raw.
+  m = original.match(/^Superset:\s*A1\s+(\d+)\s*[xX×]\s*(\d+)\s*\+\s*A2\s+(\d+)\s*[xX×]\s*(\d+)\s*\|\s*R(\d+)\s*(?:[”"]|s|sec)?\s*$/i);
+  if (m) return exact([
+    ['method','Superset'],['series','A1: '+m[1]+' serie × '+m[2]+' rip'],['series','A2: '+m[3]+' serie × '+m[4]+' rip'],['rest','⏱ '+m[5]+'"']
+  ]);
+
+  m = original.match(/^Circuito:\s*(\d+)\s*giri\s*\|\s*(\d+(?:\s*\/\s*\d+)+)\s*rip\s*\|\s*R(\d+)\s*(?:[”"]|s|sec)?\s*$/i);
+  if (m) return exact([
+    ['method','Circuito: '+m[1]+' giri'],['series','Ripetizioni: '+normList(m[2])],['rest','⏱ '+m[3]+'"']
+  ]);
+
+  m = original.match(/^Ladder:\s*(\d+(?:\s*\/\s*\d+)+)\s*rip\s*$/i);
+  if (m) return exact([['method','Ladder'],['series','Ripetizioni: '+normList(m[1])]]);
+
+  m = original.match(/^(\d+)\s*[xX×]\s*(\d+)\s*\|\s*Tempo\s+(\d+)\s*[-–—]\s*(\d+)\s*[-–—]\s*(\d+)\s*\|\s*R(\d+)\s*(?:[”"]|s|sec)?\s*$/i);
+  if (m) return exact([
+    ['series',m[1]+' serie × '+m[2]+' rip'],['method','Tempo: '+m[3]+'-'+m[4]+'-'+m[5]],['rest','⏱ '+m[6]+'"']
+  ]);
+
+
   // Progressione completa: [eventuale esercizio –] carico x serie per fase x RIR per fase.
   // Il segmento di carico viene mantenuto integralmente, per esempio "50% max. squat".
   m = original.match(/^(?:(.+?)\s*[–—]\s*)?(.+?)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
@@ -909,7 +929,7 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPrevie
   .yt-btn{background:#f00;color:white;border:none;border-radius:6px;padding:5px 8px;font-size:.75rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;font-weight:600}
   .badges{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
   .badge{background:#f3f4f6;border-radius:6px;padding:3px 8px;font-size:.75rem;font-weight:500;border:1px solid var(--border)}
-  .badge.series{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}.badge.rest{background:#fef3c7;border-color:#fde68a;color:#92400e}.badge.load{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}.badge.raw{background:#f8fafc;border-color:#cbd5e1;color:#475569;font-weight:500}.badge.warning{background:#fff7ed;border-color:#fed7aa;color:#9a3412;font-weight:500}
+  .badge.series{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}.badge.rest{background:#fef3c7;border-color:#fde68a;color:#92400e}.badge.load{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}.badge.raw{background:#f8fafc;border-color:#cbd5e1;color:#475569;font-weight:500}.badge.method{background:#f5f3ff;border-color:#c4b5fd;color:#6d28d9}.badge.warning{background:#fff7ed;border-color:#fed7aa;color:#9a3412;font-weight:500}
   .note-label{font-size:.72rem;color:var(--muted);margin-top:10px;margin-bottom:4px;font-weight:500}
   .note-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85rem;background:#fafafa;color:var(--text);resize:none;font-family:inherit;transition:border-color .2s;min-height:38px}
   .note-input:focus{outline:none;border-color:#93c5fd;background:white}
@@ -1067,6 +1087,7 @@ ${isPreview ? `<div class="preview-banner">
   const EX_SECTION=${exSectionsJson};
   const IS_PREVIEW=${isPreview ? 'true' : 'false'};
 
+let uiDialogHideTimer=null;
 function uiDialog(options={}){
   const overlay=document.getElementById('ui-dialog-overlay');
   if(!overlay)return Promise.resolve(options.cancelText?false:true);
@@ -1074,12 +1095,12 @@ function uiDialog(options={}){
   title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
   input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
   return new Promise(resolve=>{
-    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
+    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);clearTimeout(uiDialogHideTimer);uiDialogHideTimer=setTimeout(()=>{if(!overlay.classList.contains('open'))overlay.style.display='none'},170);resolve(value)};
     const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
     const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
     if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
     close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
-    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
+    clearTimeout(uiDialogHideTimer);uiDialogHideTimer=null;overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
   });
 }
 function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}

@@ -1251,6 +1251,7 @@
   loadNotes();
   showTab('a');
 
+let uiDialogHideTimer=null;
 function uiDialog(options={}){
   const overlay=document.getElementById('ui-dialog-overlay');
   if(!overlay)return Promise.resolve(options.cancelText?false:true);
@@ -1258,12 +1259,12 @@ function uiDialog(options={}){
   title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
   input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
   return new Promise(resolve=>{
-    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
+    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);clearTimeout(uiDialogHideTimer);uiDialogHideTimer=setTimeout(()=>{if(!overlay.classList.contains('open'))overlay.style.display='none'},170);resolve(value)};
     const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
     const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
     if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
     close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
-    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
+    clearTimeout(uiDialogHideTimer);uiDialogHideTimer=null;overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
   });
 }
 function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}

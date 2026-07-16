@@ -277,7 +277,7 @@
         <li>Chiave API riutilizzabile</li>
         <li>Tutti i formati supportati</li>
       </ul>
-      <a href="#" class="btn-pricing outline" onclick="buyTrainerPack('pack5')">Acquista →</a>
+      <a href="#" class="btn-pricing outline" onclick="event.preventDefault();buyTrainerPack(\'pack5\',this)">Acquista →</a>
       <div class="pricing-badge">🔥 Più scelto</div>
       <div class="pricing-tag">Pro</div>
       <div class="pricing-price">€19 <span></span></div>
@@ -289,7 +289,7 @@
         <li>Chiave API riutilizzabile</li>
         <li>Tutti i formati supportati</li>
       </ul>
-      <a href="#" class="btn-pricing primary" onclick="buyTrainerPack('pack15')">Acquista →</a>
+      <a href="#" class="btn-pricing primary" onclick="event.preventDefault();buyTrainerPack(\'pack15\',this)">Acquista →</a>
     </div>
     <div class="pricing-card">
       <div class="pricing-tag">Studio</div>
@@ -302,7 +302,7 @@
         <li>Chiave API riutilizzabile</li>
         <li>Tutti i formati supportati</li>
       </ul>
-      <a href="#" class="btn-pricing outline" onclick="buyTrainerPack('pack35')">Acquista →</a>
+      <a href="#" class="btn-pricing outline" onclick="event.preventDefault();buyTrainerPack(\'pack35\',this)">Acquista →</a>
     </div>
   </div>
 
@@ -390,23 +390,26 @@ function openCreationChoice(includeManual=true){
   return uiDialog({title:'Come vuoi creare l’App?',confirmText:'Chiudi',html:`<p>Scegli il percorso più adatto al file che hai a disposizione.</p><div class="mode-grid"><button class="mode-card" onclick="location.href='converter.html'"><strong>📄 Conversione tradizionale</strong><span>Per PDF tabellari che rispettano la struttura descritta nella Guida. È rapida e non usa AI.</span></button><button class="mode-card" onclick="location.href='converter_universale.html'"><strong>✨ Conversione AI</strong><span>Interpreta automaticamente PDF, Word, Excel, CSV e testo. Il risultato va controllato nell’editor.</span></button>${manual}</div>`})
 }
 
-async function buyTrainerPack(pack) {
+async function buyTrainerPack(pack, triggerEl = null) {
+  const packageMap={pack5:'starter',pack15:'pro',pack35:'studio',starter:'starter',pro:'pro',studio:'studio'};
+  const packageId=packageMap[pack];
+  if(!packageId){await uiAlert('Pacchetto non riconosciuto. Ricarica la pagina e riprova.','Acquisto non disponibile');return;}
   const email = await uiPrompt('Inserisci la tua email per ricevere la chiave trainer dopo il pagamento:','Acquista pacchetto trainer','email@esempio.com');
   if (!email || !email.includes('@')) return;
-  const btn = event.target;
-  const origText = btn.textContent;
-  btn.textContent = '…'; btn.style.pointerEvents = 'none';
+  const btn = triggerEl || (typeof event!=='undefined' ? event.currentTarget : null);
+  const origText = btn ? btn.textContent : '';
+  if(btn){btn.textContent='…';btn.style.pointerEvents='none';}
   try {
     const res = await fetch(`${WORKER_URL}/trainer/buy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pack, email })
+      body: JSON.stringify({ package: packageId, email })
     });
     const data = await res.json();
-    if (data.url) { localStorage.setItem('gymsheet_pending_email', email); window.location.href = data.url; }
-    else uiAlert('❌ Errore: ' + (data.error || 'sconosciuto'));
-  } catch { uiAlert('❌ Errore di connessione'); }
-  finally { btn.textContent = origText; btn.style.pointerEvents = ''; }
+    if (res.ok && data.url) { localStorage.setItem('gymsheet_pending_email', email); window.location.href = data.url; return; }
+    await uiAlert(data.error || `Impossibile avviare il pagamento (HTTP ${res.status})`,'Acquisto non disponibile');
+  } catch(error) { await uiAlert('Errore di connessione al servizio pagamenti. Riprova.','Connessione non riuscita'); }
+  finally { if(btn){btn.textContent=origText;btn.style.pointerEvents='';} }
 }
 
 (function checkSuccessRedirect() {
@@ -448,6 +451,7 @@ if (params.get('success') === 'download') localStorage.removeItem('gymsheet_ai_u
   history.replaceState(null, '', clean);
 })();
 
+let uiDialogHideTimer=null;
 function uiDialog(options={}){
   const overlay=document.getElementById('ui-dialog-overlay');
   if(!overlay)return Promise.resolve(options.cancelText?false:true);
@@ -455,12 +459,12 @@ function uiDialog(options={}){
   title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
   input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
   return new Promise(resolve=>{
-    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
+    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);clearTimeout(uiDialogHideTimer);uiDialogHideTimer=setTimeout(()=>{if(!overlay.classList.contains('open'))overlay.style.display='none'},170);resolve(value)};
     const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
     const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
     if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
     close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
-    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
+    clearTimeout(uiDialogHideTimer);uiDialogHideTimer=null;overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
   });
 }
 function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
