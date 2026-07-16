@@ -309,6 +309,11 @@
     float: right; background: #f3f4f6; border: none; border-radius: 50%;
     width: 28px; height: 28px; cursor: pointer; font-size: 1rem; line-height: 28px; text-align: center;
   }
+.syntax-info-btn{width:30px;height:30px;border-radius:50%;border:0;background:#2563eb;color:#fff;font-weight:900;cursor:pointer;font-size:.9rem}.template-helper{margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.template-helper select{flex:1;min-width:150px;border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;border-radius:7px;padding:5px 7px;font-size:.72rem}.smart-suggestions{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.suggestion-chip{border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:14px;padding:4px 8px;font-size:.68rem;cursor:pointer}.suggestion-chip.recommended{border-color:#86efac;background:#f0fdf4;color:#166534}.syntax-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.syntax-example{background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:9px;font-size:.78rem}.syntax-example code{display:block;color:#1d4ed8;font-weight:700;margin-bottom:3px}@media(max-width:520px){.syntax-grid{grid-template-columns:1fr}}
+
+/* ── GymSheet dialog system ── */
+.ui-dialog-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(4px);z-index:5000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .16s ease}.ui-dialog-overlay.open{display:flex;opacity:1}.ui-dialog{width:min(500px,100%);max-height:min(86vh,760px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.3);padding:22px;transform:translateY(10px) scale(.98);animation:uiDialogIn .18s ease forwards}.ui-dialog h2{font-size:1.08rem;color:#1e3a5f;margin:0 0 8px}.ui-dialog-message{font-size:.88rem;line-height:1.55;color:#475569;white-space:pre-line}.ui-dialog-input{width:100%;margin-top:14px;padding:11px 12px;border:1.5px solid #d1d5db;border-radius:9px;font:inherit}.ui-dialog-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}.ui-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.ui-dialog-btn{border:0;border-radius:9px;padding:10px 15px;font-weight:750;cursor:pointer;font-size:.85rem}.ui-dialog-btn.secondary{background:#f1f5f9;color:#334155}.ui-dialog-btn.primary{background:#2563eb;color:#fff}.ui-dialog-btn.danger{background:#dc2626;color:#fff}.ui-dialog-btn.success{background:#16a34a;color:#fff}.ui-dialog-close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#475569}@keyframes uiDialogIn{to{transform:translateY(0) scale(1)}}
+@media(max-width:540px){.ui-dialog-overlay{align-items:flex-end;padding:0}.ui-dialog{width:100%;border-radius:18px 18px 0 0;padding:20px 16px 28px;max-height:90vh}.ui-dialog-actions{display:grid;grid-template-columns:1fr}.ui-dialog-btn{width:100%}}
 </style>
 </head>
 <body>
@@ -327,7 +332,7 @@
 
   <!-- Meta info -->
   <div class="card">
-    <div class="card-title">📋 Informazioni scheda</div>
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">📋 Informazioni scheda <button type="button" class="syntax-info-btn" onclick="openSyntaxGuide()" aria-label="Guida sintassi esercizi" title="Guida sintassi">i</button></div>
     <div class="field">
       <label>Nome cliente / Titolo</label>
       <input type="text" id="meta-title" placeholder="es. Mario Rossi – Scheda Ipertrofia" oninput="autosaveDraft()" />
@@ -375,7 +380,7 @@
   <span class="save-label"><span class="save-dot" id="save-dot" style="background:#d1d5db"></span>bozza</span>
   <button class="bottom-btn btn-import" onclick="document.getElementById('csv-input').click()">📂 Importa CSV</button>
   <button class="bottom-btn btn-preview" onclick="previewHtml()">👁 Anteprima</button>
-  <button class="bottom-btn btn-download" onclick="requestDownload()">⬇️ Genera HTML</button>
+  <button class="bottom-btn btn-download" onclick="requestDownload()">⬇️ Genera App</button>
 </div>
 
 <div id="toast"></div>
@@ -543,6 +548,16 @@ function renderBadgePreview(str) {
     .join('');
 }
 
+
+const EXERCISE_TEMPLATES={
+  'sets-reps':'3 x 10 x 70%','superset':'Superset: 3 giri — 10 rip + 12 rip — recupero 60s','circuit':'Circuito: 4 giri — 8 / 10 / 12 rip — recupero 90s','ladder':'3 x 15-12-10','emom':'EMOM 10min','amrap':'2 x AMRAP x 70% (as many rep as possible)','tempo':'3 x 8 — tempo 3-1-1','rest':'3 x 10 R60"','notes':'Indicazioni del coach: '
+};
+function applyExerciseTemplate(secId,exId,idx,key){const value=EXERCISE_TEMPLATES[key];if(!value)return;const input=document.getElementById(`prog-input-${exId}-${idx}`);if(!input)return;input.value=value;updateExField(secId,exId,'prog-'+idx,value);input.focus();input.setSelectionRange(value.length,value.length)}
+function smartSuggestions(value){const v=String(value||'').trim(),items=[];if(!v)return items;if(/^\d+\s*[xX×]\s*\d+$/.test(v))items.push(['Aggiungi carico',v+' x 70%']);if(/^\d+\s*s\s*[xX×]\s*\d+\s*r$/i.test(v))items.push(['Formato esteso',v.replace(/(\d+)\s*s\s*[xX×]\s*(\d+)\s*r/i,'$1 serie x $2 ripetizioni')]);if(/^\d+\s*[xX×]\s*\d+\s+\d+%$/.test(v))items.push(['Forma consigliata',v.replace(/\s+(\d+%)$/,' x $1')]);if(/amrap/i.test(v)&&!/\(.*\)/.test(v))items.push(['AMRAP completo',v+' (as many rep as possible)']);if(/^\d+\s*[xX×]\s*\d+\s*R?\d+"?$/i.test(v)&&!/R\d+/i.test(v))items.push(['Recupero esplicito',v.replace(/\s+(\d+)"?$/,' R$1"')]);return items.slice(0,3)}
+function renderSmartSuggestions(secId,exId,idx,value){return smartSuggestions(value).map(([label,next])=>`<button type="button" class="suggestion-chip recommended" onclick="applySuggestedPattern(${secId},${exId},${idx},decodeURIComponent('${encodeURIComponent(next)}'))">${uiEscape(label)}: ${uiEscape(next)}</button>`).join('')}
+function applySuggestedPattern(secId,exId,idx,value){const input=document.getElementById(`prog-input-${exId}-${idx}`);if(!input)return;input.value=value;updateExField(secId,exId,'prog-'+idx,value);input.focus()}
+function openSyntaxGuide(){return uiDialog({title:'Guida alla descrizione degli esercizi',confirmText:'Ho capito',html:`<p>Usa un <strong>pattern strutturato</strong> quando vuoi badge, timer e carichi separati. Se scrivi una descrizione libera, GymSheet la conserva integralmente senza interpretazioni rischiose.</p><div class="syntax-grid"><div class="syntax-example"><code>3 x 10 x 70%</code>3 serie × 10 rip + 70%</div><div class="syntax-example"><code>3 x 10 R60&quot;</code>Serie/ripetizioni + timer 60 secondi</div><div class="syntax-example"><code>2 x AMRAP x 70%</code>2 serie AMRAP + carico</div><div class="syntax-example"><code>3 x 15-12-10</code>Sequenza piramidale</div><div class="syntax-example"><code>4s x 8r</code>4 serie × 8 ripetizioni</div><div class="syntax-example"><code>50% max squat x 3/4/5 set x 3/2/1 RIR</code>Carico e progressioni per fase</div></div><p style="margin-top:12px"><strong>Descrizioni libere:</strong> Superset, circuito, tecnica e note del coach restano leggibili come testo originale se non corrispondono interamente a un pattern noto.</p>`})}
+
 // ── Section / Exercise management ───────────────────────────────────────────
 function toggleSectionPicker() {
   const p = document.getElementById('section-picker');
@@ -568,8 +583,8 @@ function addCustomSection() {
   addSection(name);
 }
 
-function removeSection(id) {
-  if (!confirm('Eliminare questa sezione e tutti i suoi esercizi?')) return;
+async function removeSection(id) {
+  if (!await uiConfirm('Eliminare questa sezione e tutti i suoi esercizi?','Elimina sezione','danger')) return;
   sections = sections.filter(s => s.id !== id);
   renderSections();
   autosaveDraft();
@@ -635,6 +650,8 @@ function updateExField(secId, exId, field, value) {
     ex.progs[idx] = value;
     const previewEl = document.getElementById(`preview-${exId}-${idx}`);
     if (previewEl) previewEl.innerHTML = renderBadgePreview(value);
+    const suggestEl=document.getElementById(`suggest-${exId}-${idx}`);
+    if(suggestEl)suggestEl.innerHTML=renderSmartSuggestions(secId,exId,idx,value);
   }
   autosaveDraft();
 }
@@ -685,10 +702,14 @@ function renderExercisesInSection(secId) {
     const progFieldsHtml = progLabels.map((lbl, i) => `
   <div class="prog-field" style="border-left:3px solid ${ACCENT_COLORS[i % ACCENT_COLORS.length]}">
     <label class="prog-field-label-${i}">Prog. ${escHtml(lbl)}</label>
-    <input type="text" value="${escHtml(ex.progs[i] || '')}"
+    <input type="text" id="prog-input-${ex.id}-${i}" value="${escHtml(ex.progs[i] || '')}"
       placeholder="es. 3x10 60%"
       oninput="updateExField(${secId}, ${ex.id}, 'prog-${i}', this.value)" />
+    <div class="template-helper"><select aria-label="Template rapido" onchange="applyExerciseTemplate(${secId},${ex.id},${i},this.value);this.value=''">
+      <option value="">✨ Inserisci template…</option><option value="sets-reps">Serie × Ripetizioni</option><option value="superset">Superset</option><option value="circuit">Circuito</option><option value="ladder">Ladder</option><option value="emom">EMOM</option><option value="amrap">AMRAP</option><option value="tempo">Tempo</option><option value="rest">Recupero</option><option value="notes">Note libere</option>
+    </select></div>
     <div class="badge-preview" id="preview-${ex.id}-${i}">${renderBadgePreview(ex.progs[i] || '')}</div>
+    <div class="smart-suggestions" id="suggest-${ex.id}-${i}">${renderSmartSuggestions(secId,ex.id,i,ex.progs[i] || '')}</div>
   </div>`).join('');
     div.innerHTML = `
       <div class="ex-row-top">
@@ -740,9 +761,9 @@ function addProgram() {
   autosaveDraft();
 }
 
-function removeProgram(idx) {
+async function removeProgram(idx) {
   if (progLabels.length <= 1) { showToast('Deve esserci almeno 1 programma'); return; }
-  if (!confirm(`Rimuovere il programma "${progLabels[idx]}"? I dati inseriti per questo programma andranno persi.`)) return;
+  if (!await uiConfirm(`Rimuovere il programma "${progLabels[idx]}"? I dati inseriti per questo programma andranno persi.`,`Rimuovi programma`,`danger`)) return;
   progLabels.splice(idx, 1);
   for (const sec of sections)
     for (const ex of sec.exercises)
@@ -1068,6 +1089,7 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
   </div>
 </div>
 
+<div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation"><div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title"><button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button><h2 id="ui-dialog-title"></h2><div class="ui-dialog-message" id="ui-dialog-message"></div><input class="ui-dialog-input" id="ui-dialog-input" style="display:none"><div class="ui-dialog-actions" id="ui-dialog-actions"></div></div></div>
 <div class="footer-bar" id="footer-bar" style="${isPreview ? 'display:none' : ''}">
   <small>Note salvate <span class="saved-dot" id="saved-dot"></span></small>
   <button class="save-btn" onclick="saveWorkout()">💾 Salva allenamento</button>
@@ -1092,6 +1114,27 @@ ${isPreview ? `<div class="preview-banner">
   const EX=${exNamesJson};
   const EX_SECTION=${exSectionsJson};
   const IS_PREVIEW=${isPreview ? 'true' : 'false'};
+
+function uiDialog(options={}){
+  const overlay=document.getElementById('ui-dialog-overlay');
+  if(!overlay)return Promise.resolve(options.cancelText?false:true);
+  const title=document.getElementById('ui-dialog-title'),message=document.getElementById('ui-dialog-message'),input=document.getElementById('ui-dialog-input'),actions=document.getElementById('ui-dialog-actions'),close=overlay.querySelector('.ui-dialog-close');
+  title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
+  input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
+  return new Promise(resolve=>{
+    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
+    const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
+    const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
+    if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
+    close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
+    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
+  });
+}
+function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function uiAlert(message,title='GymSheet'){return uiDialog({title,message,confirmText:'Chiudi'})}
+function uiConfirm(message,title='Conferma',tone='primary'){return uiDialog({title,message,cancelText:'Annulla',confirmText:'Continua',tone})}
+function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({title,message,input:true,inputPlaceholder:placeholder,cancelText:'Annulla',confirmText:'Continua'})}
+
   let notes={}, currentTab=${firstKey};
   const _ls=(()=>{try{localStorage.setItem('_t','1');localStorage.removeItem('_t');return localStorage;}catch(e){const m={};return{getItem:k=>m[k]??null,setItem:(k,v)=>{m[k]=v;},removeItem:k=>{delete m[k];}};} })();
   /*GYMSHEET_DATA_START*/const EMBEDDED_DATA={"ts":0,"notes":{},"history":[]};/*GYMSHEET_DATA_END*/
@@ -1101,7 +1144,7 @@ ${isPreview ? `<div class="preview-banner">
       window.opener.postMessage({type:'gymsheet_buy'},'*');
       window.close();
     } else {
-      alert('Torna alla pagina precedente e clicca su "Scarica / Paga" per acquistare la scheda completa.');
+      uiAlert('Torna alla pagina precedente e clicca su "Scarica / Paga" per acquistare la scheda completa.');
     }
   }
 
@@ -1112,12 +1155,12 @@ ${isPreview ? `<div class="preview-banner">
     const saved=_ls.getItem(TAB_KEY);
     return document.getElementById('tab-'+saved)?saved:fallback;
   }
-  function confirmIncompleteWorkout(){
+  async function confirmIncompleteWorkout(){
     const panel=document.getElementById('panel-'+currentTab);
     if(!panel)return true;
     const missing=[...panel.querySelectorAll('.note-input')].filter(el=>!el.value.trim()).length;
     if(!missing)return true;
-    return confirm('Attenzione: '+missing+' esercizi non hanno una nota.\\n\\nGli esercizi senza nota non saranno riportati come eseguiti nello storico.\\n\\nVuoi salvare comunque l’allenamento?');
+    return uiConfirm('Attenzione: '+missing+' esercizi non hanno una nota.\\n\\nGli esercizi senza nota non saranno riportati come eseguiti nello storico.\\n\\nVuoi salvare comunque l’allenamento?','Allenamento incompleto');
   }
   window.addEventListener('pageshow',()=>{const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);}});
@@ -1141,13 +1184,13 @@ ${isPreview ? `<div class="preview-banner">
       d.classList.add('saved');setTimeout(()=>d.classList.remove('saved'),1500);
     },500);
   }
-  function resetNotes(){
-    if(!confirm('Azzera le note correnti?'))return;
+  async function resetNotes(){
+    if(!await uiConfirm('Azzera le note correnti?','Azzera note','danger'))return;
     notes={};_ls.removeItem(NK);
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
   }
-  function saveWorkout(){
-    if(!confirmIncompleteWorkout())return;
+  async function saveWorkout(){
+    if(!await confirmIncompleteWorkout())return;
     const prog=currentTab.toUpperCase();
     const now=new Date();
     const ds=now.toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
@@ -1157,7 +1200,7 @@ ${isPreview ? `<div class="preview-banner">
     _ls.setItem(HK,JSON.stringify(h));
     notes={};_ls.removeItem(NK);
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
-    alert('\\u2705 Programma '+prog+' salvato!\\n'+ds+' alle '+ts);
+    uiAlert('\\u2705 Programma '+prog+' salvato!\\n'+ds+' alle '+ts);
     renderHistory();
   }
   function loadHistory(){
@@ -1180,16 +1223,16 @@ ${isPreview ? `<div class="preview-banner">
     input.onchange=e=>{
       const file=e.target.files[0];if(!file)return;
       const reader=new FileReader();
-      reader.onload=ev=>{
+      reader.onload=async ev=>{
         try{
           const d=JSON.parse(ev.target.result);
           if(!d.notes||!d.history)throw new Error('Formato non valido');
-          if(!confirm('Importare i dati? Le note attuali verranno sostituite.'))return;
+          if(!await uiConfirm('Importare i dati? Le note attuali verranno sostituite.','Importa dati'))return;
           _ls.setItem(NK,JSON.stringify(d.notes));
           _ls.setItem(HK,JSON.stringify(d.history));
           loadNotes();renderHistory();
-          alert('✅ Dati importati!');
-        }catch(err){alert('❌ File non valido: '+err.message);}
+          uiAlert('✅ Dati importati!');
+        }catch(err){uiAlert('❌ File non valido: '+err.message);}
       };
       reader.readAsText(file,'UTF-8');
     };
@@ -1226,7 +1269,7 @@ ${isPreview ? `<div class="preview-banner">
     }).join('');
   }
   function togSess(id){const b=document.getElementById(id),sid=id.replace('sess-',''),ch=document.getElementById('chev-'+sid);b.classList.toggle('open');if(ch)ch.classList.toggle('open');}
-  function delSess(e,id){e.stopPropagation();if(!confirm('Eliminare?'))return;_ls.setItem(HK,JSON.stringify(loadHistory().filter(s=>s.id!==id)));renderHistory();}
+  async function delSess(e,id){e.stopPropagation();if(!await uiConfirm('Eliminare questo allenamento?','Elimina allenamento','danger'))return;_ls.setItem(HK,JSON.stringify(loadHistory().filter(s=>s.id!==id)));renderHistory();}
   function showProg(exId){
     const entries=loadHistory().filter(s=>s.notes[exId]&&s.notes[exId].trim()).map(s=>({date:s.date+' '+s.time,prog:s.program,note:s.notes[exId]}));
     document.getElementById('prog-modal-title').textContent=EX[exId]||exId;
@@ -1333,6 +1376,7 @@ ${isPreview ? `<div class="preview-banner">
     document.getElementById('video-overlay').classList.remove('open');
   }
 <\/script>
+<div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation"><div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title"><button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button><h2 id="ui-dialog-title"></h2><div class="ui-dialog-message" id="ui-dialog-message"></div><input class="ui-dialog-input" id="ui-dialog-input" style="display:none"><div class="ui-dialog-actions" id="ui-dialog-actions"></div></div></div>
 </body>
 </html>`;
 }
@@ -1357,12 +1401,12 @@ function saveDraft() {
   if (dot) { dot.style.background = '#22c55e'; setTimeout(() => dot.style.background = '#d1d5db', 1500); }
 }
 
-function loadDraft() {
+async function loadDraft() {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) { showToast('Nessuna bozza salvata'); return; }
     const draft = JSON.parse(raw);
-    if (!confirm('Caricare la bozza? I dati attuali verranno sovrascritti.')) return;
+    if (!await uiConfirm('Caricare la bozza? I dati attuali verranno sovrascritti.','Carica bozza')) return;
     document.getElementById('meta-title').value = draft.title || '';
     document.getElementById('meta-weeks').value = draft.weeks || '';
     if (draft.progLabels && Array.isArray(draft.progLabels)) progLabels = draft.progLabels;
@@ -1389,7 +1433,7 @@ function importCsv(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     try {
       const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
       if (!lines.length) { showToast('❌ File CSV vuoto'); return; }
@@ -1410,7 +1454,7 @@ function importCsv(input) {
 
       // Skip header row
       const dataLines = lines.filter(l => !/^esercizio/i.test(parseCsvLine(l)[0]));
-      if (!confirm(`Trovate ${dataLines.length} righe. Sostituire i dati attuali?`)) return;
+      if (!await uiConfirm(`Trovate ${dataLines.length} righe. Sostituire i dati attuali?`,'Importa CSV')) return;
 
       sections = [];
       sectionCounter = 0;
@@ -1512,7 +1556,7 @@ function downloadHtml() {
   a.href = URL.createObjectURL(blob);
   a.download = result.filename;
   a.click();
-  showToast('✅ HTML scaricato: ' + result.filename);
+  showToast('✅ App scaricata: ' + result.filename);
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -1547,7 +1591,7 @@ try {
   <div class="paywall-modal">
     <button class="btn-close-modal" onclick="closePaywall()">✕</button>
     <h2>⬇️ Scarica la tua scheda</h2>
-    <p>L'anteprima è gratuita. Per scaricare il file HTML scegli un'opzione:</p>
+    <p>L'anteprima è gratuita. Per scaricare il app GymSheet scegli un'opzione:</p>
 
     <div class="trainer-key-section">
       <p style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:8px">🔑 Hai una chiave trainer?</p>
@@ -1616,7 +1660,7 @@ function closePaywall() {
 
 async function useTrainerKey() {
   const key = document.getElementById('trainer-key-input').value.trim();
-  if (!key) return alert('Inserisci la chiave trainer');
+  if (!key) return uiAlert('Inserisci la chiave trainer');
   await checkTrainerKeyCredits(key, true);
 }
 
@@ -1649,13 +1693,13 @@ async function downloadWithTrainerKey(key) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, html: _pendingHtml, filename: _pendingFilename })
     });
-    if (!res.ok) { const d = await res.json(); alert('❌ ' + (d.error || 'Errore download')); return; }
+    if (!res.ok) { const d = await res.json(); uiAlert('❌ ' + (d.error || 'Errore download')); return; }
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = _pendingFilename;
     a.click();
-    showToast('✅ HTML scaricato: ' + _pendingFilename);
+    showToast('✅ App scaricata: ' + _pendingFilename);
     closePaywall();
     checkTrainerKeyCredits(key);
   } finally { btn.textContent = 'Usa chiave'; btn.disabled = false; }
@@ -1668,8 +1712,8 @@ function openSinglePayment() {
 
 async function confirmSinglePayment() {
   const email = document.getElementById('customer-email').value.trim();
-  if (!email || !email.includes('@')) return alert("Inserisci un'email valida");
-  if (!_pendingHtml) return alert('❌ Nessuna scheda generata. Chiudi il paywall e riprova.');
+  if (!email || !email.includes('@')) return uiAlert("Inserisci un'email valida");
+  if (!_pendingHtml) return uiAlert('❌ Nessuna app pronta. Chiudi il paywall e riprova.');
   const btn = document.querySelector('#email-form button');
   btn.textContent = '…'; btn.disabled = true;
   try {
@@ -1680,10 +1724,30 @@ async function confirmSinglePayment() {
     });
     const data = await res.json();
     if (data.url) { localStorage.setItem('gymsheet_pending_email', email); window.location.href = data.url; }
-    else alert('❌ Errore: ' + (data.error || 'sconosciuto'));
-  } catch { alert('❌ Errore di connessione'); }
+    else uiAlert('❌ Errore: ' + (data.error || 'sconosciuto'));
+  } catch { uiAlert('❌ Errore di connessione'); }
   finally { btn.textContent = 'Paga →'; btn.disabled = false; }
 }
+
+function uiDialog(options={}){
+  const overlay=document.getElementById('ui-dialog-overlay');
+  if(!overlay)return Promise.resolve(options.cancelText?false:true);
+  const title=document.getElementById('ui-dialog-title'),message=document.getElementById('ui-dialog-message'),input=document.getElementById('ui-dialog-input'),actions=document.getElementById('ui-dialog-actions'),close=overlay.querySelector('.ui-dialog-close');
+  title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
+  input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
+  return new Promise(resolve=>{
+    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
+    const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
+    const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
+    if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
+    close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
+    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
+  });
+}
+function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function uiAlert(message,title='GymSheet'){return uiDialog({title,message,confirmText:'Chiudi'})}
+function uiConfirm(message,title='Conferma',tone='primary'){return uiDialog({title,message,cancelText:'Annulla',confirmText:'Continua',tone})}
+function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({title,message,input:true,inputPlaceholder:placeholder,cancelText:'Annulla',confirmText:'Continua'})}
 </script>
 </body>
 </html>

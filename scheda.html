@@ -400,6 +400,10 @@
   }
 
   .tab-btn.active-storico { color: white; border-color: #f59e0b; }
+
+/* ── GymSheet dialog system ── */
+.ui-dialog-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(4px);z-index:5000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .16s ease}.ui-dialog-overlay.open{display:flex;opacity:1}.ui-dialog{width:min(500px,100%);max-height:min(86vh,760px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.3);padding:22px;transform:translateY(10px) scale(.98);animation:uiDialogIn .18s ease forwards}.ui-dialog h2{font-size:1.08rem;color:#1e3a5f;margin:0 0 8px}.ui-dialog-message{font-size:.88rem;line-height:1.55;color:#475569;white-space:pre-line}.ui-dialog-input{width:100%;margin-top:14px;padding:11px 12px;border:1.5px solid #d1d5db;border-radius:9px;font:inherit}.ui-dialog-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}.ui-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.ui-dialog-btn{border:0;border-radius:9px;padding:10px 15px;font-weight:750;cursor:pointer;font-size:.85rem}.ui-dialog-btn.secondary{background:#f1f5f9;color:#334155}.ui-dialog-btn.primary{background:#2563eb;color:#fff}.ui-dialog-btn.danger{background:#dc2626;color:#fff}.ui-dialog-btn.success{background:#16a34a;color:#fff}.ui-dialog-close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#475569}@keyframes uiDialogIn{to{transform:translateY(0) scale(1)}}
+@media(max-width:540px){.ui-dialog-overlay{align-items:flex-end;padding:0}.ui-dialog{width:100%;border-radius:18px 18px 0 0;padding:20px 16px 28px;max-height:90vh}.ui-dialog-actions{display:grid;grid-template-columns:1fr}.ui-dialog-btn{width:100%}}
 </style>
 </head>
 <body>
@@ -1092,8 +1096,8 @@
     }, 500);
   }
 
-  function resetNotes() {
-    if (!confirm('Azzera le note del workout corrente?')) return;
+  async function resetNotes() {
+    if (!await uiConfirm('Azzera le note del workout corrente?','Azzera note','danger')) return;
     notes = {};
     localStorage.removeItem(NOTES_KEY);
     document.querySelectorAll('.note-input').forEach(el => el.value = '');
@@ -1102,7 +1106,7 @@
   // ── Save workout to history ──
   function saveWorkout() {
     const hasNotes = Object.values(notes).some(v => v.trim() !== '');
-    if (!hasNotes) { alert('Nessuna nota da salvare. Aggiungi prima i pesi usati!'); return; }
+    if (!hasNotes) { uiAlert('Nessuna nota da salvare. Aggiungi prima i pesi usati!'); return; }
 
     const prog = currentTab.toUpperCase();
     const now = new Date();
@@ -1126,7 +1130,7 @@
     localStorage.removeItem(NOTES_KEY);
     document.querySelectorAll('.note-input').forEach(el => el.value = '');
 
-    alert(`✅ Allenamento Programma ${prog} salvato!\n${dateStr} alle ${timeStr}`);
+    uiAlert(`✅ Allenamento Programma ${prog} salvato!\n${dateStr} alle ${timeStr}`);
     renderHistoryPanel();
   }
 
@@ -1186,9 +1190,9 @@
     if (chev) chev.classList.toggle('open');
   }
 
-  function deleteSession(e, id) {
+  async function deleteSession(e, id) {
     e.stopPropagation();
-    if (!confirm('Eliminare questo allenamento dallo storico?')) return;
+    if (!await uiConfirm('Eliminare questo allenamento dallo storico?','Elimina allenamento','danger')) return;
     let history = loadHistory().filter(s => s.id !== id);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
     renderHistoryPanel();
@@ -1246,6 +1250,27 @@
   // ── Init ──
   loadNotes();
   showTab('a');
+
+function uiDialog(options={}){
+  const overlay=document.getElementById('ui-dialog-overlay');
+  if(!overlay)return Promise.resolve(options.cancelText?false:true);
+  const title=document.getElementById('ui-dialog-title'),message=document.getElementById('ui-dialog-message'),input=document.getElementById('ui-dialog-input'),actions=document.getElementById('ui-dialog-actions'),close=overlay.querySelector('.ui-dialog-close');
+  title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
+  input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
+  return new Promise(resolve=>{
+    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
+    const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
+    const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
+    if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
+    close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
+    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
+  });
+}
+function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function uiAlert(message,title='GymSheet'){return uiDialog({title,message,confirmText:'Chiudi'})}
+function uiConfirm(message,title='Conferma',tone='primary'){return uiDialog({title,message,cancelText:'Annulla',confirmText:'Continua',tone})}
+function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({title,message,input:true,inputPlaceholder:placeholder,cancelText:'Annulla',confirmText:'Continua'})}
 </script>
+<div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation"><div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title"><button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button><h2 id="ui-dialog-title"></h2><div class="ui-dialog-message" id="ui-dialog-message"></div><input class="ui-dialog-input" id="ui-dialog-input" style="display:none"><div class="ui-dialog-actions" id="ui-dialog-actions"></div></div></div>
 </body>
 </html>

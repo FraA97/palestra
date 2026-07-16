@@ -126,6 +126,11 @@
 .site-nav{background:#1e3a5f;color:#fff;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .site-nav .site-logo{font-size:1.05rem;font-weight:800;color:#fff;text-decoration:none;white-space:nowrap}.site-links{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end}.site-links>a,.site-dropdown>summary{color:rgba(255,255,255,.78);text-decoration:none;font-size:.79rem;font-weight:600;padding:7px 9px;border-radius:7px;cursor:pointer;list-style:none}.site-dropdown>summary::-webkit-details-marker{display:none}.site-links>a:hover,.site-links>a.active,.site-dropdown>summary:hover,.site-dropdown>summary.active{color:#fff;background:rgba(255,255,255,.16)}.site-dropdown{position:relative}.site-dropdown-menu{position:absolute;right:0;top:calc(100% + 7px);min-width:205px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(15,23,42,.18)}.site-dropdown-menu a{display:block;color:#1f2937;text-decoration:none;padding:9px 10px;border-radius:7px;font-size:.82rem;font-weight:600}.site-dropdown-menu a:hover,.site-dropdown-menu a.active{background:#eff6ff;color:#1d4ed8}.site-cta{background:#16a34a!important;color:#fff!important}.site-cta:hover{background:#15803d!important}
 @media(max-width:760px){.site-nav{align-items:flex-start;padding:10px 12px}.site-links{gap:1px}.site-links>a,.site-dropdown>summary{font-size:.72rem;padding:6px}.site-links .desktop-extra{display:none}.site-dropdown-menu{position:fixed;top:54px;right:10px;left:10px}}
+
+/* ── GymSheet dialog system ── */
+.ui-dialog-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(4px);z-index:5000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .16s ease}.ui-dialog-overlay.open{display:flex;opacity:1}.ui-dialog{width:min(500px,100%);max-height:min(86vh,760px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.3);padding:22px;transform:translateY(10px) scale(.98);animation:uiDialogIn .18s ease forwards}.ui-dialog h2{font-size:1.08rem;color:#1e3a5f;margin:0 0 8px}.ui-dialog-message{font-size:.88rem;line-height:1.55;color:#475569;white-space:pre-line}.ui-dialog-input{width:100%;margin-top:14px;padding:11px 12px;border:1.5px solid #d1d5db;border-radius:9px;font:inherit}.ui-dialog-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}.ui-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.ui-dialog-btn{border:0;border-radius:9px;padding:10px 15px;font-weight:750;cursor:pointer;font-size:.85rem}.ui-dialog-btn.secondary{background:#f1f5f9;color:#334155}.ui-dialog-btn.primary{background:#2563eb;color:#fff}.ui-dialog-btn.danger{background:#dc2626;color:#fff}.ui-dialog-btn.success{background:#16a34a;color:#fff}.ui-dialog-close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#475569}@keyframes uiDialogIn{to{transform:translateY(0) scale(1)}}
+@media(max-width:540px){.ui-dialog-overlay{align-items:flex-end;padding:0}.ui-dialog{width:100%;border-radius:18px 18px 0 0;padding:20px 16px 28px;max-height:90vh}.ui-dialog-actions{display:grid;grid-template-columns:1fr}.ui-dialog-btn{width:100%}}
+.use-case-card{display:flex;gap:16px;align-items:flex-start;max-width:900px;margin:18px auto 28px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:20px}.use-case-icon{font-size:2rem}.use-case-card h3{color:#1e3a5f;margin-bottom:5px}.use-case-card p{color:#475569;line-height:1.55;margin-bottom:12px}.mode-grid{display:grid;gap:10px;margin-top:14px}.mode-card{display:block;text-align:left;width:100%;border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:14px;cursor:pointer}.mode-card:hover{border-color:#60a5fa;background:#eff6ff}.mode-card strong{display:block;color:#1e3a5f;margin-bottom:3px}.mode-card span{font-size:.8rem;color:#64748b;line-height:1.4}.btn-pricing.green,.btn-hero-outline{border:0;cursor:pointer;font:inherit}@media(max-width:600px){.use-case-card{flex-direction:column}}
 </style>
 </head>
 <body>
@@ -213,7 +218,7 @@
 
 <!-- Come funziona -->
 <section class="section" id="come-funziona">
-  <h2 class="section-title">Come funziona</h2>
+  <h2 class="section-title">Come funziona</h2><div class="use-case-card"><div class="use-case-icon">📲</div><div><h3>Hai ricevuto una scheda dal tuo Personal Trainer?</h3><p>Carica il PDF con la conversione tradizionale se segue il formato indicato nella Guida, oppure usa la conversione AI per interpretare automaticamente documenti diversi. Controlla il risultato, genera l’App e usala direttamente sul telefono.</p><button type="button" class="btn-hero-primary" onclick="openCreationChoice(false)">Trasforma la scheda in App</button></div></div>
   <p class="section-sub">Tre minuti e la scheda del tuo cliente è pronta</p>
 
   <div class="target-grid" style="margin-bottom:40px">
@@ -308,12 +313,12 @@
       <div class="pricing-price">€3 <span></span></div>
       <div class="pricing-desc">La tua scheda, per sempre sul tuo telefono</div>
       <ul class="pricing-features">
-        <li>1 scheda HTML personalizzata</li>
+        <li>1 app GymSheet personalizzata</li>
         <li>Note e storico illimitati</li>
         <li>Funziona offline</li>
         <li>Nessun account richiesto</li>
       </ul>
-      <a href="converter.html" class="btn-pricing green">Prova gratis l'anteprima →</a>
+      <button type="button" class="btn-pricing green" onclick="openCreationChoice(true)">Prova gratis l'anteprima →</button>
     </div>
   </div>
 </section>
@@ -369,7 +374,7 @@
   <p>Crea la prima scheda e vedi l'anteprima — zero costi, zero account</p>
   <div class="hero-btns">
     <a href="editor_scheda.html?mode=new" class="btn-hero-primary">✏️ Apri l'editor guidato</a>
-    <a href="converter.html" class="btn-hero-outline">📄 Converti un PDF</a>
+    <button type="button" class="btn-hero-outline" onclick="openCreationChoice(false)">📄 Converti Scheda</button>
   </div>
 </section>
 
@@ -380,8 +385,13 @@
 <script>
 const WORKER_URL = 'https://gymsheet-worker.francescoartibani.workers.dev'; // ← aggiorna
 
+function openCreationChoice(includeManual=true){
+  const manual=includeManual?`<button class="mode-card" onclick="location.href='editor_scheda.html?mode=new'"><strong>✏️ Compilazione manuale</strong><span>Apri un editor pulito e costruisci la scheda esercizio per esercizio.</span></button>`:'';
+  return uiDialog({title:'Come vuoi creare l’App?',confirmText:'Chiudi',html:`<p>Scegli il percorso più adatto al file che hai a disposizione.</p><div class="mode-grid"><button class="mode-card" onclick="location.href='converter.html'"><strong>📄 Conversione tradizionale</strong><span>Per PDF tabellari che rispettano la struttura descritta nella Guida. È rapida e non usa AI.</span></button><button class="mode-card" onclick="location.href='converter_universale.html'"><strong>✨ Conversione AI</strong><span>Interpreta automaticamente PDF, Word, Excel, CSV e testo. Il risultato va controllato nell’editor.</span></button>${manual}</div>`})
+}
+
 async function buyTrainerPack(pack) {
-  const email = prompt('Inserisci la tua email per ricevere la chiave trainer dopo il pagamento:');
+  const email = await uiPrompt('Inserisci la tua email per ricevere la chiave trainer dopo il pagamento:','Acquista pacchetto trainer','email@esempio.com');
   if (!email || !email.includes('@')) return;
   const btn = event.target;
   const origText = btn.textContent;
@@ -394,8 +404,8 @@ async function buyTrainerPack(pack) {
     });
     const data = await res.json();
     if (data.url) { localStorage.setItem('gymsheet_pending_email', email); window.location.href = data.url; }
-    else alert('❌ Errore: ' + (data.error || 'sconosciuto'));
-  } catch { alert('❌ Errore di connessione'); }
+    else uiAlert('❌ Errore: ' + (data.error || 'sconosciuto'));
+  } catch { uiAlert('❌ Errore di connessione'); }
   finally { btn.textContent = origText; btn.style.pointerEvents = ''; }
 }
 
@@ -424,7 +434,7 @@ if (params.get('success') === 'download') localStorage.removeItem('gymsheet_ai_u
       + '<br><span style="font-size:.8rem;color:#166534;display:block;margin-top:6px">Controlla anche la cartella spam. La chiave non ha scadenza.</span>';
   } else if (type === 'download') {
     title.textContent = '✅ Pagamento ricevuto!';
-    msg.innerHTML = 'La tua <strong>scheda HTML</strong> ti è stata inviata via email.' + emailHtml
+    msg.innerHTML = 'La tua <strong>app GymSheet</strong> ti è stata inviata via email.' + emailHtml
       + '<br><span style="font-size:.8rem;color:#166534;display:block;margin-top:6px">Controlla anche la cartella spam. Il link è valido per 24 ore.</span>';
   } else {
     title.textContent = '✅ Pagamento completato!';
@@ -437,6 +447,27 @@ if (params.get('success') === 'download') localStorage.removeItem('gymsheet_ai_u
   const clean = window.location.pathname + (window.location.hash || '');
   history.replaceState(null, '', clean);
 })();
+
+function uiDialog(options={}){
+  const overlay=document.getElementById('ui-dialog-overlay');
+  if(!overlay)return Promise.resolve(options.cancelText?false:true);
+  const title=document.getElementById('ui-dialog-title'),message=document.getElementById('ui-dialog-message'),input=document.getElementById('ui-dialog-input'),actions=document.getElementById('ui-dialog-actions'),close=overlay.querySelector('.ui-dialog-close');
+  title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
+  input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
+  return new Promise(resolve=>{
+    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
+    const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
+    const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
+    if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
+    close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
+    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
+  });
+}
+function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function uiAlert(message,title='GymSheet'){return uiDialog({title,message,confirmText:'Chiudi'})}
+function uiConfirm(message,title='Conferma',tone='primary'){return uiDialog({title,message,cancelText:'Annulla',confirmText:'Continua',tone})}
+function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({title,message,input:true,inputPlaceholder:placeholder,cancelText:'Annulla',confirmText:'Continua'})}
 </script>
+<div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation"><div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title"><button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button><h2 id="ui-dialog-title"></h2><div class="ui-dialog-message" id="ui-dialog-message"></div><input class="ui-dialog-input" id="ui-dialog-input" style="display:none"><div class="ui-dialog-actions" id="ui-dialog-actions"></div></div></div>
 </body>
 </html>

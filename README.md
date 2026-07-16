@@ -28,7 +28,7 @@ Apri direttamente da GitHub Pages → [`scheda.html`](./scheda.html)
 ### Opzione 1 — Editor guidato (consigliato)
 1. Apri **`editor_scheda.html`** nel browser
 2. Aggiungi sezioni ed esercizi compilando i campi
-3. Clicca **"Genera HTML"** → scarica l'app per il tuo cliente
+3. Clicca **"Genera App"** → scarica l'app per il tuo cliente
 
 ### Opzione 2 — Converti un PDF
 1. Prepara il PDF seguendo il formato descritto in [`istruzioni_template.html`](./istruzioni_template.html)
@@ -171,3 +171,15 @@ AI_RATE_LIMIT_PER_HOUR = "10"
 - il risultato AI deve sempre essere revisionato dall'utente prima dell'export;
 - la conversione è sincrona e non mantiene job in background;
 - i crediti AI non sono ancora scalati dai pacchetti trainer: il rate limit impedisce abuso di base, ma per monetizzazione va aggiunta una policy commerciale esplicita.
+
+## Guida intelligente nell’editor
+
+Ogni campo programma offre template rapidi e suggerimenti applicabili con un click. Il pulsante informativo descrive i pattern Strict-or-Raw.
+
+## Dialog personalizzate
+
+Le pagine operative e le app generate utilizzano dialog GymSheet responsive al posto di `alert()`, `confirm()` e `prompt()`.
+
+## Requisiti converter tradizionale
+
+Il PDF deve contenere una tabella testuale con prima colonna `Esercizio`, colonne programma e link opzionale finale. La guida completa è in `istruzioni_template.html#formato-tradizionale`.
