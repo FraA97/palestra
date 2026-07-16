@@ -121,6 +121,11 @@
   .success-text p  { font-size: .88rem; color: #166534; line-height: 1.5; }
   .success-text .email-pill { display: inline-block; background: #dcfce7; border: 1px solid #86efac; border-radius: 20px; padding: 2px 10px; font-weight: 700; font-size: .82rem; color: #15803d; margin-top: 5px; }
   .success-close { position: absolute; top: 10px; right: 12px; background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #4ade80; line-height: 1; }
+
+/* ── Navigazione condivisa GymSheet ── */
+.site-nav{background:#1e3a5f;color:#fff;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.site-nav .site-logo{font-size:1.05rem;font-weight:800;color:#fff;text-decoration:none;white-space:nowrap}.site-links{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end}.site-links>a,.site-dropdown>summary{color:rgba(255,255,255,.78);text-decoration:none;font-size:.79rem;font-weight:600;padding:7px 9px;border-radius:7px;cursor:pointer;list-style:none}.site-dropdown>summary::-webkit-details-marker{display:none}.site-links>a:hover,.site-links>a.active,.site-dropdown>summary:hover,.site-dropdown>summary.active{color:#fff;background:rgba(255,255,255,.16)}.site-dropdown{position:relative}.site-dropdown-menu{position:absolute;right:0;top:calc(100% + 7px);min-width:205px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(15,23,42,.18)}.site-dropdown-menu a{display:block;color:#1f2937;text-decoration:none;padding:9px 10px;border-radius:7px;font-size:.82rem;font-weight:600}.site-dropdown-menu a:hover,.site-dropdown-menu a.active{background:#eff6ff;color:#1d4ed8}.site-cta{background:#16a34a!important;color:#fff!important}.site-cta:hover{background:#15803d!important}
+@media(max-width:760px){.site-nav{align-items:flex-start;padding:10px 12px}.site-links{gap:1px}.site-links>a,.site-dropdown>summary{font-size:.72rem;padding:6px}.site-links .desktop-extra{display:none}.site-dropdown-menu{position:fixed;top:54px;right:10px;left:10px}}
 </style>
 </head>
 <body>
@@ -135,12 +140,22 @@
   <button class="success-close" onclick="document.getElementById('success-banner').classList.remove('show')" aria-label="Chiudi">✕</button>
 </div>
 
-<nav>
-  <div class="logo">🏋️ GymSheet</div>
-  <div class="nav-links">
-    <a href="#come-funziona">Come funziona</a>
-    <a href="#prezzi">Prezzi</a>
-    <a href="editor_scheda.html" class="btn-nav">Prova gratis →</a>
+<nav class="site-nav" aria-label="Navigazione principale">
+  <a href="./" class="site-logo">🏋️ GymSheet</a>
+  <div class="site-links">
+    <a href="./" class="active">Home</a>
+    <a href="editor_scheda.html">Editor</a>
+    <details class="site-dropdown">
+      <summary class="">Converter ▾</summary>
+      <div class="site-dropdown-menu">
+        <a href="converter.html">📄 Tradizionale PDF</a>
+        <a href="converter_universale.html">✨ Conversione AI</a>
+      </div>
+    </details>
+    <a href="istruzioni_template.html">Guida</a>
+    <a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a>
+    <a class="desktop-extra" href="landing.html#prezzi">Prezzi</a>
+    <a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a>
   </div>
 </nav>
 
@@ -149,7 +164,7 @@
   <h1>La tua scheda di allenamento<br>sempre con te, sul telefono</h1>
   <p>Converti qualsiasi scheda PDF in un'app mobile pronta all'uso. Note, storico allenamenti, progressione dei carichi — tutto nel browser, senza installare nulla.</p>
   <div class="hero-btns">
-    <a href="editor_scheda.html" class="btn-hero-primary">✏️ Crea scheda gratis</a>
+    <a href="editor_scheda.html?mode=new" class="btn-hero-primary">✏️ Crea scheda gratis</a>
     <a href="converter_universale.html" class="btn-hero-outline">✨ Converti qualsiasi file con AI</a>
     <a href="converter.html" class="btn-hero-outline">📄 Converter PDF classico</a>
   </div>
@@ -159,7 +174,7 @@
 <!-- Features -->
 <section class="section">
   <h2 class="section-title">Tutto quello che serve</h2>
-  <p class="section-sub">Un file HTML che funziona come un'app — senza installazioni, senza abbonamenti per i tuoi clienti</p>
+  <p class="section-sub">Una app GymSheet pronta all’uso — senza installazioni, senza abbonamenti per i tuoi clienti</p>
   <div class="features-grid">
     <div class="feature-card">
       <div class="feature-icon">📱</div>
@@ -188,8 +203,8 @@
     </div>
     <div class="feature-card">
       <div class="feature-icon">🔒</div>
-      <h3>Privacy totale</h3>
-      <p>Nessun dato inviato a server. Le note restano sul telefono del cliente, solo sue.</p>
+      <h3>Note private</h3>
+      <p>Le note e lo storico dell’app restano nel browser del cliente. Solo la conversione AI invia il documento al backend e al provider AI.</p>
     </div>
   </div>
 </section>
@@ -208,7 +223,7 @@
     </div>
     <div class="target-card">
       <h3>🏋️ Per il Cliente</h3>
-      <p>Riceve un link o un file HTML. Lo apre dal telefono come un'app, senza installare nulla. Annota pesi e note, tutto si salva automaticamente.</p>
+      <p>Riceve l’app GymSheet o un link per aprirla. Lo apre dal telefono come un'app, senza installare nulla. Annota pesi e note, tutto si salva automaticamente.</p>
     </div>
   </div>
 
@@ -231,7 +246,7 @@
       <div class="step-num">3</div>
       <div class="step-content">
         <h4>Scarica e condividi</h4>
-        <p>Con un credito ottieni il file HTML. Mandalo via WhatsApp, email o caricalo su GitHub Pages — il cliente lo apre direttamente dal link.</p>
+        <p>Con un credito generi l’app GymSheet. Mandalo via WhatsApp, email o caricalo su GitHub Pages — il cliente lo apre direttamente dal link.</p>
       </div>
     </div>
   </div>
@@ -311,9 +326,9 @@
   <div class="faq">
     <div class="faq-item">
       <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
-        Cosa succede se perdo il file HTML? <span class="faq-arrow">▼</span>
+        Cosa succede se perdo l’app scaricata? <span class="faq-arrow">▼</span>
       </div>
-      <div class="faq-a">Il file HTML si può riscaricare dal link originale entro 24h. Dopo di che, dovrai acquistare un nuovo download. Ti consigliamo di salvarlo su Google Drive o iCloud.</div>
+      <div class="faq-a">L’app si può riscaricare dal link originale entro 24 ore. Successivamente serve un nuovo download. Ti consigliamo di conservarla su Google Drive o iCloud.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
@@ -337,9 +352,15 @@
       <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
         I dati del cliente sono al sicuro? <span class="faq-arrow">▼</span>
       </div>
-      <div class="faq-a">Assolutamente. Le note e lo storico allenamenti vengono salvati solo nel browser del cliente (localStorage). Nessun dato viene inviato a server. Neanche noi possiamo vederli.</div>
+      <div class="faq-a">Sì. Le note e lo storico allenamenti vengono salvati nel browser del cliente (localStorage). Se usi la conversione AI, il documento sorgente viene invece inviato al backend GymSheet e al provider AI per l’elaborazione.</div>
     </div>
-  </div>
+  
+    <div class="faq-item"><div class="faq-q">Qual è la differenza tra conversione tradizionale e AI? <span class="faq-arrow">▼</span></div><div class="faq-a">La conversione tradizionale legge nel browser un PDF strutturato secondo il formato GymSheet: è rapida, non usa AI e non consuma tentativi AI. La conversione AI accetta anche Word, Excel, CSV e testo e prova a riconoscere strutture diverse; il risultato va sempre controllato nell’editor.</div></div>
+    <div class="faq-item"><div class="faq-q">Quando conviene usare la conversione AI? <span class="faq-arrow">▼</span></div><div class="faq-a">Usala quando il documento non segue il template GymSheet o non è un PDF tabellare. Se puoi preparare il PDF o il CSV nel formato indicato nella guida, il percorso tradizionale è più prevedibile.</div></div>
+    <div class="faq-item"><div class="faq-q">Perché le conversioni AI sono limitate? <span class="faq-arrow">▼</span></div><div class="faq-a">Ogni analisi AI comporta un costo e viene quindi protetta da limiti orari e giornalieri per indirizzo di rete e browser. Se raggiungi il limite puoi attendere il rinnovo oppure usare la conversione tradizionale.</div></div>
+    <div class="faq-item"><div class="faq-q">Cosa faccio se la conversione AI contiene errori? <span class="faq-arrow">▼</span></div><div class="faq-a">Controlla programmi, sezioni, esercizi, parametri e link nell’editor. Gli elementi a bassa confidenza vengono segnalati. Se il file non è riconosciuto, prova un PDF più leggibile o il template tradizionale.</div></div>
+    <div class="faq-item"><div class="faq-q">Il file viene inviato a un servizio esterno? <span class="faq-arrow">▼</span></div><div class="faq-a">Solo nella conversione AI: il documento viene inviato al backend GymSheet e al provider AI per l’elaborazione. Editor e converter PDF tradizionale lavorano invece nel browser.</div></div>
+</div>
 </section>
 
 <!-- CTA finale -->
@@ -347,7 +368,7 @@
   <h2>Prova subito, gratis</h2>
   <p>Crea la prima scheda e vedi l'anteprima — zero costi, zero account</p>
   <div class="hero-btns">
-    <a href="editor_scheda.html" class="btn-hero-primary">✏️ Apri l'editor guidato</a>
+    <a href="editor_scheda.html?mode=new" class="btn-hero-primary">✏️ Apri l'editor guidato</a>
     <a href="converter.html" class="btn-hero-outline">📄 Converti un PDF</a>
   </div>
 </section>
@@ -380,6 +401,9 @@ async function buyTrainerPack(pack) {
 
 (function checkSuccessRedirect() {
   const params = new URLSearchParams(window.location.search);
+// Il contatore locale è solo informativo: dopo un pagamento singolo completato
+// viene riallineato al reset server-side eseguito dopo l’invio dell’email.
+if (params.get('success') === 'download') localStorage.removeItem('gymsheet_ai_usage');
   const type = params.get('success');
   if (!type) return;
 

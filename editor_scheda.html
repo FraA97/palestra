@@ -307,17 +307,31 @@
     float: right; background: #f3f4f6; border: none; border-radius: 50%;
     width: 28px; height: 28px; cursor: pointer; font-size: 1rem; line-height: 28px; text-align: center;
   }
+
+/* ── Navigazione condivisa GymSheet ── */
+.site-nav{background:#1e3a5f;color:#fff;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.site-nav .site-logo{font-size:1.05rem;font-weight:800;color:#fff;text-decoration:none;white-space:nowrap}.site-links{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end}.site-links>a,.site-dropdown>summary{color:rgba(255,255,255,.78);text-decoration:none;font-size:.79rem;font-weight:600;padding:7px 9px;border-radius:7px;cursor:pointer;list-style:none}.site-dropdown>summary::-webkit-details-marker{display:none}.site-links>a:hover,.site-links>a.active,.site-dropdown>summary:hover,.site-dropdown>summary.active{color:#fff;background:rgba(255,255,255,.16)}.site-dropdown{position:relative}.site-dropdown-menu{position:absolute;right:0;top:calc(100% + 7px);min-width:205px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(15,23,42,.18)}.site-dropdown-menu a{display:block;color:#1f2937;text-decoration:none;padding:9px 10px;border-radius:7px;font-size:.82rem;font-weight:600}.site-dropdown-menu a:hover,.site-dropdown-menu a.active{background:#eff6ff;color:#1d4ed8}.site-cta{background:#16a34a!important;color:#fff!important}.site-cta:hover{background:#15803d!important}
+@media(max-width:760px){.site-nav{align-items:flex-start;padding:10px 12px}.site-links{gap:1px}.site-links>a,.site-dropdown>summary{font-size:.72rem;padding:6px}.site-links .desktop-extra{display:none}.site-dropdown-menu{position:fixed;top:54px;right:10px;left:10px}}
 </style>
 </head>
 <body>
 
-<nav class="app-nav">
-  <a href="landing.html" class="nav-logo">🏋️ GymSheet</a>
-  <div class="nav-links">
-    <a href="editor_scheda.html" class="active">✏️ Editor</a>
-    <a href="converter.html">📄 Converter</a>
-    <a href="istruzioni_template.html">📋 Guida</a>
-    <button onclick="loadDraft()" title="Carica bozza salvata">📂</button>
+<nav class="site-nav" aria-label="Navigazione principale">
+  <a href="./" class="site-logo">🏋️ GymSheet</a>
+  <div class="site-links">
+    <a href="./">Home</a>
+    <a href="editor_scheda.html" class="active">Editor</a>
+    <details class="site-dropdown">
+      <summary class="">Converter ▾</summary>
+      <div class="site-dropdown-menu">
+        <a href="converter.html">📄 Tradizionale PDF</a>
+        <a href="converter_universale.html">✨ Conversione AI</a>
+      </div>
+    </details>
+    <a href="istruzioni_template.html">Guida</a>
+    <a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a>
+    <a class="desktop-extra" href="landing.html#prezzi">Prezzi</a>
+    <a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a>
   </div>
 </nav>
 
@@ -373,7 +387,7 @@
   <span class="save-label"><span class="save-dot" id="save-dot" style="background:#d1d5db"></span>bozza</span>
   <button class="bottom-btn btn-import" onclick="document.getElementById('csv-input').click()">📂 Importa CSV</button>
   <button class="bottom-btn btn-preview" onclick="previewHtml()">👁 Anteprima</button>
-  <button class="bottom-btn btn-download" onclick="requestDownload()">⬇️ Genera HTML</button>
+  <button class="bottom-btn btn-download" onclick="requestDownload()">⬇️ Genera App</button>
 </div>
 
 <div id="toast"></div>
@@ -1568,10 +1582,21 @@ function downloadHtml() {
   a.href = URL.createObjectURL(blob);
   a.download = result.filename;
   a.click();
-  showToast('✅ HTML scaricato: ' + result.filename);
+  showToast('✅ App scaricata: ' + result.filename);
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+// Un accesso esplicito dalla CTA gratuita deve aprire un editor realmente pulito.
+const ENTRY_PARAMS = new URLSearchParams(location.search);
+if (ENTRY_PARAMS.get('mode') === 'new') {
+  localStorage.removeItem(DRAFT_KEY);
+  localStorage.removeItem('editor_scheda_ai_report');
+  sections = [];
+  sectionCounter = 0;
+  exerciseCounter = 0;
+  progLabels = ['A', 'B', 'C'];
+  history.replaceState(null, '', location.pathname);
+}
 renderSections();
 renderProgTags();
 // Auto-load draft silently on open
@@ -1603,7 +1628,7 @@ try {
   <div class="paywall-modal">
     <button class="btn-close-modal" onclick="closePaywall()">✕</button>
     <h2>⬇️ Scarica la tua scheda</h2>
-    <p>L'anteprima è gratuita. Per scaricare il file HTML scegli un'opzione:</p>
+    <p>L'anteprima è gratuita. Per generare e scaricare la tua app scegli un'opzione:</p>
 
     <div class="trainer-key-section">
       <p style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:8px">🔑 Hai una chiave trainer?</p>
@@ -1702,16 +1727,22 @@ async function downloadWithTrainerKey(key) {
   try {
     const res = await fetch(`${WORKER_URL}/trainer/download`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GymSheet-Client': localStorage.getItem('gymsheet_ai_client') || ''
+      },
       body: JSON.stringify({ key, html: _pendingHtml, filename: _pendingFilename })
     });
     if (!res.ok) { const d = await res.json(); alert('❌ ' + (d.error || 'Errore download')); return; }
     const blob = await res.blob();
+    // Il backend ha consumato il credito e azzerato i limiti AI.
+    // Riallinea anche il contatore locale puramente informativo.
+    localStorage.removeItem('gymsheet_ai_usage');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = _pendingFilename;
     a.click();
-    showToast('✅ HTML scaricato: ' + _pendingFilename);
+    showToast('✅ App scaricata: ' + _pendingFilename);
     closePaywall();
     checkTrainerKeyCredits(key);
   } finally { btn.textContent = 'Usa chiave'; btn.disabled = false; }
@@ -1725,13 +1756,16 @@ function openSinglePayment() {
 async function confirmSinglePayment() {
   const email = document.getElementById('customer-email').value.trim();
   if (!email || !email.includes('@')) return alert("Inserisci un'email valida");
-  if (!_pendingHtml) return alert('❌ Nessuna scheda generata. Chiudi il paywall e riprova.');
+  if (!_pendingHtml) return alert('❌ Nessuna app pronta. Chiudi il paywall e riprova.');
   const btn = document.querySelector('#email-form button');
   btn.textContent = '…'; btn.disabled = true;
   try {
     const res = await fetch(`${WORKER_URL}/create-session`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GymSheet-Client': localStorage.getItem('gymsheet_ai_client') || ''
+      },
       body: JSON.stringify({ html: _pendingHtml, filename: _pendingFilename, email })
     });
     const data = await res.json();

@@ -1,248 +1,34 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Istruzioni Template Scheda Palestra</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f7fa; color: #1a1a1a; line-height: 1.6; margin: 0; padding: 0; }
-  .content { max-width: 800px; margin: 0 auto; padding: 32px 20px 60px; }
-  /* ── App nav ── */
-  .app-nav{background:#1e3a5f;color:white;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-  .nav-logo{font-size:1.05rem;font-weight:800;color:white;text-decoration:none;letter-spacing:.3px}
-  .nav-links{display:flex;gap:4px;align-items:center}
-  .nav-links a{color:rgba(255,255,255,.75);text-decoration:none;font-size:.82rem;font-weight:500;padding:6px 10px;border-radius:6px;transition:all .15s}
-  .nav-links a:hover{color:white;background:rgba(255,255,255,.12)}
-  .nav-links a.active{color:white;background:rgba(255,255,255,.2);font-weight:700}
-  /* ── App footer ── */
-  .app-footer{background:#1e3a5f;color:rgba(255,255,255,.7);padding:18px 24px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-size:.85rem;margin-top:40px}
-  .app-footer a{color:rgba(255,255,255,.75);text-decoration:none;font-weight:500}
-  .app-footer a:hover{color:white}
-  h1 { color: #1e3a5f; border-bottom: 3px solid #1e3a5f; padding-bottom: 10px; }
-  h2 { color: #1e3a5f; margin-top: 32px; }
-  h3 { color: #374151; }
-  .step { background: #f0f7ff; border-left: 4px solid #3b82f6; padding: 14px 18px; margin: 16px 0; border-radius: 0 8px 8px 0; }
-  .step strong { display: block; margin-bottom: 6px; font-size: 1.05rem; }
-  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 0.9rem; }
-  th { background: #1e3a5f; color: white; padding: 10px 12px; text-align: left; }
-  td { border: 1px solid #d1d5db; padding: 8px 12px; }
-  tr:nth-child(even) td { background: #f9fafb; }
-  .section-row td { background: #fef3c7; font-style: italic; font-weight: bold; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; margin: 2px; }
-  .badge.series { background: #dbeafe; color: #1e40af; }
-  .badge.rest   { background: #d1fae5; color: #065f46; }
-  .badge.load   { background: #fce7f3; color: #9d174d; }
-  .warn { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
-  .warn::before { content: "⚠️ "; }
-  .ok { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
-  .ok::before { content: "✅ "; }
-  code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-  .params-table td:first-child { font-family: monospace; background: #f3f4f6; }
-  @media print {
-    .no-print { display: none; }
-    body { margin: 20px; }
-  }
-</style>
-</head>
-<body>
-
-<nav class="app-nav">
-  <a href="landing.html" class="nav-logo">🏋️ GymSheet</a>
-  <div class="nav-links">
-    <a href="editor_scheda.html">✏️ Editor</a>
-    <a href="converter.html">📄 Converter</a>
-    <a href="istruzioni_template.html" class="active">📋 Guida</a>
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guida GymSheet</title><style>
+:root{--p:#1e3a5f;--b:#2563eb;--g:#16a34a;--bg:#f5f7fa;--m:#6b7280;--bd:#e5e7eb}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#172033;font-family:system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.6}main{max-width:900px;margin:auto;padding:34px 18px 70px}h1,h2{color:var(--p)}h1{border-bottom:3px solid var(--p);padding-bottom:10px}h2{margin-top:34px}.lead{color:var(--m)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.box,.step{background:#fff;border:1px solid var(--bd);border-radius:13px;padding:18px}.step{border-left:4px solid var(--b);margin:12px 0}table{border-collapse:collapse;width:100%;margin:14px 0;background:#fff;font-size:.88rem}th{background:var(--p);color:#fff;text-align:left}th,td{border:1px solid var(--bd);padding:9px}code{background:#eef2f7;padding:2px 6px;border-radius:5px}.note{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px}.ok{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.actions a{text-decoration:none;color:#fff;background:var(--b);padding:10px 15px;border-radius:9px;font-weight:700}.actions a.green{background:var(--g)}
+/* ── Navigazione condivisa GymSheet ── */
+.site-nav{background:#1e3a5f;color:#fff;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.site-nav .site-logo{font-size:1.05rem;font-weight:800;color:#fff;text-decoration:none;white-space:nowrap}.site-links{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end}.site-links>a,.site-dropdown>summary{color:rgba(255,255,255,.78);text-decoration:none;font-size:.79rem;font-weight:600;padding:7px 9px;border-radius:7px;cursor:pointer;list-style:none}.site-dropdown>summary::-webkit-details-marker{display:none}.site-links>a:hover,.site-links>a.active,.site-dropdown>summary:hover,.site-dropdown>summary.active{color:#fff;background:rgba(255,255,255,.16)}.site-dropdown{position:relative}.site-dropdown-menu{position:absolute;right:0;top:calc(100% + 7px);min-width:205px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(15,23,42,.18)}.site-dropdown-menu a{display:block;color:#1f2937;text-decoration:none;padding:9px 10px;border-radius:7px;font-size:.82rem;font-weight:600}.site-dropdown-menu a:hover,.site-dropdown-menu a.active{background:#eff6ff;color:#1d4ed8}.site-cta{background:#16a34a!important;color:#fff!important}.site-cta:hover{background:#15803d!important}
+@media(max-width:760px){.site-nav{align-items:flex-start;padding:10px 12px}.site-links{gap:1px}.site-links>a,.site-dropdown>summary{font-size:.72rem;padding:6px}.site-links .desktop-extra{display:none}.site-dropdown-menu{position:fixed;top:54px;right:10px;left:10px}}
+</style></head><body><nav class="site-nav" aria-label="Navigazione principale">
+  <a href="./" class="site-logo">🏋️ GymSheet</a>
+  <div class="site-links">
+    <a href="./">Home</a>
+    <a href="editor_scheda.html">Editor</a>
+    <details class="site-dropdown">
+      <summary class="">Converter ▾</summary>
+      <div class="site-dropdown-menu">
+        <a href="converter.html">📄 Tradizionale PDF</a>
+        <a href="converter_universale.html">✨ Conversione AI</a>
+      </div>
+    </details>
+    <a href="istruzioni_template.html" class="active">Guida</a>
+    <a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a>
+    <a class="desktop-extra" href="landing.html#prezzi">Prezzi</a>
+    <a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a>
   </div>
-</nav>
-
-<div class="content">
-<h1>🏋️ Istruzioni: Come creare una scheda per l'app</h1>
-<p>
-  Questa guida spiega come compilare il file <strong>template_scheda.csv</strong> per produrre una scheda
-  che, una volta convertita con <em>converter.html</em>, diventa un'app mobile pronta per il tuo cliente.
-</p>
-
-<div class="ok no-print" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-  <a href="editor_scheda.html" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;">✏️ Apri Editor guidato</a>
-  <a href="template_scheda.csv" download style="display:inline-flex;align-items:center;gap:6px;background:#1e3a5f;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;">⬇️ Scarica template CSV</a>
-  <span style="font-size:0.82rem;color:#374151;">L'editor è il modo più semplice per creare la scheda</span>
-</div>
-
-<h2>1. Strumenti necessari</h2>
-<div class="step">
-  <strong>Apri il CSV con uno di questi programmi:</strong>
-  <ul>
-    <li><strong>Google Sheets</strong> — File → Importa → seleziona il CSV (separatore virgola)</li>
-    <li><strong>Microsoft Excel</strong> — apri direttamente il file .csv</li>
-    <li><strong>LibreOffice Calc</strong> — apri il file, seleziona separatore "virgola"</li>
-  </ul>
-</div>
-
-<h2>2. Struttura del file — le 5 colonne</h2>
-<table>
-  <tr>
-    <th>A — Esercizio</th>
-    <th>B — Prog A</th>
-    <th>C — Prog B</th>
-    <th>D — Prog C</th>
-    <th>E — Link</th>
-  </tr>
-  <tr class="section-row">
-    <td><em>(vuota)</em></td>
-    <td>Warm-up</td>
-    <td><em>(vuota)</em></td>
-    <td><em>(vuota)</em></td>
-    <td><em>(vuota)</em></td>
-  </tr>
-  <tr>
-    <td>Squat</td>
-    <td>3x10 60%</td>
-    <td>4x8 70%</td>
-    <td>4x6 80%</td>
-    <td>https://youtube.com/...</td>
-  </tr>
-  <tr>
-    <td>Affondi</td>
-    <td>3x12 BW</td>
-    <td>3x12 BW</td>
-    <td>3x10 BW</td>
-    <td></td>
-  </tr>
-</table>
-
-<div class="warn">
-  La <strong>prima riga del file</strong> deve contenere esattamente la parola <code>Esercizio</code> nella colonna A.
-  Non rinominarla.
-</div>
-
-<h2>3. Come aggiungere una sezione (gruppo di esercizi)</h2>
-<p>
-  Per creare un'intestazione di sezione (es. "Parte Inferiore", "Warm-up"):
-</p>
-<ul>
-  <li>Colonna A: <strong>lascia vuota</strong></li>
-  <li>Colonna B: scrivi il <strong>nome della sezione</strong></li>
-  <li>Colonne C, D, E: <strong>lascia vuote</strong></li>
-</ul>
-<p>I colori delle sezioni nell'app vengono assegnati automaticamente in base al nome:</p>
-<table>
-  <tr><th>Nome contiene…</th><th>Colore nell'app</th></tr>
-  <tr><td>warm, riscaldamento</td><td>🟡 Giallo</td></tr>
-  <tr><td>inferior, basso, gambe, leg</td><td>🔵 Blu</td></tr>
-  <tr><td>superior, alto, petto, schiena, spalle, braccia</td><td>🟣 Viola</td></tr>
-  <tr><td>qualsiasi altro nome</td><td>🟢 Verde</td></tr>
-</table>
-
-<h2>4. Formato dei parametri (colonne B, C, D)</h2>
-<p>Il converter riconosce automaticamente tutti questi formati — puoi usare quello che preferisci:</p>
-
-<h3>Serie × Ripetizioni</h3>
-<table class="params-table">
-  <tr><th>Formato</th><th>Esempio</th><th>Badge generato</th></tr>
-  <tr><td>NxM (standard)</td><td>3x10</td><td><span class="badge series">3 × 10 serie</span></td></tr>
-  <tr><td>N serie x M</td><td>3 serie x 10</td><td><span class="badge series">3 × 10 serie</span></td></tr>
-  <tr><td>N set x M</td><td>4 set x 8</td><td><span class="badge series">4 × 8 serie</span></td></tr>
-  <tr><td>M rip x N serie (invertito)</td><td>10 rip x 3 serie</td><td><span class="badge series">3 × 10 serie</span></td></tr>
-  <tr><td>Solo serie</td><td>3 serie</td><td><span class="badge series">3 serie</span></td></tr>
-  <tr><td>Solo ripetizioni</td><td>10 ripetizioni</td><td><span class="badge series">× 10 rip</span></td></tr>
-  <tr><td>AMRAP</td><td>AMRAP 5min</td><td><span class="badge series">AMRAP 5min</span></td></tr>
-  <tr><td>EMOM</td><td>EMOM 10min</td><td><span class="badge series">EMOM 10min</span></td></tr>
-  <tr><td>elastic band</td><td>elastic band x3</td><td><span class="badge series">Elastic band × 3</span></td></tr>
-  <tr><td>sfinimento</td><td>3x sfinimento</td><td><span class="badge series">× 3 serie</span> <span class="badge load">a sfinimento</span></td></tr>
-</table>
-
-<h3>Recupero</h3>
-<table class="params-table">
-  <tr><th>Formato</th><th>Esempio</th><th>Badge generato</th></tr>
-  <tr><td>R30" / 30"</td><td>R45"</td><td><span class="badge rest">⏱ 45"</span></td></tr>
-  <tr><td>NNs / NNsec / NN secondi</td><td>30sec</td><td><span class="badge rest">⏱ 30"</span></td></tr>
-  <tr><td>Nmin</td><td>1min</td><td><span class="badge rest">⏱ 1'00"</span></td></tr>
-  <tr><td>Nmin NNs / N:NN / N'NN"</td><td>1min30s</td><td><span class="badge rest">⏱ 1'30"</span></td></tr>
-</table>
-
-<h3>Carico</h3>
-<table class="params-table">
-  <tr><th>Formato</th><th>Esempio</th><th>Badge generato</th></tr>
-  <tr><td>PP%</td><td>70%</td><td><span class="badge load">70%</span></td></tr>
-  <tr><td>NNkg / NN kg</td><td>20 kg</td><td><span class="badge load">20 kg</span></td></tr>
-  <tr><td>NNlbs / NN lb</td><td>45 lbs</td><td><span class="badge load">45 lbs</span></td></tr>
-  <tr><td>BW / peso corporeo</td><td>BW</td><td><span class="badge load">BW</span></td></tr>
-  <tr><td>RPE N</td><td>RPE 8</td><td><span class="badge load">RPE 8</span></td></tr>
-  <tr><td>RIR N</td><td>RIR 2</td><td><span class="badge load">RIR 2</span></td></tr>
-</table>
-
-<div class="ok">
-  Puoi <strong>combinare</strong> più formati nella stessa cella: es. <code>3x10 70% R60"</code> →
-  <span class="badge series">3 × 10 serie</span> <span class="badge load">70%</span> <span class="badge rest">⏱ 60"</span><br>
-  Se nessun formato viene riconosciuto, il testo viene mostrato così com'è.
-</div>
-
-<div class="ok">
-  Un esercizio può avere parametri diversi per i 3 programmi (A, B, C).
-  Se per un programma l'esercizio <strong>non è previsto</strong>, lascia la cella vuota.
-</div>
-
-<h2>5. Link video (colonna E)</h2>
-<p>
-  Inserisci un URL completo che inizia con <code>https://</code>.
-  Se presente, nell'app apparirà un pulsante <strong>▶ Video</strong>.
-  Lascia vuota se non hai un video di riferimento.
-</p>
-
-<h2>6. Esportare come PDF</h2>
-<div class="step">
-  <strong>Google Sheets:</strong>
-  File → Scarica → PDF → imposta orientamento <em>Orizzontale</em> → scarica
-</div>
-<div class="step">
-  <strong>Microsoft Excel:</strong>
-  File → Esporta → Crea PDF/XPS → Salva
-</div>
-<div class="step">
-  <strong>LibreOffice Calc:</strong>
-  File → Esporta come PDF → Esporta
-</div>
-
-<div class="warn">
-  Assicurati che tutte le 5 colonne siano <strong>visibili</strong> nel PDF (non tagliate).
-  Usa orientamento <strong>Orizzontale</strong> se necessario.
-  Evita di unire celle o usare layout multi-colonna.
-</div>
-
-<h2>7. Convertire il PDF nell'app</h2>
-<ol>
-  <li>Apri <strong>converter.html</strong> nel browser</li>
-  <li>Trascina il PDF appena creato</li>
-  <li>Clicca <strong>⬇️ Scarica HTML</strong></li>
-  <li>Invia il file HTML al tuo cliente — si apre direttamente dal telefono</li>
-</ol>
-
-<h2>Esempio completo</h2>
-<table>
-  <tr>
-    <th>Esercizio</th><th>Prog A</th><th>Prog B</th><th>Prog C</th><th>Link</th>
-  </tr>
-  <tr class="section-row">
-    <td></td><td>Warm-up</td><td></td><td></td><td></td>
-  </tr>
-  <tr><td>Cyclette</td><td>5' bassa intensità</td><td>5' bassa intensità</td><td>5' bassa intensità</td><td></td></tr>
-  <tr><td>Hip Circles</td><td>2x10</td><td>2x10</td><td>2x10</td><td>https://youtube.com/...</td></tr>
-  <tr class="section-row">
-    <td></td><td>Parte Inferiore</td><td></td><td></td><td></td>
-  </tr>
-  <tr><td>Squat</td><td>3x10 60%</td><td>4x8 70%</td><td>4x6 80%</td><td>https://youtube.com/...</td></tr>
-  <tr><td>Leg Press</td><td>3x12 BW</td><td>3x10 60%</td><td>4x8 70%</td><td>https://youtube.com/...</td></tr>
-  <tr><td>Leg Curl</td><td>3x12 R30"</td><td>3x12 R30"</td><td>3x10 R45"</td><td>https://youtube.com/...</td></tr>
-</table>
-
-</div><!-- /content -->
-
-<footer class="app-footer">
-  <a href="landing.html">🏠 Home</a>
-  <a href="editor_scheda.html">✏️ Editor</a>
-  <a href="converter.html">📄 Converter</a>
-  <a href="istruzioni_template.html">📋 Guida</a>
-</footer>
-
-</body>
-</html>
+</nav><main>
+<h1>Guida completa a GymSheet</h1><p class="lead">Crea, converti, controlla e genera una app di allenamento utilizzabile sullo smartphone, con note, timer, storico e progressioni.</p>
+<div class="actions"><a class="green" href="editor_scheda.html?mode=new">Crea una scheda gratis</a><a href="converter.html">Converti un PDF</a><a href="converter_universale.html">Converti con AI</a><a href="template_scheda.csv" download>Scarica il template CSV</a></div>
+<h2>Scegli il percorso giusto</h2><div class="grid"><div class="box"><h3>Editor guidato</h3><p>Per creare una scheda da zero. Aggiungi programmi, sezioni, esercizi, parametri e video; poi usa <strong>Genera App</strong>.</p></div><div class="box"><h3>Conversione tradizionale</h3><p>Per PDF tabellari nel formato GymSheet. Avviene nel browser, non usa AI ed è il percorso più prevedibile.</p></div><div class="box"><h3>Conversione AI</h3><p>Per PDF, Word, Excel, CSV, TSV o testo con strutture diverse. L’AI prepara una bozza e apre lo stesso editor guidato. Il risultato va sempre verificato.</p></div></div>
+<h2>Creare una scheda nell’editor</h2><div class="step"><strong>1. Apri l’editor</strong><p>Il link “Crea scheda gratis” apre una sessione pulita. Inserisci titolo, periodo e nomi dei programmi.</p></div><div class="step"><strong>2. Aggiungi sezioni ed esercizi</strong><p>Le sezioni possono essere Warm-up, Parte Inferiore, Parte Superiore, Core, Cardio o nomi personalizzati. Ogni esercizio può avere parametri diversi per programma e un video YouTube.</p></div><div class="step"><strong>3. Controlla e genera</strong><p>Usa l’anteprima, verifica i badge e premi <strong>Genera App</strong>. Il download tecnico è un file <code>.html</code> standalone, ma per l’utente funziona come una piccola app.</p></div>
+<h2>Formato CSV/PDF tradizionale</h2><table><tr><th>Esercizio</th><th>Prog A</th><th>Prog B</th><th>Prog C</th><th>Link</th></tr><tr><td></td><td>Parte Inferiore</td><td></td><td></td><td></td></tr><tr><td>Squat</td><td>3x10 60%</td><td>2-3 x 5 x 75-80%</td><td>3 x 5 x RPE 8</td><td>https://youtube.com/...</td></tr></table><p class="note">Nel CSV una riga di sezione ha la prima cella vuota e il nome della sezione nella prima colonna programma. La prima intestazione deve iniziare con <code>Esercizio</code>.</p>
+<h2>Parametri riconosciuti</h2><table><tr><th>Input</th><th>Visualizzazione</th></tr><tr><td><code>3x10</code></td><td>3 serie × 10 rip</td></tr><tr><td><code>3xtmax</code></td><td>3 serie × tempo massimo</td></tr><tr><td><code>3x15-12-10</code></td><td>3 serie: 15 · 12 · 10 rip</td></tr><tr><td><code>2-4 x 8-10 x 65%-70%</code></td><td>2-4 serie × 8-10 rip + 65-70 %</td></tr><tr><td><code>2 x AMRAP x 70% (as many rep as possible)</code></td><td>2 serie × AMRAP + 70 % + spiegazione</td></tr><tr><td><code>3 x 5 x RPE 8</code></td><td>3 serie × 5 rip + RPE 8</td></tr><tr><td><code>4 x 8 x RIR 2</code></td><td>4 serie × 8 rip + RIR 2</td></tr><tr><td><code>R60"</code></td><td>Timer recupero 60 secondi</td></tr></table>
+<h2>Conversione AI: limiti e controllo</h2><p>La conversione AI è protetta da limiti orari e giornalieri lato server e da un identificativo anonimo del browser. Il limite evita chiamate ripetute e non si applica al converter PDF tradizionale. Se compare un errore 429, usa il tempo indicato nel messaggio oppure passa alla conversione tradizionale.</p><p class="note">Il documento AI viene inviato al backend GymSheet e al provider AI. Non caricare dati non necessari. Controlla sempre warning, esercizi, parametri e link nell’editor.</p>
+<h2>Reset dei limiti dopo il pagamento</h2><p>Dopo un pagamento singolo completato, GymSheet invia l’email con il link dell’app. Se il provider email accetta il messaggio, i contatori AI associati all’indirizzo di rete e al browser usati per il checkout vengono azzerati. Un pagamento annullato o un errore di invio email non esegue il reset.</p><h2>Reset con chiave trainer</h2><p>Inserire o verificare una chiave trainer non azzera i limiti. Il reset avviene soltanto quando la chiave è valida, viene consumato un credito e l’app viene generata con successo. In quel momento vengono azzerati i contatori AI associati al browser e all’indirizzo di rete della richiesta.</p><h2>Funzioni dell’app generata</h2><ul><li>tab persistenti per tutti i programmi;</li><li>sezioni visibili anche nello storico;</li><li>note per esercizio, con evidenza rossa quando mancanti e verde quando compilate;</li><li>warning non bloccante prima di salvare una sessione incompleta;</li><li>timer di recupero con pausa e riavvio;</li><li>video YouTube esterni;</li><li>storico, dettaglio sessioni e progressione per esercizio;</li><li>esportazione/importazione dati e aggiornamento dell’app con dati incorporati.</li></ul>
+<h2>Errori comuni</h2><div class="grid"><div class="box"><strong>Nessun esercizio trovato</strong><p>Verifica che il PDF sia testuale e tabellare oppure usa la conversione AI.</p></div><div class="box"><strong>Limite AI raggiunto</strong><p>Attendi il rinnovo indicato o usa il converter tradizionale.</p></div><div class="box"><strong>Dati AI incompleti</strong><p>Correggi la bozza nell’editor prima di generare l’app.</p></div></div>
+</main></body></html>
