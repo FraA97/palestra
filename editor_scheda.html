@@ -314,6 +314,14 @@
 /* ── GymSheet dialog system ── */
 .ui-dialog-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(4px);z-index:5000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .16s ease}.ui-dialog-overlay.open{display:flex;opacity:1}.ui-dialog{width:min(500px,100%);max-height:min(86vh,760px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.3);padding:22px;transform:translateY(10px) scale(.98);animation:uiDialogIn .18s ease forwards}.ui-dialog h2{font-size:1.08rem;color:#1e3a5f;margin:0 0 8px}.ui-dialog-message{font-size:.88rem;line-height:1.55;color:#475569;white-space:pre-line}.ui-dialog-input{width:100%;margin-top:14px;padding:11px 12px;border:1.5px solid #d1d5db;border-radius:9px;font:inherit}.ui-dialog-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}.ui-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.ui-dialog-btn{border:0;border-radius:9px;padding:10px 15px;font-weight:750;cursor:pointer;font-size:.85rem}.ui-dialog-btn.secondary{background:#f1f5f9;color:#334155}.ui-dialog-btn.primary{background:#2563eb;color:#fff}.ui-dialog-btn.danger{background:#dc2626;color:#fff}.ui-dialog-btn.success{background:#16a34a;color:#fff}.ui-dialog-close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#475569}@keyframes uiDialogIn{to{transform:translateY(0) scale(1)}}
 @media(max-width:540px){.ui-dialog-overlay{align-items:flex-end;padding:0}.ui-dialog{width:100%;border-radius:18px 18px 0 0;padding:20px 16px 28px;max-height:90vh}.ui-dialog-actions{display:grid;grid-template-columns:1fr}.ui-dialog-btn{width:100%}}
+
+  .program-chip{display:inline-flex;align-items:center;gap:5px;border-radius:9px;padding:4px 5px 4px 8px;color:#fff;box-shadow:0 1px 3px rgba(15,23,42,.15)}
+  .program-name-input{width:96px;max-width:34vw;border:1px solid rgba(255,255,255,.45)!important;background:rgba(255,255,255,.16)!important;color:#fff!important;border-radius:6px!important;padding:4px 6px!important;font-size:.78rem!important;font-weight:750!important}
+  .program-name-input:focus{background:#fff!important;color:#1e3a5f!important;border-color:#fff!important;box-shadow:0 0 0 2px rgba(37,99,235,.25)}
+  .program-remove-btn{background:transparent;border:0;color:#fff;cursor:pointer;font-size:1rem;padding:3px 5px;line-height:1;border-radius:5px}
+  .program-remove-btn:hover,.program-remove-btn:focus{background:rgba(255,255,255,.2);outline:none}
+  .program-remove-btn[disabled]{opacity:.42;cursor:not-allowed}
+
 </style>
 </head>
 <body>
@@ -612,10 +620,18 @@ function addCustomSection() {
 }
 
 async function removeSection(id) {
-  if (!await uiConfirm('Eliminare questa sezione e tutti i suoi esercizi?','Elimina sezione','danger')) return;
-  sections = sections.filter(s => s.id !== id);
+  const section = sections.find(item => item.id === id);
+  if (!section) return;
+  const confirmed = await uiConfirm(
+    `Eliminare la sezione "${section.name}" e tutti i suoi esercizi?`,
+    'Elimina sezione',
+    'danger'
+  );
+  if (!confirmed) return;
+  sections = sections.filter(item => item.id !== id);
   renderSections();
   autosaveDraft();
+  showToast(`Sezione "${section.name}" eliminata`);
 }
 
 function updateSectionName(id, name) {
@@ -707,7 +723,7 @@ function renderSections() {
             placeholder="Nome sezione"
             oninput="updateSectionName(${sec.id}, this.value)"
             onclick="event.stopPropagation()" />
-          <button class="del-section-btn" onclick="removeSection(${sec.id})">🗑 Elimina</button>
+          <button type="button" class="del-section-btn" onclick="event.preventDefault();event.stopPropagation();removeSection(${sec.id})">🗑 Elimina</button>
         </div>
         <div id="ex-list-${sec.id}"></div>
         <button class="add-ex-btn" onclick="addExercise(${sec.id})">+ Aggiungi esercizio</button>
@@ -767,46 +783,89 @@ function renderProgTags() {
   const container = document.getElementById('prog-tags');
   if (!container) return;
   container.innerHTML = progLabels.map((lbl, i) => `
-    <div style="display:inline-flex;align-items:center;gap:4px;background:${ACCENT_COLORS[i % ACCENT_COLORS.length]};color:white;border-radius:8px;padding:4px 8px;font-size:0.82rem;font-weight:700">
-      <span contenteditable="true" spellcheck="false"
-        style="outline:none;min-width:16px;cursor:text"
-        onblur="renameProgram(${i}, this.textContent.trim())"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
-      >${escHtml(lbl)}</span>
-      ${progLabels.length > 1 ? `<button onclick="removeProgram(${i})" style="background:transparent;border:none;color:white;cursor:pointer;font-size:0.9rem;padding:0;line-height:1" title="Rimuovi">✕</button>` : ''}
-    </div>
-  `).join('');
+    <div class="program-chip" style="background:${ACCENT_COLORS[i % ACCENT_COLORS.length]}">
+      <input class="program-name-input" type="text" value="${escHtml(lbl)}"
+        aria-label="Nome programma ${i + 1}" title="Modifica nome programma"
+        onfocus="this.select()"
+        onchange="renameProgram(${i}, this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}" />
+      <button type="button" class="program-remove-btn"
+        onclick="event.preventDefault();event.stopPropagation();removeProgram(${i})"
+        aria-label="Rimuovi programma ${escHtml(lbl)}"
+        title="${progLabels.length > 1 ? 'Rimuovi programma' : 'Deve rimanere almeno un programma'}"
+        ${progLabels.length > 1 ? '' : 'disabled'}>✕</button>
+    </div>`).join('');
+}
+
+function nextProgramLabel() {
+  const used = new Set(progLabels.map(label => String(label).trim().toUpperCase()));
+  for (let i = 0; i < 26; i++) {
+    const candidate = String.fromCharCode(65 + i);
+    if (!used.has(candidate)) return candidate;
+  }
+  let n = 1;
+  while (used.has('PROGRAMMA ' + n)) n++;
+  return 'Programma ' + n;
 }
 
 function addProgram() {
-  const nextLabel = String.fromCharCode(65 + progLabels.length);
-  progLabels.push(nextLabel);
+  progLabels.push(nextProgramLabel());
   for (const sec of sections)
-    for (const ex of sec.exercises)
+    for (const ex of sec.exercises) {
+      if (!Array.isArray(ex.progs)) ex.progs = [];
       ex.progs.push('');
+    }
   renderProgTags();
   renderSections();
   autosaveDraft();
 }
 
 async function removeProgram(idx) {
-  if (progLabels.length <= 1) { showToast('Deve esserci almeno 1 programma'); return; }
-  if (!await uiConfirm(`Rimuovere il programma "${progLabels[idx]}"? I dati inseriti per questo programma andranno persi.`,`Rimuovi programma`,`danger`)) return;
+  if (!Number.isInteger(idx) || idx < 0 || idx >= progLabels.length) return;
+  if (progLabels.length <= 1) {
+    await uiAlert('Deve rimanere almeno un programma.', 'Programma obbligatorio');
+    renderProgTags();
+    return;
+  }
+  const label = progLabels[idx];
+  const confirmed = await uiConfirm(
+    `Rimuovere il programma "${label}"? I dati inseriti per questo programma andranno persi.`,
+    'Rimuovi programma',
+    'danger'
+  );
+  if (!confirmed) return;
   progLabels.splice(idx, 1);
   for (const sec of sections)
-    for (const ex of sec.exercises)
+    for (const ex of sec.exercises) {
+      if (!Array.isArray(ex.progs)) ex.progs = [];
       ex.progs.splice(idx, 1);
+    }
   renderProgTags();
   renderSections();
   autosaveDraft();
+  showToast(`Programma "${label}" eliminato`);
 }
 
-function renameProgram(idx, newLabel) {
-  if (!newLabel) return;
-  progLabels[idx] = newLabel;
-  document.querySelectorAll(`.prog-field-label-${idx}`).forEach(el => el.textContent = 'Prog. ' + newLabel);
+async function renameProgram(idx, newLabel) {
+  if (!Number.isInteger(idx) || idx < 0 || idx >= progLabels.length) return;
+  const normalized = String(newLabel || '').trim();
+  if (!normalized) {
+    await uiAlert('Il nome del programma non può essere vuoto.', 'Nome non valido');
+    renderProgTags();
+    return;
+  }
+  const duplicate = progLabels.some((label, i) => i !== idx && String(label).trim().toLowerCase() === normalized.toLowerCase());
+  if (duplicate) {
+    await uiAlert('Esiste già un programma con questo nome.', 'Nome duplicato');
+    renderProgTags();
+    return;
+  }
+  progLabels[idx] = normalized;
+  document.querySelectorAll(`.prog-field-label-${idx}`).forEach(el => el.textContent = 'Prog. ' + normalized);
   autosaveDraft();
+  showToast(`Programma rinominato in "${normalized}"`);
 }
+
 // ── Build programs structure from sections ──────────────────────────────────
 function buildPrograms() {
   const KEYS = 'abcdefghijklmnopqrstuvwxyz';
@@ -1589,31 +1648,74 @@ function downloadHtml() {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-renderSections();
-renderProgTags();
-// Auto-load draft silently on open
-try {
-  const raw = localStorage.getItem(DRAFT_KEY);
-  if (raw) {
-    const draft = JSON.parse(raw);
-    document.getElementById('meta-title').value = draft.title || '';
-    document.getElementById('meta-weeks').value = draft.weeks || '';
-    if (draft.progLabels && Array.isArray(draft.progLabels)) progLabels = draft.progLabels;
-    sections = draft.sections || [];
-    sectionCounter = draft._sc || sections.length;
-    exerciseCounter = draft._ec || 0;
-    // Backward compatibility: convert progA/progB/progC to progs[]
-    for (const sec of sections)
-      for (const ex of sec.exercises)
-        if (!ex.progs) {
-          ex.progs = [ex.progA || '', ex.progB || '', ex.progC || ''];
-          delete ex.progA; delete ex.progB; delete ex.progC;
-        }
+function normalizeLoadedDraft(draft) {
+  progLabels = Array.isArray(draft.progLabels) && draft.progLabels.length
+    ? draft.progLabels.map(label => String(label || '').trim()).filter(Boolean)
+    : ['A'];
+  if (!progLabels.length) progLabels = ['A'];
+  sections = Array.isArray(draft.sections) ? draft.sections : [];
+  sectionCounter = Number(draft._sc) || sections.reduce((max, sec) => Math.max(max, Number(sec.id) || 0), 0);
+  exerciseCounter = Number(draft._ec) || sections.reduce((max, sec) => Math.max(max, ...(sec.exercises || []).map(ex => Number(ex.id) || 0)), 0);
+  for (const sec of sections) {
+    if (!Array.isArray(sec.exercises)) sec.exercises = [];
+    for (const ex of sec.exercises) {
+      if (!Array.isArray(ex.progs)) {
+        ex.progs = [ex.progA || '', ex.progB || '', ex.progC || ''];
+        delete ex.progA; delete ex.progB; delete ex.progC;
+      }
+      while (ex.progs.length < progLabels.length) ex.progs.push('');
+      if (ex.progs.length > progLabels.length) ex.progs.length = progLabels.length;
+    }
+  }
+}
+
+function initializeEditor() {
+  const params = new URLSearchParams(window.location.search);
+  const newMode = params.get('mode') === 'new';
+  if (newMode) {
+    sections = [];
+    sectionCounter = 0;
+    exerciseCounter = 0;
+    progLabels = ['A'];
+    document.getElementById('meta-title').value = '';
+    document.getElementById('meta-weeks').value = '';
     renderProgTags();
     renderSections();
+    showToast('Nuova scheda vuota');
+    return;
   }
-} catch(e) {}
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      const draft = JSON.parse(raw);
+      document.getElementById('meta-title').value = draft.title || '';
+      document.getElementById('meta-weeks').value = draft.weeks || '';
+      normalizeLoadedDraft(draft);
+    }
+  } catch (error) {
+    console.error('Errore caricamento bozza', error);
+    sections = [];
+    sectionCounter = 0;
+    exerciseCounter = 0;
+    progLabels = ['A'];
+  }
+  renderProgTags();
+  renderSections();
+}
+
+initializeEditor();
+
 </script>
+
+<div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation">
+  <div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title">
+    <button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button>
+    <h2 id="ui-dialog-title"></h2>
+    <div class="ui-dialog-message" id="ui-dialog-message"></div>
+    <input class="ui-dialog-input" id="ui-dialog-input" style="display:none">
+    <div class="ui-dialog-actions" id="ui-dialog-actions"></div>
+  </div>
+</div>
 
 <!-- Paywall Modal -->
 <div class="paywall-overlay" id="paywall-overlay" onclick="if(event.target===this)closePaywall()">
@@ -1758,6 +1860,7 @@ async function confirmSinglePayment() {
   finally { btn.textContent = 'Paga →'; btn.disabled = false; }
 }
 
+let editorDialogHideTimer=null;
 function uiDialog(options={}){
   const overlay=document.getElementById('ui-dialog-overlay');
   if(!overlay)return Promise.resolve(options.cancelText?false:true);
@@ -1765,12 +1868,12 @@ function uiDialog(options={}){
   title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
   input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
   return new Promise(resolve=>{
-    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
+    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);clearTimeout(editorDialogHideTimer);editorDialogHideTimer=setTimeout(()=>{if(!overlay.classList.contains('open'))overlay.style.display='none'},170);resolve(value)};
     const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
     const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
     if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
     close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
-    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
+    clearTimeout(editorDialogHideTimer);editorDialogHideTimer=null;overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
   });
 }
 function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
