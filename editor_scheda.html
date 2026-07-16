@@ -156,6 +156,7 @@
   .badge.rest   { background: #fef3c7; border-color: #fde68a; color: #92400e; }
   .badge.load   { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
   .badge.raw    { background: #f8fafc; border-color: #cbd5e1; color: #475569; font-weight: 500; }
+  .badge.warning{ background:#fff7ed; border-color:#fed7aa; color:#9a3412; font-weight:500; }
   /* ── Add buttons ── */
   .add-ex-btn {
     width: 100%;
@@ -420,238 +421,121 @@ function showToast(msg, duration=2200) {
 }
 
 // ── Parse params (same logic as converter.html) ─────────────────────────────
-function parseParams(s) {
-  if (!s || !s.trim()) return [];
+function parsePrescription(value) {
+  const original = String(value || '').trim();
+  if (!original) return { status:'empty', original:'', badges:[], warnings:[] };
+  const exact = (badges, warnings = []) => ({ status:'exact', original, badges, warnings });
+  const raw = () => ({ status:'raw', original, badges:[['raw', original]], warnings:[] });
+  const normRange = v => String(v || '').replace(/\s*[-–—]\s*/g, '-').replace(/,/g, '.').trim();
+  const normList = v => String(v || '').split(/\s*\/\s*/).filter(Boolean).join(' / ');
+  const normLoad = v => String(v || '').replace(/,/g, '.').replace(/\s+/g, ' ').trim();
+  let m;
 
-  // "X" da solo = esercizio presente senza parametri specificati
-  if (/^x$/i.test(s.trim())) return [['series', '✓']];
+  if (/^x$/i.test(original)) return exact([['series','✓']]);
 
-  const badges = [];
-  const original = s.trim();
-  const normalizeList = value => String(value || '')
-    .split(/\s*\/\s*/)
-    .filter(Boolean)
-    .join(' / ');
-  const normalizeDecimal = value => String(value || '').replace(',', '.').replace(/\s+/g, ' ').trim();
-  const addOriginal = () => {
-    const text = 'Originale: ' + original;
-    if (!badges.some(([, value]) => value === text)) badges.push(['raw', text]);
-  };
+  // Progressione completa: [eventuale esercizio –] carico x serie per fase x RIR per fase.
+  // Il segmento di carico viene mantenuto integralmente, per esempio "50% max. squat".
+  m = original.match(/^(?:(.+?)\s*[–—]\s*)?(.+?)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
+  if (m && /(?:%|\bRM\b|\bRPE\b|\bRIR\b|\bBW\b|\bkg\b|\blbs?\b|peso\s+corporeo|max\.?)/i.test(m[2])) {
+    const badges = [];
+    if (m[1]) badges.push(['raw', 'Esercizio: ' + m[1].trim()]);
+    badges.push(['load', 'Carico: ' + normLoad(m[2])]);
+    badges.push(['series', 'Serie: ' + normList(m[3])]);
+    badges.push(['load', 'RIR: ' + normList(m[4])]);
+    const warnings = [];
+    if (normList(m[3]).split(' / ').length !== normList(m[4]).split(' / ').length) warnings.push('Sequenze serie/RIR di lunghezza diversa');
+    warnings.push('Ripetizioni non specificate');
+    return exact(badges, warnings);
+  }
 
-  // Progressioni per fase/settimana senza ripetizioni esplicite.
-  // Esempi:
-  // "Squat – 70% x 3/4/5/6 set x 3/3/2/1 RIR"
-  // "80% del 10RM circa x 3/4/5/6 set x 3/3/2/1 RIR"
-  const mLoadSetsRirProgression = original.match(/^(?:(.+?)\s*[–—]\s*)?(\d+(?:[.,]\d+)?\s*%(?:\s+del\s+\d+\s*RM)?(?:\s+circa)?)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
-  if (mLoadSetsRirProgression) {
-    const exercisePrefix = (mLoadSetsRirProgression[1] || '').trim();
-    const load = normalizeDecimal(mLoadSetsRirProgression[2])
-      .replace(/\s*%/, ' %')
-      .replace(/(\d)\s*RM\b/i, '$1RM');
-    const sets = normalizeList(mLoadSetsRirProgression[3]);
-    const rir = normalizeList(mLoadSetsRirProgression[4]);
-    if (exercisePrefix) badges.push(['raw', 'Esercizio: ' + exercisePrefix]);
-    badges.push(['load', load]);
-    badges.push(['series', 'Serie per fase: ' + sets]);
-    badges.push(['load', 'RIR per fase: ' + rir]);
-    if (sets.split(' / ').length !== rir.split(' / ').length) {
-      badges.push(['raw', 'Sequenze da verificare']);
+  // Progressione senza carico esplicito.
+  m = original.match(/^(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
+  if (m) return exact([
+    ['series', 'Serie: ' + normList(m[1])],
+    ['load', 'RIR: ' + normList(m[2])]
+  ], ['Ripetizioni non specificate']);
+
+  // Abbreviazioni esplicite.
+  m = original.match(/^(\d+)\s*s(?:erie)?\s*[xX×]\s*(\d+)\s*r(?:ip(?:etizioni?)?)?\s*$/i);
+  if (m) return exact([['series', m[1] + ' serie × ' + m[2] + ' rip']]);
+
+  m = original.match(/^(\d+)\s*(?:rip(?:etizioni?)?|rep(?:s|etitions?)?)\s*[xX×]\s*(\d+)\s*(?:serie|set|sets?)\s*$/i);
+  if (m) return exact([['series', m[2] + ' serie × ' + m[1] + ' rip']]);
+
+  // Serie/intervallo x lavoro x carico. L'intera stringa deve corrispondere.
+  m = original.match(/^(\d+(?:\s*[-–—]\s*\d+)?)\s*(?:serie|set|sets?)?\s*[xX×]\s*(AMRAP|(?:T\s*MAX|TMAX|tempo\s+massimo)|\d+(?:\s*[-–—]\s*\d+)?)\s*(?:rip(?:etizioni?)?|rep(?:s)?)?\s*(?:[xX×]\s*(.+?))?\s*(?:\((.+)\))?\s*$/i);
+  if (m) {
+    const series = normRange(m[1]);
+    const workRaw = m[2].trim();
+    const work = /^AMRAP$/i.test(workRaw) ? 'AMRAP' : /^(?:T\s*MAX|TMAX|tempo\s+massimo)$/i.test(workRaw) ? 'tempo massimo' : normRange(workRaw) + ' rip';
+    const badges = [['series', series + ' serie × ' + work]];
+    if (m[3]) {
+      const load = normLoad(m[3]);
+      let lm;
+      if ((lm = load.match(/^(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%$/))) badges.push(['load', normRange(lm[1]) + '-' + normRange(lm[2]) + ' %']);
+      else if ((lm = load.match(/^(\d+(?:[.,]\d+)?)\s*%$/))) badges.push(['load', normRange(lm[1]) + ' %']);
+      else if ((lm = load.match(/^(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?)\s*(kg|kgs|lb|lbs)$/i))) badges.push(['load', normRange(lm[1]) + ' ' + (/^kg/i.test(lm[2]) ? 'kg' : 'lbs')]);
+      else if (/^(?:RPE\s*\d+(?:[.,]\d+)?|RIR\s*\d+|BW|peso\s+corporeo|bodyweight)$/i.test(load)) badges.push(['load', load.replace(/peso\s+corporeo|bodyweight/i,'BW').toUpperCase().replace(',','.')]);
+      else return raw(); // carico non completamente noto: niente traduzione parziale.
     }
-    // La prescrizione non dichiara le ripetizioni: non vengono inventate.
-    // L'originale resta sempre visibile per garantire assenza di perdita informativa.
-    addOriginal();
-    return badges;
+    if (m[4]) badges.push(['load', m[4].trim()]);
+    return exact(badges);
   }
 
-  // Progressione set/RIR priva del carico, comunque conservata integralmente.
-  const mSetsRirProgression = original.match(/^(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
-  if (mSetsRirProgression) {
-    badges.push(['series', 'Serie per fase: ' + normalizeList(mSetsRirProgression[1])]);
-    badges.push(['load', 'RIR per fase: ' + normalizeList(mSetsRirProgression[2])]);
-    addOriginal();
-    return badges;
+  // Sequenza piramidale/scalata completa.
+  m = original.match(/^(\d+)\s*[xX×]\s*(\d+(?:\s*[-\/–—]\s*\d+){2,})\s*$/);
+  if (m) {
+    const reps = m[2].split(/\s*[-\/–—]\s*/).filter(Boolean);
+    const warnings = reps.length === Number(m[1]) ? [] : ['Sequenza da verificare'];
+    return exact([['series', m[1] + ' serie: ' + reps.join(' · ') + ' rip']], warnings);
   }
 
-  // Abbreviazioni compatte: "4s x 8r" = 4 serie per 8 ripetizioni.
-  const mShortSeriesReps = original.match(/^(\d+)\s*s(?:erie)?\s*[xX×]\s*(\d+)\s*r(?:ip(?:etizioni?)?)?\s*$/i);
-  if (mShortSeriesReps) {
-    badges.push(['series', mShortSeriesReps[1] + ' serie × ' + mShortSeriesReps[2] + ' rip']);
-    return badges;
+  // Serie x ripetizioni con eventuale singolo modificatore completamente riconosciuto.
+  m = original.match(/^(\d+(?:\+\d+)?)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+(?:\+\d+)?)\s*(?:rip(?:etizioni?)?|rep(?:s)?)?\s*(.*)$/i);
+  if (m) {
+    const tail = m[3].trim();
+    const badges = [['series', m[1] + ' serie × ' + m[2] + ' rip']];
+    if (!tail) return exact(badges);
+    let tm;
+    if ((tm = tail.match(/^(\d+(?:[.,]\d+)?)\s*%$/))) badges.push(['load', normRange(tm[1]) + ' %']);
+    else if ((tm = tail.match(/^(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%$/))) badges.push(['load', normRange(tm[1]) + '-' + normRange(tm[2]) + ' %']);
+    else if ((tm = tail.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kgs|lb|lbs)$/i))) badges.push(['load', normRange(tm[1]) + ' ' + (/^kg/i.test(tm[2]) ? 'kg' : 'lbs')]);
+    else if ((tm = tail.match(/^(?:R)?(\d+)\s*(?:[”"]|s|sec|secondi)$/i))) badges.push(['rest', '⏱ ' + tm[1] + '"']);
+    else if ((tm = tail.match(/^(\d+)\s*(?:min|minuti?)$/i))) badges.push(['rest', '⏱ ' + tm[1] + "'00\""]);
+    else if (/^(?:RPE\s*\d+(?:[.,]\d+)?|RIR\s*\d+|BW|peso\s+corporeo|bodyweight)$/i.test(tail)) badges.push(['load', tail.replace(/peso\s+corporeo|bodyweight/i,'BW').toUpperCase().replace(',','.')]);
+    else return raw();
+    return exact(badges);
   }
 
+  // Formati autonomi completi.
+  m = original.match(/^(\d+)\s*[xX×]\s*(?:T\s*MAX|TMAX|tempo\s+massimo)$/i);
+  if (m) return exact([['series', m[1] + ' serie × tempo massimo']]);
+  m = original.match(/^AMRAP(?:\s+(\d+)\s*min)?$/i);
+  if (m) return exact([['series', 'AMRAP' + (m[1] ? ' ' + m[1] + 'min' : '')]]);
+  m = original.match(/^EMOM(?:\s+(\d+)\s*min)?$/i);
+  if (m) return exact([['series', 'EMOM' + (m[1] ? ' ' + m[1] + 'min' : '')]]);
+  m = original.match(/^elastic\s*band(?:\s*[xX×]\s*(\d+))?$/i);
+  if (m) return exact([['series', 'Elastic band' + (m[1] ? ' × ' + m[1] : '')]]);
+  m = original.match(/^(?:(\d+)\s*[xX×]\s*)?sfinimento$/i);
+  if (m) return exact([...(m[1] ? [['series', m[1] + ' serie']] : []), ['load','a sfinimento']]);
 
-  if (/elastic\s*band/i.test(s)) {
-    const m = s.match(/[x×]\s*(\d+)/i);
-    badges.push(['series', 'Elastic band' + (m ? ' × ' + m[1] : '')]);
-    return badges;
-  }
-  if (/sfinimento/i.test(s)) {
-    const m = s.match(/(?:[x×]\s*(\d+)|(\d+)\s*[x×])/i);
-    const count = m ? (m[1] || m[2]) : null;
-    if (count) badges.push(['series', '× ' + count + ' serie']);
-    badges.push(['load', 'a sfinimento']);
-    return badges;
-  }
-  // ── Prescrizioni strutturate generiche ──────────────────────────────
-  // Copre serie fisse/intervallo, ripetizioni fisse/intervallo, AMRAP/TMAX
-  // e carichi %, kg, RPE o RIR, con eventuale spiegazione tra parentesi.
-  const structured = s.match(/^\s*(\d+(?:\s*[-–—]\s*\d+)?)\s*[xX×]\s*(AMRAP|(?:T\s*MAX|TMAX|TEMPO\s+MASSIMO)|\d+(?:\s*[-–—]\s*\d+)?)\s*(?:[xX×]\s*(?:(\d+(?:[.,]\d+)?(?:\s*%?\s*[-–—]\s*\d+(?:[.,]\d+)?)?\s*%)|(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?\s*(?:kg|kgs|lb|lbs))|(RPE\s*\d+(?:[.,]\d+)?)|(RIR\s*\d+)))?\s*(?:\((.+)\))?\s*$/i);
-  if (structured) {
-    const normalizeRange = value => String(value || '')
-      .replace(/\s*[-–—]\s*/g, '-')
-      .replace(/,/g, '.');
-    const series = normalizeRange(structured[1]);
-    const workRaw = structured[2].trim();
-    let work;
-    if (/^AMRAP$/i.test(workRaw)) work = 'AMRAP';
-    else if (/^(?:T\s*MAX|TMAX|TEMPO\s+MASSIMO)$/i.test(workRaw)) work = 'tempo massimo';
-    else work = normalizeRange(workRaw) + ' rip';
-    badges.push(['series', series + ' serie × ' + work]);
+  m = original.match(/^(\d+)\s*(?:[”"]|s|sec|secondi)$/i);
+  if (m) return exact([['rest', '⏱ ' + m[1] + '"']]);
+  m = original.match(/^(\d+)\s*(?:min|minuti?)$/i);
+  if (m) return exact([['rest', '⏱ ' + m[1] + "'00\""]]);
+  m = original.match(/^(\d+(?:[.,]\d+)?)\s*%$/);
+  if (m) return exact([['load', normRange(m[1]) + ' %']]);
+  m = original.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kgs|lb|lbs)$/i);
+  if (m) return exact([['load', normRange(m[1]) + ' ' + (/^kg/i.test(m[2]) ? 'kg' : 'lbs')]]);
+  m = original.match(/^(RPE\s*\d+(?:[.,]\d+)?|RIR\s*\d+|BW|peso\s+corporeo|bodyweight)$/i);
+  if (m) return exact([['load', m[1].replace(/peso\s+corporeo|bodyweight/i,'BW').toUpperCase().replace(',','.')]]);
 
-    if (structured[3]) {
-      badges.push(['load', normalizeRange(structured[3].replace(/%/g, '').trim()) + ' %']);
-    } else if (structured[4]) {
-      const m = structured[4].match(/^(.+?)\s*(kg|kgs|lb|lbs)$/i);
-      const unit = /^kg/i.test(m[2]) ? 'kg' : 'lbs';
-      badges.push(['load', normalizeRange(m[1]) + ' ' + unit]);
-    } else if (structured[5]) {
-      badges.push(['load', structured[5].toUpperCase().replace(',', '.')]);
-    } else if (structured[6]) {
-      badges.push(['load', structured[6].toUpperCase()]);
-    }
-
-    if (structured[7] && structured[7].trim()) {
-      const explanation = structured[7].trim()
-        .replace(/(\d+(?:[.,]\d+)?)\s*%\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %')
-        .replace(/(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %');
-      badges.push(['load', explanation]);
-    }
-    return badges;
-  }
-
-  // ── Serie speciali: intervalli, tempo massimo, piramidali/scalate ───
-  // Accetta entrambe le notazioni percentuali:
-  //   65-70%  e  65%-70%
-  // e conserva un'eventuale spiegazione tra parentesi.
-  // Serie e ripetizioni fisse con intervallo di carico:
-  // "3 x 5 x 60-65%" oppure "3 x 5 x 60%-65%".
-  const mFixedRepLoadRange = s.match(/^(\d+)\s*[xX×]\s*(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%\s*(?:\((.+)\))?\s*$/i);
-  if (mFixedRepLoadRange) {
-    badges.push(['series', mFixedRepLoadRange[1] + ' serie × ' + mFixedRepLoadRange[2] + ' rip']);
-    badges.push(['load', mFixedRepLoadRange[3].replace(',', '.') + '-' + mFixedRepLoadRange[4].replace(',', '.') + ' %']);
-    if (mFixedRepLoadRange[5] && mFixedRepLoadRange[5].trim()) {
-      const explanation = mFixedRepLoadRange[5].trim()
-        .replace(/(\d+(?:[.,]\d+)?)\s*%\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %')
-        .replace(/(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %');
-      badges.push(['load', explanation]);
-    }
-    return badges;
-  }
-
-  const mRange = s.match(/^(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%\s*(?:\((.+)\))?\s*$/i);
-  if (mRange) {
-    badges.push(['series', mRange[1] + '-' + mRange[2] + ' serie × ' + mRange[3] + '-' + mRange[4] + ' rip']);
-    badges.push(['load', mRange[5].replace(',', '.') + '-' + mRange[6].replace(',', '.') + ' %']);
-    if (mRange[7] && mRange[7].trim()) {
-      // Normalizza anche le percentuali presenti nella spiegazione,
-      // senza eliminare il significato originale.
-      const explanation = mRange[7].trim()
-        .replace(/(\d+(?:[.,]\d+)?)\s*%\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %')
-        .replace(/(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%/g, '$1-$2 %');
-      badges.push(['load', explanation]);
-    }
-    return badges;
-  }
-
-  // Variante senza percentuale: "2-4 x 8-10".
-  const mSeriesRepRange = s.match(/^(\d+)\s*[-–—]\s*(\d+)\s*[xX×]\s*(\d+)\s*[-–—]\s*(\d+)$/i);
-  if (mSeriesRepRange) {
-    badges.push(['series', mSeriesRepRange[1] + '-' + mSeriesRepRange[2] + ' serie × ' + mSeriesRepRange[3] + '-' + mSeriesRepRange[4] + ' rip']);
-    return badges;
-  }
-
-  const mTMax = s.match(/^(\d+)\s*[xX×]\s*(?:t\s*max|tmax|tempo\s+massimo)$/i);
-  if (mTMax) {
-    badges.push(['series', mTMax[1] + ' serie × tempo massimo']);
-    return badges;
-  }
-
-  const mRepSequence = s.match(/^(\d+)\s*[xX×]\s*(\d+(?:\s*[-\/–—]\s*\d+)+)$/);
-  if (mRepSequence) {
-    const seriesCount = parseInt(mRepSequence[1], 10);
-    const reps = mRepSequence[2].split(/\s*[-\/–—]\s*/).filter(Boolean);
-    badges.push(['series', seriesCount + ' serie: ' + reps.join(' · ') + ' rip']);
-    if (reps.length !== seriesCount) badges.push(['load', 'sequenza da verificare']);
-    return badges;
-  }
-
-  if (/\bAMRAP\b/i.test(s)) {
-    const m = s.match(/(\d+)\s*min/i);
-    badges.push(['series', 'AMRAP' + (m ? ' ' + m[1] + 'min' : '')]);
-    return badges;
-  }
-  if (/\bEMOM\b/i.test(s)) {
-    const m = s.match(/(\d+)/);
-    badges.push(['series', 'EMOM' + (m ? ' ' + m[1] + 'min' : '')]);
-    return badges;
-  }
-
-  const mInv = s.match(/(\d+)\s*(?:rip(?:etizioni?)?|rep(?:s|etitions?)?)\s*[xX×]\s*(\d+)\s*(?:serie|set|sets?)/i);
-  if (mInv) {
-    badges.push(['series', mInv[2] + ' serie × ' + mInv[1]]);
-  } else {
-    // "NxM", "N serie x M", "N+NxM" (bilaterale es. "8+8x4")
-    const mSer = s.match(/(\d+(?:\+\d+)?)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+)/i);
-    if (mSer) {
-      const rawA = mSer[1], b = parseInt(mSer[2]);
-      const a = parseInt(rawA);
-      const bilateral = rawA.includes('+') ? rawA : null;
-      const [series, ripsNum] = a <= b ? [a, b] : [b, a];
-      const ripsLabel = bilateral ? bilateral : ripsNum;
-      badges.push(['series', series + ' serie × ' + ripsLabel]);
-    } else {
-      const mOnlySer = s.match(/(\d+)\s*(?:serie|set|sets?)\b/i);
-      if (mOnlySer) badges.push(['series', mOnlySer[1] + ' serie']);
-      const mOnlyRep = s.match(/(\d+)\s*(?:rip(?:etizioni?)?|rep(?:s|etitions?)?)\b/i);
-      if (mOnlyRep) badges.push(['series', '× ' + mOnlyRep[1] + ' rip']);
-    }
-  }
-
-  const mMinSec = s.match(/(\d+)\s*(?:min(?:uto?)?|')\s*[:\s]?\s*(\d+)\s*(?:s(?:ec(?:ondi?)?)?|[\u201d\u2019"'])/i);
-  if (mMinSec) {
-    badges.push(['rest', '⏱ ' + mMinSec[1] + '\'' + mMinSec[2].padStart(2,'0') + '"']);
-  } else {
-    const mMin = s.match(/(?:^|[\s])(\d+)\s*(?:min(?:ut[oi]?)?|minut[oi]|')\s*$/i);
-    if (mMin) {
-      badges.push(['rest', '⏱ ' + mMin[1] + '\'00"']);
-    } else {
-      const mSec = s.match(/(?:^|\s)R?(\d+)\s*(?:[\u201d"]|s(?:ec(?:ondi?)?)?\b)/i);
-      if (mSec) badges.push(['rest', '⏱ ' + mSec[1] + '"']);
-    }
-  }
-
-  const mPct = s.match(/(\d+(?:\.\d+)?)\s*%/);
-  const mBW  = /\b(?:BW|peso\s+corporeo|bodyweight)\b/i.test(s);
-  const mKg  = s.match(/(\d+(?:\.\d+)?)\s*kg/i);
-  const mLbs = s.match(/(\d+(?:\.\d+)?)\s*lb(?:s|bs?)?\b/i);
-  const mRPE = s.match(/\bRPE\s*(\d+(?:\.\d+)?)/i);
-  const mRIR = s.match(/\bRIR\s*(\d+)/i);
-
-  if (mPct)      badges.push(['load', mPct[1] + '%']);
-  else if (mBW)  badges.push(['load', 'BW']);
-  else if (mKg)  badges.push(['load', mKg[1] + ' kg']);
-  else if (mLbs) badges.push(['load', mLbs[1] + ' lbs']);
-  if (mRPE) badges.push(['load', 'RPE ' + mRPE[1]]);
-  if (mRIR) badges.push(['load', 'RIR ' + mRIR[1]]);
-
-  // I parser generici sopra possono riconoscere solo una parte della stringa.
-  // In tal caso manteniamo sempre anche il testo originale: nessuna informazione
-  // viene eliminata anche quando il formato non è compreso al 100%.
-  if (!badges.length) badges.push(['raw', original]);
-  else addOriginal();
-  return badges;
+  // Strict-or-raw: nessuna estrazione opportunistica da sottostringhe.
+  return raw();
 }
-
+function parseParams(s) {
+  return parsePrescription(s).badges;
+}
 function renderBadgePreview(str) {
   if (!str.trim()) return '';
   return parseParams(str)
@@ -919,17 +803,20 @@ function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale')
   const ytBtn = videoUrl
     ? `<a class="yt-btn" href="${escHtml(videoUrl)}" target="_blank" rel="noopener external">▶ Apri video</a>`
     : '';
-  const badges = parseParams(ex.params)
-    .map(([t,txt]) => {
-      if (t === 'rest') {
-        const secs = parseRestSecs(txt);
-        return secs > 0
-          ? `<button class="badge rest" onclick="startTimer(${secs})">${escHtml(txt)}</button>`
-          : `<span class="badge rest">${escHtml(txt)}</span>`;
-      }
-      return `<span class="badge ${t}">${escHtml(txt)}</span>`;
-    }).join('');
-  const badgesHtml = badges ? `<div class="badges">${badges}</div>` : '';
+  const parsed = parsePrescription(ex.params);
+  const badges = parsed.badges.map(([t,txt]) => {
+    if (t === 'rest') {
+      const secs = parseRestSecs(txt);
+      return secs > 0
+        ? `<button class="badge rest" onclick="startTimer(${secs})">${escHtml(txt)}</button>`
+        : `<span class="badge rest">${escHtml(txt)}</span>`;
+    }
+    return `<span class="badge ${t}">${escHtml(txt)}</span>`;
+  }).join('');
+  const warnings = parsed.warnings.map(txt => `<span class="badge warning">${escHtml(txt)}</span>`).join('');
+  const badgesHtml = (badges || warnings)
+    ? `<div class="badges" data-parse-status="${parsed.status}" data-original="${escHtml(parsed.original)}">${badges}${warnings}</div>`
+    : '';
   const noteArea = locked ? '' : `
     <div class="note-label">📝 Note / Peso usato</div>
     <textarea class="note-input" rows="1" placeholder="es. peso, note…" oninput="saveNote('${ex.id}',this.value)"></textarea>`;
@@ -1054,7 +941,7 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
   .yt-btn{background:#f00;color:white;border:none;border-radius:6px;padding:5px 8px;font-size:.75rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;font-weight:600}
   .badges{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
   .badge{background:#f3f4f6;border-radius:6px;padding:3px 8px;font-size:.75rem;font-weight:500;border:1px solid var(--border)}
-  .badge.series{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}.badge.rest{background:#fef3c7;border-color:#fde68a;color:#92400e}.badge.load{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}.badge.raw{background:#f8fafc;border-color:#cbd5e1;color:#475569;font-weight:500}
+  .badge.series{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}.badge.rest{background:#fef3c7;border-color:#fde68a;color:#92400e}.badge.load{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}.badge.raw{background:#f8fafc;border-color:#cbd5e1;color:#475569;font-weight:500}.badge.warning{background:#fff7ed;border-color:#fed7aa;color:#9a3412;font-weight:500}
   .note-label{font-size:.72rem;color:var(--muted);margin-top:10px;margin-bottom:4px;font-weight:500}
   .note-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85rem;background:#fafafa;color:var(--text);resize:none;font-family:inherit;transition:border-color .2s;min-height:38px}
   .note-input:focus{outline:none;border-color:#93c5fd;background:white}
