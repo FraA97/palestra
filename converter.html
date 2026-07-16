@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Converti una scheda PDF — GymSheet</title>
+<title>Scheda Palestra Converter</title>
 <style>
   :root {
     --primary: #1e3a5f;
@@ -205,39 +205,24 @@
     width: 28px; height: 28px; cursor: pointer; font-size: 1rem; line-height: 28px; text-align: center;
   }
 
-
-/* ── Navigazione condivisa GymSheet ── */
-.site-nav{background:#1e3a5f;color:#fff;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-.site-nav .site-logo{font-size:1.05rem;font-weight:800;color:#fff;text-decoration:none;white-space:nowrap}.site-links{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end}.site-links>a,.site-dropdown>summary{color:rgba(255,255,255,.78);text-decoration:none;font-size:.79rem;font-weight:600;padding:7px 9px;border-radius:7px;cursor:pointer;list-style:none}.site-dropdown>summary::-webkit-details-marker{display:none}.site-links>a:hover,.site-links>a.active,.site-dropdown>summary:hover,.site-dropdown>summary.active{color:#fff;background:rgba(255,255,255,.16)}.site-dropdown{position:relative}.site-dropdown-menu{position:absolute;right:0;top:calc(100% + 7px);min-width:205px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(15,23,42,.18)}.site-dropdown-menu a{display:block;color:#1f2937;text-decoration:none;padding:9px 10px;border-radius:7px;font-size:.82rem;font-weight:600}.site-dropdown-menu a:hover,.site-dropdown-menu a.active{background:#eff6ff;color:#1d4ed8}.site-cta{background:#16a34a!important;color:#fff!important}.site-cta:hover{background:#15803d!important}
-@media(max-width:760px){.site-nav{align-items:flex-start;padding:10px 12px}.site-links{gap:1px}.site-links>a,.site-dropdown>summary{font-size:.72rem;padding:6px}.site-links .desktop-extra{display:none}.site-dropdown-menu{position:fixed;top:54px;right:10px;left:10px}}
 </style>
 </head>
 <body>
 
-<nav class="site-nav" aria-label="Navigazione principale">
-  <a href="./" class="site-logo">🏋️ GymSheet</a>
-  <div class="site-links">
-    <a href="./">Home</a>
-    <a href="editor_scheda.html">Editor</a>
-    <details class="site-dropdown">
-      <summary class="active">Converter ▾</summary>
-      <div class="site-dropdown-menu">
-        <a href="converter.html" class="active">📄 Tradizionale PDF</a>
-        <a href="converter_universale.html">✨ Conversione AI</a>
-      </div>
-    </details>
-    <a href="istruzioni_template.html">Guida</a>
-    <a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a>
-    <a class="desktop-extra" href="landing.html#prezzi">Prezzi</a>
-    <a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a>
+<nav class="app-nav">
+  <a href="landing.html" class="nav-logo">🏋️ GymSheet</a>
+  <div class="nav-links">
+    <a href="editor_scheda.html">✏️ Editor</a>
+    <a href="converter.html" class="active">📄 Converter</a>
+    <a href="istruzioni_template.html">📋 Guida</a>
   </div>
 </nav>
 
 <div class="main">
 
 <div class="page-header">
-  <h1>Converti una scheda PDF</h1>
-  <p>Carica un PDF nel formato GymSheet e prepara una app per smartphone con note, storico e progressione dei carichi. La conversione avviene nel browser e non usa AI.</p>
+  <h1>Scheda Palestra Converter</h1>
+  <p>Carica il PDF della tua scheda e ottieni una pagina HTML mobile-first con note, storico allenamenti e progressione dei carichi.</p>
 </div>
 
 <div class="card">
@@ -258,12 +243,12 @@
 
   <div id="result-area">
     <div class="result-summary">
-      <strong id="res-title">App pronta!</strong>
+      <strong id="res-title">Scheda generata!</strong>
       <span id="res-details"></span>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" id="preview-btn" onclick="openPreview()">👁 Anteprima</button>
-      <button class="btn btn-success" id="download-btn" onclick="requestDownload()">⬇️ Genera App</button>
+      <button class="btn btn-success" id="download-btn" onclick="requestDownload()">⬇️ Scarica HTML</button>
     </div>
   </div>
 
@@ -283,8 +268,8 @@
 <div class="paywall-overlay" id="paywall-overlay" onclick="if(event.target===this)closePaywall()">
   <div class="paywall-modal">
     <button class="btn-close-modal" onclick="closePaywall()">✕</button>
-    <h2>⬇️ Scarica la tua app</h2>
-    <p>L'anteprima è gratuita. Per generare e scaricare la tua app scegli un'opzione:</p>
+    <h2>⬇️ Scarica la tua scheda</h2>
+    <p>L'anteprima è gratuita. Per scaricare il file HTML scegli un'opzione:</p>
 
     <div class="trainer-key-section">
       <p style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:8px">🔑 Hai una chiave trainer?</p>
@@ -412,11 +397,11 @@ async function processFile(file) {
       throw new Error('Nessun esercizio trovato. Il PDF potrebbe avere una struttura diversa o essere un\'immagine scansionata.');
     }
 
-    log('⚙️ Preparazione dell’app…');
+    log('⚙️ Generazione HTML…');
     const storageKey = 'palestra_' + slugify(baseName);
     generatedHtml = generateHtml(meta, programs, progKeys, progLabels, storageKey);
     generatedPreviewHtml = generateHtml(meta, programs, progKeys, progLabels, storageKey, true);
-    log(`✅ App pronta (${(generatedHtml.length/1024).toFixed(0)} KB)`, 'ok');
+    log(`✅ HTML generato (${(generatedHtml.length/1024).toFixed(0)} KB)`, 'ok');
 
     setStatus('✅', 'Conversione completata!');
 
@@ -654,6 +639,58 @@ function parseParams(s) {
   if (/^x$/i.test(s.trim())) return [['series', '✓']];
 
   const badges = [];
+  const original = s.trim();
+  const normalizeList = value => String(value || '')
+    .split(/\s*\/\s*/)
+    .filter(Boolean)
+    .join(' / ');
+  const normalizeDecimal = value => String(value || '').replace(',', '.').replace(/\s+/g, ' ').trim();
+  const addOriginal = () => {
+    const text = 'Originale: ' + original;
+    if (!badges.some(([, value]) => value === text)) badges.push(['raw', text]);
+  };
+
+  // Progressioni per fase/settimana senza ripetizioni esplicite.
+  // Esempi:
+  // "Squat – 70% x 3/4/5/6 set x 3/3/2/1 RIR"
+  // "80% del 10RM circa x 3/4/5/6 set x 3/3/2/1 RIR"
+  const mLoadSetsRirProgression = original.match(/^(?:(.+?)\s*[–—]\s*)?(\d+(?:[.,]\d+)?\s*%(?:\s+del\s+\d+\s*RM)?(?:\s+circa)?)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
+  if (mLoadSetsRirProgression) {
+    const exercisePrefix = (mLoadSetsRirProgression[1] || '').trim();
+    const load = normalizeDecimal(mLoadSetsRirProgression[2])
+      .replace(/\s*%/, ' %')
+      .replace(/(\d)\s*RM\b/i, '$1RM');
+    const sets = normalizeList(mLoadSetsRirProgression[3]);
+    const rir = normalizeList(mLoadSetsRirProgression[4]);
+    if (exercisePrefix) badges.push(['raw', 'Esercizio: ' + exercisePrefix]);
+    badges.push(['load', load]);
+    badges.push(['series', 'Serie per fase: ' + sets]);
+    badges.push(['load', 'RIR per fase: ' + rir]);
+    if (sets.split(' / ').length !== rir.split(' / ').length) {
+      badges.push(['raw', 'Sequenze da verificare']);
+    }
+    // La prescrizione non dichiara le ripetizioni: non vengono inventate.
+    // L'originale resta sempre visibile per garantire assenza di perdita informativa.
+    addOriginal();
+    return badges;
+  }
+
+  // Progressione set/RIR priva del carico, comunque conservata integralmente.
+  const mSetsRirProgression = original.match(/^(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
+  if (mSetsRirProgression) {
+    badges.push(['series', 'Serie per fase: ' + normalizeList(mSetsRirProgression[1])]);
+    badges.push(['load', 'RIR per fase: ' + normalizeList(mSetsRirProgression[2])]);
+    addOriginal();
+    return badges;
+  }
+
+  // Abbreviazioni compatte: "4s x 8r" = 4 serie per 8 ripetizioni.
+  const mShortSeriesReps = original.match(/^(\d+)\s*s(?:erie)?\s*[xX×]\s*(\d+)\s*r(?:ip(?:etizioni?)?)?\s*$/i);
+  if (mShortSeriesReps) {
+    badges.push(['series', mShortSeriesReps[1] + ' serie × ' + mShortSeriesReps[2] + ' rip']);
+    return badges;
+  }
+
 
   // ── Special early-exit patterns ──────────────────────────────────────────
   if (/elastic\s*band/i.test(s)) {
@@ -833,7 +870,11 @@ function parseParams(s) {
   if (mRPE) badges.push(['load', 'RPE ' + mRPE[1]]);
   if (mRIR) badges.push(['load', 'RIR ' + mRIR[1]]);
 
-  if (!badges.length) badges.push(['series', s]);
+  // I parser generici sopra possono riconoscere solo una parte della stringa.
+  // In tal caso manteniamo sempre anche il testo originale: nessuna informazione
+  // viene eliminata anche quando il formato non è compreso al 100%.
+  if (!badges.length) badges.push(['raw', original]);
+  else addOriginal();
   return badges;
 }
 
@@ -992,7 +1033,7 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPrevie
   .yt-btn{background:#f00;color:white;border:none;border-radius:6px;padding:5px 8px;font-size:.75rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;font-weight:600}
   .badges{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
   .badge{background:#f3f4f6;border-radius:6px;padding:3px 8px;font-size:.75rem;font-weight:500;border:1px solid var(--border)}
-  .badge.series{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}.badge.rest{background:#fef3c7;border-color:#fde68a;color:#92400e}.badge.load{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
+  .badge.series{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}.badge.rest{background:#fef3c7;border-color:#fde68a;color:#92400e}.badge.load{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}.badge.raw{background:#f8fafc;border-color:#cbd5e1;color:#475569;font-weight:500}
   .note-label{font-size:.72rem;color:var(--muted);margin-top:10px;margin-bottom:4px;font-weight:500}
   .note-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85rem;background:#fafafa;color:var(--text);resize:none;font-family:inherit;transition:border-color .2s;min-height:38px}
   .note-input:focus{outline:none;border-color:#93c5fd;background:white}
@@ -1456,10 +1497,7 @@ async function downloadWithTrainerKey(key) {
   try {
     const res = await fetch(`${WORKER_URL}/trainer/download`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-GymSheet-Client': localStorage.getItem('gymsheet_ai_client') || ''
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, html: generatedHtml, filename: generatedFilename })
     });
     if (!res.ok) {
@@ -1468,9 +1506,6 @@ async function downloadWithTrainerKey(key) {
       return;
     }
     const blob = await res.blob();
-    // Il backend ha consumato il credito e azzerato i limiti AI.
-    // Riallinea anche il contatore locale puramente informativo.
-    localStorage.removeItem('gymsheet_ai_usage');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = generatedFilename;
@@ -1497,10 +1532,7 @@ async function confirmSinglePayment() {
   try {
     const res = await fetch(`${WORKER_URL}/create-session`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-GymSheet-Client': localStorage.getItem('gymsheet_ai_client') || ''
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ html: generatedHtml, filename: generatedFilename, email })
     });
     const data = await res.json();
