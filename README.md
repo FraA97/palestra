@@ -174,7 +174,7 @@ AI_RATE_LIMIT_PER_HOUR = "10"
 
 ## Guida intelligente nell’editor
 
-Ogni campo programma offre template rapidi e suggerimenti applicabili con un click. Il pulsante informativo descrive i pattern Strict-or-Raw.
+Ogni campo programma offre un catalogo di template con nome, descrizione, esempio e anteprima. I suggerimenti mostrano in tempo reale le card riconosciute e i vantaggi disponibili nell’app.
 
 ## Dialog personalizzate
 
@@ -183,3 +183,8 @@ Le pagine operative e le app generate utilizzano dialog GymSheet responsive al p
 ## Requisiti converter tradizionale
 
 Il PDF deve contenere una tabella testuale con prima colonna `Esercizio`, colonne programma e link opzionale finale. La guida completa è in `istruzioni_template.html#formato-tradizionale`.
+
+
+### Parser naturale e assistenza durante l’allenamento
+
+Il parser accetta varianti come `4x10 rec 60`, `4 serie da 10 recupero 1 minuto` e `4 set da 10 con pause da 60"`. Le parti riconosciute diventano card interattive; ogni testo residuo resta visibile come nota. Le card serie/ripetizioni consentono di segnare le serie completate e avviare il recupero. Nell’app è sempre disponibile il pulsante timer con tempi rapidi e durata personalizzata.

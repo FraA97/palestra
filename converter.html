@@ -655,135 +655,108 @@ function sectionType(name) {
 
 function parsePrescription(value) {
   const original = String(value || '').trim();
-  if (!original) return { status:'empty', original:'', badges:[], warnings:[] };
-  const exact = (badges, warnings = []) => ({ status:'exact', original, badges, warnings });
-  const raw = () => ({ status:'raw', original, badges:[['raw', original]], warnings:[] });
-  const normRange = v => String(v || '').replace(/\s*[-–—]\s*/g, '-').replace(/,/g, '.').trim();
-  const normList = v => String(v || '').split(/\s*\/\s*/).filter(Boolean).join(' / ');
-  const normLoad = v => String(v || '').replace(/,/g, '.').replace(/\s+/g, ' ').trim();
+  const empty = () => ({ status:'empty', original:'', badges:[], warnings:[], meta:{ sets:null,reps:null,restSeconds:null,method:null } });
+  if (!original) return empty();
+  const badges = [], warnings = [], meta = { sets:null, reps:null, restSeconds:null, method:null };
+  let remaining = original;
+  const add = (type, text, data = null) => badges.push(data ? [type, text, data] : [type, text]);
+  const consumeMatch = (match) => {
+    if (!match || match.index == null) return;
+    remaining = remaining.slice(0, match.index) + ' ' + remaining.slice(match.index + match[0].length);
+  };
+  const firstMatch = re => { re.lastIndex = 0; return re.exec(remaining); };
+  const list = value => String(value || '').split(/\s*[\/·]\s*/).filter(Boolean).join(' / ');
+  const secondsFrom = (amount, unit) => {
+    const n = Number(String(amount).replace(',', '.'));
+    return Math.max(1, Math.round(n * (/min/i.test(unit || '') ? 60 : 1)));
+  };
+  const restLabel = seconds => seconds >= 60 && seconds % 60 === 0 ? `⏱ ${seconds / 60} min` : `⏱ ${seconds}s`;
+  const cleanResidual = text => String(text || '')
+    .replace(/^[\s|,;:+\-–—]+|[\s|,;:+\-–—]+$/g, '')
+    .replace(/^(?:con|e|più|poi)(?:\s+|$)/i, '')
+    .replace(/\s{2,}/g, ' ').trim();
   let m;
 
-  if (/^x$/i.test(original)) return exact([['series','✓']]);
+  if (/^x$/i.test(original)) return { status:'exact', original, badges:[['series','✓']], warnings, meta };
 
-  // Template avanzati: full-match strict-or-raw.
-  m = original.match(/^Superset:\s*A1\s+(\d+)\s*[xX×]\s*(\d+)\s*\+\s*A2\s+(\d+)\s*[xX×]\s*(\d+)\s*\|\s*R(\d+)\s*(?:[”"]|s|sec)?\s*$/i);
-  if (m) return exact([
-    ['method','Superset'],['series','A1: '+m[1]+' serie × '+m[2]+' rip'],['series','A2: '+m[3]+' serie × '+m[4]+' rip'],['rest','⏱ '+m[5]+'"']
-  ]);
+  // Superset naturale: “Superset: Panca 4x10 + Croci 4x12 recupero 60s”.
+  m = original.match(/^\s*(?:super\s*set|superset)\s*:?\s*(.+?)\s+(\d+)\s*(?:x|×|serie\s+da|set\s+da)\s*(\d+)\s*(?:rip(?:etizioni?)?|rep|r)?\s*\+\s*(.+?)\s+(\d+)\s*(?:x|×|serie\s+da|set\s+da)\s*(\d+)\s*(?:rip(?:etizioni?)?|rep|r)?(?:\s*(?:\||,|-)?\s*(?:r|rec\.?|recupero|pausa|pause)(?:\s+da|\s+di)?\s*(\d+(?:[.,]\d+)?)\s*(min(?:ut[oi])?|m|sec(?:ondi?)?|s|[”"]))?\s*$/i);
+  if (m) {
+    const rest = m[7] ? secondsFrom(m[7], m[8]) : null;
+    meta.method='superset'; meta.restSeconds=rest;
+    add('method','Superset');
+    add('series',`${m[1].trim()}: ${m[2]} serie × ${m[3]} rip`,{sets:+m[2],reps:+m[3],restSeconds:rest});
+    add('series',`${m[4].trim()}: ${m[5]} serie × ${m[6]} rip`,{sets:+m[5],reps:+m[6],restSeconds:rest});
+    if (rest) add('rest',restLabel(rest));
+    return {status:'exact',original,badges,warnings,meta};
+  }
 
-  m = original.match(/^Circuito:\s*(\d+)\s*giri\s*\|\s*(\d+(?:\s*\/\s*\d+)+)\s*rip\s*\|\s*R(\d+)\s*(?:[”"]|s|sec)?\s*$/i);
-  if (m) return exact([
-    ['method','Circuito: '+m[1]+' giri'],['series','Ripetizioni: '+normList(m[2])],['rest','⏱ '+m[3]+'"']
-  ]);
+  // Circuito naturale: “4 giri di Push Up, Squat e Plank recupero 90s”.
+  m = original.match(/^\s*(?:circuito\s*:?\s*)?(\d+)\s*giri?(?:\s+di|\s*[:|-])\s*(.+?)(?:\s*(?:\||,|-)?\s*(?:r|rec\.?|recupero|pausa|pause)(?:\s+da|\s+di)?\s*(\d+(?:[.,]\d+)?)\s*(min(?:ut[oi])?|m|sec(?:ondi?)?|s|[”"]))?\s*$/i);
+  if (m && /[,;+]|\se\s/i.test(m[2])) {
+    const rest=m[3]?secondsFrom(m[3],m[4]):null; meta.method='circuito';meta.restSeconds=rest;
+    add('method',`Circuito: ${m[1]} giri`); add('raw',`Esercizi: ${m[2].trim()}`); if(rest)add('rest',restLabel(rest));
+    return {status:'exact',original,badges,warnings,meta};
+  }
 
-  m = original.match(/^Ladder:\s*(\d+(?:\s*\/\s*\d+)+)\s*rip\s*$/i);
-  if (m) return exact([['method','Ladder'],['series','Ripetizioni: '+normList(m[1])]]);
+  m = original.match(/^\s*(?:ladder|scala)\s*:?\s*(\d+(?:\s*[\/·-]\s*\d+)+)\s*(?:rip(?:etizioni?)?|rep)?\s*$/i);
+  if (m) { meta.method='ladder'; add('method','Ladder'); add('series','Ripetizioni: '+list(m[1].replace(/-/g,' / '))); return {status:'exact',original,badges,warnings,meta}; }
 
-  m = original.match(/^(\d+)\s*[xX×]\s*(\d+)\s*\|\s*Tempo\s+(\d+)\s*[-–—]\s*(\d+)\s*[-–—]\s*(\d+)\s*\|\s*R(\d+)\s*(?:[”"]|s|sec)?\s*$/i);
-  if (m) return exact([
-    ['series',m[1]+' serie × '+m[2]+' rip'],['method','Tempo: '+m[3]+'-'+m[4]+'-'+m[5]],['rest','⏱ '+m[6]+'"']
-  ]);
+  // EMOM e AMRAP, con eventuali dettagli mantenuti.
+  m = original.match(/^\s*(EMOM|AMRAP)(?:\s+(\d+(?:[.,]\d+)?)\s*(min(?:ut[oi])?|m))?\s*:?\s*(.*)$/i);
+  if (m) {
+    const method=m[1].toUpperCase(); meta.method=method.toLowerCase();
+    add('method',method+(m[2]?` ${String(m[2]).replace(',','.')} min`:''));
+    if (cleanResidual(m[4])) add('raw','Dettagli: '+cleanResidual(m[4]));
+    return {status:cleanResidual(m[4])?'partial':'exact',original,badges,warnings,meta};
+  }
 
-
-  // Progressione completa: [eventuale esercizio –] carico x serie per fase x RIR per fase.
-  // Il segmento di carico viene mantenuto integralmente, per esempio "50% max. squat".
+  // Progressione completa di carico, serie e RIR.
   m = original.match(/^(?:(.+?)\s*[–—]\s*)?(.+?)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
   if (m && /(?:%|\bRM\b|\bRPE\b|\bRIR\b|\bBW\b|\bkg\b|\blbs?\b|peso\s+corporeo|max\.?)/i.test(m[2])) {
-    const badges = [];
-    if (m[1]) badges.push(['raw', 'Esercizio: ' + m[1].trim()]);
-    badges.push(['load', 'Carico: ' + normLoad(m[2])]);
-    badges.push(['series', 'Serie: ' + normList(m[3])]);
-    badges.push(['load', 'RIR: ' + normList(m[4])]);
-    const warnings = [];
-    if (normList(m[3]).split(' / ').length !== normList(m[4]).split(' / ').length) warnings.push('Sequenze serie/RIR di lunghezza diversa');
-    warnings.push('Ripetizioni non specificate');
-    return exact(badges, warnings);
+    if(m[1])add('raw','Esercizio: '+m[1].trim()); add('load','Carico: '+m[2].trim()); add('series','Serie: '+list(m[3])); add('load','RIR: '+list(m[4])); warnings.push('Ripetizioni non specificate');
+    return {status:'exact',original,badges,warnings,meta};
   }
 
-  // Progressione senza carico esplicito.
-  m = original.match(/^(\d+(?:\s*\/\s*\d+)+)\s*(?:set|sets|serie)\s*[xX×]\s*(\d+(?:\s*\/\s*\d+)+)\s*RIR\s*$/i);
-  if (m) return exact([
-    ['series', 'Serie: ' + normList(m[1])],
-    ['load', 'RIR: ' + normList(m[2])]
-  ], ['Ripetizioni non specificate']);
-
-  // Abbreviazioni esplicite.
-  m = original.match(/^(\d+)\s*s(?:erie)?\s*[xX×]\s*(\d+)\s*r(?:ip(?:etizioni?)?)?\s*$/i);
-  if (m) return exact([['series', m[1] + ' serie × ' + m[2] + ' rip']]);
-
-  m = original.match(/^(\d+)\s*(?:rip(?:etizioni?)?|rep(?:s|etitions?)?)\s*[xX×]\s*(\d+)\s*(?:serie|set|sets?)\s*$/i);
-  if (m) return exact([['series', m[2] + ' serie × ' + m[1] + ' rip']]);
-
-  // Serie/intervallo x lavoro x carico. L'intera stringa deve corrispondere.
-  m = original.match(/^(\d+(?:\s*[-–—]\s*\d+)?)\s*(?:serie|set|sets?)?\s*[xX×]\s*(AMRAP|(?:T\s*MAX|TMAX|tempo\s+massimo)|\d+(?:\s*[-–—]\s*\d+)?)\s*(?:rip(?:etizioni?)?|rep(?:s)?)?\s*(?:[xX×]\s*(.+?))?\s*(?:\((.+)\))?\s*$/i);
-  if (m) {
-    const series = normRange(m[1]);
-    const workRaw = m[2].trim();
-    const work = /^AMRAP$/i.test(workRaw) ? 'AMRAP' : /^(?:T\s*MAX|TMAX|tempo\s+massimo)$/i.test(workRaw) ? 'tempo massimo' : normRange(workRaw) + ' rip';
-    const badges = [['series', series + ' serie × ' + work]];
-    if (m[3]) {
-      const load = normLoad(m[3]);
-      let lm;
-      if ((lm = load.match(/^(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%$/))) badges.push(['load', normRange(lm[1]) + '-' + normRange(lm[2]) + ' %']);
-      else if ((lm = load.match(/^(\d+(?:[.,]\d+)?)\s*%$/))) badges.push(['load', normRange(lm[1]) + ' %']);
-      else if ((lm = load.match(/^(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?)\s*(kg|kgs|lb|lbs)$/i))) badges.push(['load', normRange(lm[1]) + ' ' + (/^kg/i.test(lm[2]) ? 'kg' : 'lbs')]);
-      else if (/^(?:RPE\s*\d+(?:[.,]\d+)?|RIR\s*\d+|BW|peso\s+corporeo|bodyweight)$/i.test(load)) badges.push(['load', load.replace(/peso\s+corporeo|bodyweight/i,'BW').toUpperCase().replace(',','.')]);
-      else return raw(); // carico non completamente noto: niente traduzione parziale.
-    }
-    if (m[4]) badges.push(['load', m[4].trim()]);
-    return exact(badges);
+  // Serie/ripetizioni: x, “serie da”, “set da” e ordine invertito.
+  const seriesPatterns = [
+    /(\d+)\s*(?:serie|series|set|sets|s)?\s*(?:x|×)\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?|r\b)?/i,
+    /(\d+)\s*(?:serie|series|set|sets|s)\s*(?:da|di|per)\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?|r\b)?/i,
+    /(\d+)\s*(?:rip(?:etizioni?)?|reps?|r)\s*(?:x|×|per)\s*(\d+)\s*(?:serie|series|set|sets|s)/i
+  ];
+  let seriesData=null;
+  for (let i=0;i<seriesPatterns.length&&!seriesData;i++) {
+    m=firstMatch(seriesPatterns[i]);
+    if(m){seriesData=i===2?{sets:+m[2],reps:+m[1]}:{sets:+m[1],reps:+m[2]};consumeMatch(m);}
   }
 
-  // Sequenza piramidale/scalata completa.
-  m = original.match(/^(\d+)\s*[xX×]\s*(\d+(?:\s*[-\/–—]\s*\d+){2,})\s*$/);
-  if (m) {
-    const reps = m[2].split(/\s*[-\/–—]\s*/).filter(Boolean);
-    const warnings = reps.length === Number(m[1]) ? [] : ['Sequenza da verificare'];
-    return exact([['series', m[1] + ' serie: ' + reps.join(' · ') + ' rip']], warnings);
+  // Recupero: rec, recupero, pausa/e; secondi, virgolette o minuti.
+  m = firstMatch(/(?:\bR\s*|\brec\.?\s*|\brecupero\s*|\bpausa(?:e)?\s*|\bpause\s*)(?:da\s+|di\s+)?(\d+(?:[.,]\d+)?)\s*(min(?:ut[oi])?|m|sec(?:ondi?)?|s|[”"])?/i);
+  if (m) { meta.restSeconds=secondsFrom(m[1],m[2]); add('rest',restLabel(meta.restSeconds)); consumeMatch(m); }
+
+  // Tempo sotto tensione.
+  m = firstMatch(/(?:\btempo(?:\s+sotto\s+tensione)?|\bTUT)\s*:?\s*(\d+)\s*[-–—]\s*(\d+)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*(\d+))?/i);
+  if (m) { meta.method='tempo'; add('method','Tempo: '+[m[1],m[2],m[3],m[4]].filter(Boolean).join('-')); consumeMatch(m); }
+
+  // Carico e intensità, ovunque nel testo.
+  m = firstMatch(/\b(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?)\s*%/i);
+  if(m){add('load',m[1].replace(/\s+/g,'').replace(/[–—]/g,'-').replace(',','.')+' %');consumeMatch(m);}
+  else if((m=firstMatch(/\b(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?)\s*(kg|kgs|lb|lbs)\b/i))){add('load',m[1].replace(',','.')+' '+(/^kg/i.test(m[2])?'kg':'lbs'));consumeMatch(m);}
+  else if((m=firstMatch(/\b(RPE|RIR)\s*(\d+(?:[.,]\d+)?)\b/i))){add('load',m[1].toUpperCase()+' '+m[2].replace(',','.'));consumeMatch(m);}
+  else if((m=firstMatch(/\b(BW|peso\s+corporeo|bodyweight)\b/i))){add('load','BW');consumeMatch(m);}
+
+  if(seriesData){
+    meta.sets=seriesData.sets;meta.reps=seriesData.reps;
+    add('series',`${seriesData.sets} serie × ${seriesData.reps} rip`,{sets:seriesData.sets,reps:seriesData.reps,restSeconds:meta.restSeconds});
   }
 
-  // Serie x ripetizioni con eventuale singolo modificatore completamente riconosciuto.
-  m = original.match(/^(\d+(?:\+\d+)?)\s*(?:serie|set|sets?)?\s*[xX×]\s*(\d+(?:\+\d+)?)\s*(?:rip(?:etizioni?)?|rep(?:s)?)?\s*(.*)$/i);
-  if (m) {
-    const tail = m[3].trim();
-    const badges = [['series', m[1] + ' serie × ' + m[2] + ' rip']];
-    if (!tail) return exact(badges);
-    let tm;
-    if ((tm = tail.match(/^(\d+(?:[.,]\d+)?)\s*%$/))) badges.push(['load', normRange(tm[1]) + ' %']);
-    else if ((tm = tail.match(/^(\d+(?:[.,]\d+)?)\s*%?\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*%$/))) badges.push(['load', normRange(tm[1]) + '-' + normRange(tm[2]) + ' %']);
-    else if ((tm = tail.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kgs|lb|lbs)$/i))) badges.push(['load', normRange(tm[1]) + ' ' + (/^kg/i.test(tm[2]) ? 'kg' : 'lbs')]);
-    else if ((tm = tail.match(/^(?:R)?(\d+)\s*(?:[”"]|s|sec|secondi)$/i))) badges.push(['rest', '⏱ ' + tm[1] + '"']);
-    else if ((tm = tail.match(/^(\d+)\s*(?:min|minuti?)$/i))) badges.push(['rest', '⏱ ' + tm[1] + "'00\""]);
-    else if (/^(?:RPE\s*\d+(?:[.,]\d+)?|RIR\s*\d+|BW|peso\s+corporeo|bodyweight)$/i.test(tail)) badges.push(['load', tail.replace(/peso\s+corporeo|bodyweight/i,'BW').toUpperCase().replace(',','.')]);
-    else return raw();
-    return exact(badges);
+  // Recupero autonomo senza serie è comunque valido.
+  const residual=cleanResidual(remaining.replace(/\s*[xX×]\s*/g,' ').replace(/\s+/g,' '));
+  if(badges.length){
+    if(residual)add('raw','Note: '+residual);
+    return {status:residual?'partial':'exact',original,badges,warnings,meta};
   }
-
-  // Formati autonomi completi.
-  m = original.match(/^(\d+)\s*[xX×]\s*(?:T\s*MAX|TMAX|tempo\s+massimo)$/i);
-  if (m) return exact([['series', m[1] + ' serie × tempo massimo']]);
-  m = original.match(/^AMRAP(?:\s+(\d+)\s*min)?$/i);
-  if (m) return exact([['series', 'AMRAP' + (m[1] ? ' ' + m[1] + 'min' : '')]]);
-  m = original.match(/^EMOM(?:\s+(\d+)\s*min)?$/i);
-  if (m) return exact([['series', 'EMOM' + (m[1] ? ' ' + m[1] + 'min' : '')]]);
-  m = original.match(/^elastic\s*band(?:\s*[xX×]\s*(\d+))?$/i);
-  if (m) return exact([['series', 'Elastic band' + (m[1] ? ' × ' + m[1] : '')]]);
-  m = original.match(/^(?:(\d+)\s*[xX×]\s*)?sfinimento$/i);
-  if (m) return exact([...(m[1] ? [['series', m[1] + ' serie']] : []), ['load','a sfinimento']]);
-
-  m = original.match(/^(\d+)\s*(?:[”"]|s|sec|secondi)$/i);
-  if (m) return exact([['rest', '⏱ ' + m[1] + '"']]);
-  m = original.match(/^(\d+)\s*(?:min|minuti?)$/i);
-  if (m) return exact([['rest', '⏱ ' + m[1] + "'00\""]]);
-  m = original.match(/^(\d+(?:[.,]\d+)?)\s*%$/);
-  if (m) return exact([['load', normRange(m[1]) + ' %']]);
-  m = original.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kgs|lb|lbs)$/i);
-  if (m) return exact([['load', normRange(m[1]) + ' ' + (/^kg/i.test(m[2]) ? 'kg' : 'lbs')]]);
-  m = original.match(/^(RPE\s*\d+(?:[.,]\d+)?|RIR\s*\d+|BW|peso\s+corporeo|bodyweight)$/i);
-  if (m) return exact([['load', m[1].replace(/peso\s+corporeo|bodyweight/i,'BW').toUpperCase().replace(',','.')]]);
-
-  // Strict-or-raw: nessuna estrazione opportunistica da sottostringhe.
-  return raw();
+  return {status:'raw',original,badges:[['raw',original]],warnings,meta};
 }
 function parseParams(s) {
   return parsePrescription(s).badges;
@@ -804,31 +777,28 @@ function ytIdFromUrl(url) {
 function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale') {
   const ytId = ytIdFromUrl(ex.link);
   const videoUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : ex.link;
-  const ytBtn = videoUrl
-    ? `<a class="yt-btn" href="${escHtml(videoUrl)}" target="_blank" rel="noopener external">▶ Apri video</a>`
-    : '';
+  const ytBtn = videoUrl ? `<a class="yt-btn" href="${escHtml(videoUrl)}" target="_blank" rel="noopener external">▶ Apri video</a>` : '';
   const parsed = parsePrescription(ex.params);
-  const badges = parsed.badges.map(([t,txt]) => {
+  const encodedId = encodeURIComponent(ex.id);
+  const badges = parsed.badges.map(([t,txt,data],badgeIndex) => {
     if (t === 'rest') {
       const secs = parseRestSecs(txt);
-      return secs > 0
-        ? `<button class="badge rest" onclick="startTimer(${secs})">${escHtml(txt)}</button>`
-        : `<span class="badge rest">${escHtml(txt)}</span>`;
+      return secs > 0 ? `<button class="badge rest" onclick="runTimer(${secs})">${escHtml(txt)}</button>` : `<span class="badge rest">${escHtml(txt)}</span>`;
+    }
+    if (t === 'series' && data && data.sets && data.reps && !locked) {
+      const rest = Number(data.restSeconds || parsed.meta.restSeconds || 0);
+      const trackerId = ex.id + '__' + badgeIndex;
+      return `<button class="badge series series-track-btn" data-series-id="${escHtml(trackerId)}" data-total="${data.sets}" onclick="openSeriesTracker(decodeURIComponent('${encodeURIComponent(trackerId)}'),${data.sets},${data.reps},${rest},decodeURIComponent('${encodedId}'))">${escHtml(txt)} <span class="series-progress" data-progress-id="${escHtml(trackerId)}">0/${data.sets}</span></button>`;
     }
     return `<span class="badge ${t}">${escHtml(txt)}</span>`;
   }).join('');
   const warnings = parsed.warnings.map(txt => `<span class="badge warning">${escHtml(txt)}</span>`).join('');
-  const badgesHtml = (badges || warnings)
-    ? `<div class="badges" data-parse-status="${parsed.status}" data-original="${escHtml(parsed.original)}">${badges}${warnings}</div>`
-    : '';
+  const badgesHtml = (badges || warnings) ? `<div class="badges" data-parse-status="${parsed.status}" data-original="${escHtml(parsed.original)}">${badges}${warnings}</div>` : '';
   const noteArea = locked ? '' : `
     <div class="note-label">📝 Note / Peso usato</div>
     <textarea class="note-input" rows="1" placeholder="es. peso, note…" oninput="saveNote('${ex.id}',this.value)"></textarea>`;
   return `  <div class="card ${stype}${locked ? ' card-locked' : ''}" id="${ex.id}" data-section="${escHtml(sectionName || 'Generale')}">
-    <div class="card-top">
-      <span class="exercise-name">${escHtml(ex.name)}</span>
-      ${ytBtn}
-    </div>
+    <div class="card-top"><span class="exercise-name">${escHtml(ex.name)}</span>${ytBtn}</div>
     ${badgesHtml}${noteArea}
   </div>`;
 }
@@ -910,6 +880,7 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPrevie
   const exSectionsJson = JSON.stringify(exSections);
   const NK = JSON.stringify(storageKey + '_notes');
   const HK = JSON.stringify(storageKey + '_history');
+  const TK = JSON.stringify(storageKey + '_sets');
   const allTabsJson = isPreview ? JSON.stringify(progKeys) : JSON.stringify([...progKeys, 'storico']);
   const firstKey = JSON.stringify(progKeys[0] || 'a');
   const tabButtonsHtml = isPreview
@@ -1012,6 +983,10 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPrevie
   .preview-banner-text strong{display:block;font-size:.9rem}
   .preview-banner-btn{background:#f59e0b;color:#1a1a1a;border:none;border-radius:10px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap}
   .preview-banner-btn:active{background:#d97706}
+
+  .series-track-btn{cursor:pointer;display:inline-flex;align-items:center;gap:5px}.series-progress{background:#1d4ed8;color:#fff;border-radius:999px;padding:1px 6px;font-size:.65rem}
+  .quick-timer-btn{position:fixed;right:14px;bottom:76px;z-index:260;width:52px;height:52px;border:0;border-radius:50%;background:#f59e0b;color:#1f2937;font-size:1.35rem;box-shadow:0 8px 24px rgba(15,23,42,.25);cursor:pointer}
+  .workout-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:4500;align-items:flex-end;justify-content:center;padding:0}.workout-overlay.open{display:flex}.workout-sheet{background:#fff;width:min(520px,100%);max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;padding:20px 16px 26px;box-shadow:0 -14px 40px rgba(0,0,0,.25)}.workout-sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.workout-sheet-head h2{font-size:1.05rem;color:var(--primary);margin:0}.workout-close{border:0;background:#f1f5f9;border-radius:50%;width:32px;height:32px;cursor:pointer}.quick-times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.quick-time{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:13px 8px;font-weight:800;cursor:pointer}.custom-time{display:flex;gap:8px;margin-top:12px}.custom-time input,.custom-time select{min-width:0;border:1px solid #cbd5e1;border-radius:9px;padding:10px;font:inherit}.custom-time input{flex:1}.custom-time button,.tracker-rest-btn{border:0;background:#16a34a;color:#fff;border-radius:9px;padding:10px 13px;font-weight:800;cursor:pointer}.series-list{display:grid;gap:8px}.series-check{display:flex;width:100%;align-items:center;justify-content:space-between;border:1px solid #cbd5e1;background:#fff;border-radius:11px;padding:13px 14px;font-weight:750;cursor:pointer}.series-check.done{background:#f0fdf4;border-color:#86efac;color:#166534}.tracker-summary{font-size:.82rem;color:#64748b;margin-bottom:12px}.tracker-rest-wrap{display:none;margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb}.tracker-rest-wrap.show{display:block}.tracker-rest-btn{width:100%;font-size:.95rem}
   /* ── Video modal ── */
   .video-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:flex-end;justify-content:center}.video-overlay.open{display:flex}
   .video-sheet{background:white;border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:24px 20px 36px;text-align:center}
@@ -1052,6 +1027,11 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
     <div id="prog-modal-body"></div>
   </div>
 </div>
+
+
+<button class="quick-timer-btn" type="button" aria-label="Apri timer" title="Timer rapido" onclick="openTimerPicker()" style="${isPreview ? 'display:none' : ''}">⏱</button>
+<div class="workout-overlay" id="timer-picker" onclick="if(event.target===this)closeWorkoutOverlay('timer-picker')"><div class="workout-sheet"><div class="workout-sheet-head"><h2>Timer rapido</h2><button class="workout-close" onclick="closeWorkoutOverlay('timer-picker')">✕</button></div><div class="quick-times">${[30,45,60,90,120,180].map(v=>`<button class="quick-time" onclick="startQuickTimer(${v})">${v<60?v+'s':v/60+' min'}</button>`).join('')}</div><div class="custom-time"><input id="custom-timer-value" type="number" min="1" inputmode="numeric" placeholder="Valore"><select id="custom-timer-unit"><option value="1">secondi</option><option value="60">minuti</option></select><button onclick="startCustomTimer()">Avvia</button></div></div></div>
+<div class="workout-overlay" id="series-tracker" onclick="if(event.target===this)closeWorkoutOverlay('series-tracker')"><div class="workout-sheet"><div class="workout-sheet-head"><h2 id="series-tracker-title">Serie completate</h2><button class="workout-close" onclick="closeWorkoutOverlay('series-tracker')">✕</button></div><div class="tracker-summary" id="series-tracker-summary"></div><div class="series-list" id="series-tracker-list"></div><div class="tracker-rest-wrap" id="tracker-rest-wrap"><button class="tracker-rest-btn" id="tracker-rest-btn" onclick="startTrackerRest()">▶ Avvia recupero</button></div></div></div>
 
 <!-- Timer widget -->
 <div class="timer-widget" id="timer-widget">
@@ -1099,7 +1079,7 @@ ${isPreview ? `<div class="preview-banner">
 </div>` : ''}
 
 <script>
-  const NK=${NK}, HK=${HK};
+  const NK=${NK}, HK=${HK}, TK=${TK};
   const EX=${exNamesJson};
   const EX_SECTION=${exSectionsJson};
   const IS_PREVIEW=${isPreview ? 'true' : 'false'};
@@ -1177,6 +1157,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   async function resetNotes(){
     if(!await uiConfirm('Azzera le note correnti?','Azzera note','danger'))return;
     notes={};_ls.removeItem(NK);
+    setProgress={};_ls.removeItem(TK);refreshSeriesProgress();
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
   }
   async function saveWorkout(){
@@ -1189,6 +1170,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     let h=loadHistory();h.unshift(sess);
     _ls.setItem(HK,JSON.stringify(h));
     notes={};_ls.removeItem(NK);
+    setProgress={};_ls.removeItem(TK);refreshSeriesProgress();
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
     uiAlert('✅ Programma '+prog+' salvato!\\n'+ds+' alle '+ts);
     renderHistory();
@@ -1301,6 +1283,31 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   }
   ensureFirstSectionHeaders();
   loadNotes(); showTab(savedTabOr(${firstKey}));
+
+  // ── Timer rapido e tracking serie ──────────────────────────────────────────
+  let setProgress={};try{setProgress=JSON.parse(_ls.getItem(TK)||'{}')}catch(e){setProgress={}}
+  let trackerCurrent=null;
+  function saveSetProgress(){_ls.setItem(TK,JSON.stringify(setProgress));refreshSeriesProgress()}
+  function progressFor(id,total){const current=Array.isArray(setProgress[id])?setProgress[id]:[];while(current.length<total)current.push(false);if(current.length>total)current.length=total;setProgress[id]=current;return current}
+  function refreshSeriesProgress(){document.querySelectorAll('[data-progress-id]').forEach(el=>{const id=el.dataset.progressId,total=Number(el.closest('[data-total]')?.dataset.total||0),done=progressFor(id,total).filter(Boolean).length;el.textContent=done+'/'+total})}
+  function closeWorkoutOverlay(id){document.getElementById(id)?.classList.remove('open')}
+  function openTimerPicker(){document.getElementById('timer-picker').classList.add('open');setTimeout(()=>document.querySelector('#timer-picker .quick-time')?.focus(),20)}
+  function startQuickTimer(seconds){closeWorkoutOverlay('timer-picker');runTimer(seconds)}
+  function startCustomTimer(){const value=Number(document.getElementById('custom-timer-value').value),unit=Number(document.getElementById('custom-timer-unit').value);if(!value||value<=0)return;startQuickTimer(Math.round(value*unit))}
+  function runTimer(seconds){startTimer(seconds);toggleTimer()}
+  function openSeriesTracker(id,sets,reps,restSeconds,cardId=id){
+    trackerCurrent={id,sets,reps,restSeconds,cardId};const state=progressFor(id,sets),card=document.getElementById(cardId),name=card?.querySelector('.exercise-name')?.textContent||'Esercizio';
+    document.getElementById('series-tracker-title').textContent=name;
+    document.getElementById('series-tracker-summary').textContent=sets+' serie × '+reps+' ripetizioni · '+state.filter(Boolean).length+' completate';
+    document.getElementById('series-tracker-list').innerHTML=state.map(function(done,i){return '<button class="series-check '+(done?'done':'')+'" aria-pressed="'+done+'" onclick="toggleTrackedSet('+i+')"><span>Serie '+(i+1)+'</span><span>'+(done?'✓ Completata':'Da fare')+'</span></button>'}).join('');
+    document.getElementById('tracker-rest-wrap').classList.toggle('show',restSeconds>0);
+    document.getElementById('tracker-rest-btn').textContent=restSeconds>0?'▶ Avvia recupero '+restSeconds+'s':'▶ Avvia recupero';
+    document.getElementById('series-tracker').classList.add('open');
+  }
+  function toggleTrackedSet(index){if(!trackerCurrent)return;const state=progressFor(trackerCurrent.id,trackerCurrent.sets);state[index]=!state[index];saveSetProgress();openSeriesTracker(trackerCurrent.id,trackerCurrent.sets,trackerCurrent.reps,trackerCurrent.restSeconds,trackerCurrent.cardId);if(state[index]&&trackerCurrent.restSeconds)document.getElementById('tracker-rest-btn').focus()}
+  function startTrackerRest(){if(!trackerCurrent)return;const seconds=trackerCurrent.restSeconds||60;closeWorkoutOverlay('series-tracker');runTimer(seconds)}
+
+  refreshSeriesProgress();
   // ── Timer ──────────────────────────────────────────────────────────────────
   let _tmTotal=0,_tmLeft=0,_tmInterval=null,_tmRunning=false;
   function startTimer(secs){

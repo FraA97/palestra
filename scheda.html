@@ -404,6 +404,12 @@
 /* ── GymSheet dialog system ── */
 .ui-dialog-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(4px);z-index:5000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .16s ease}.ui-dialog-overlay.open{display:flex;opacity:1}.ui-dialog{width:min(500px,100%);max-height:min(86vh,760px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.3);padding:22px;transform:translateY(10px) scale(.98);animation:uiDialogIn .18s ease forwards}.ui-dialog h2{font-size:1.08rem;color:#1e3a5f;margin:0 0 8px}.ui-dialog-message{font-size:.88rem;line-height:1.55;color:#475569;white-space:pre-line}.ui-dialog-input{width:100%;margin-top:14px;padding:11px 12px;border:1.5px solid #d1d5db;border-radius:9px;font:inherit}.ui-dialog-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}.ui-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.ui-dialog-btn{border:0;border-radius:9px;padding:10px 15px;font-weight:750;cursor:pointer;font-size:.85rem}.ui-dialog-btn.secondary{background:#f1f5f9;color:#334155}.ui-dialog-btn.primary{background:#2563eb;color:#fff}.ui-dialog-btn.danger{background:#dc2626;color:#fff}.ui-dialog-btn.success{background:#16a34a;color:#fff}.ui-dialog-close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#475569}@keyframes uiDialogIn{to{transform:translateY(0) scale(1)}}
 @media(max-width:540px){.ui-dialog-overlay{align-items:flex-end;padding:0}.ui-dialog{width:100%;border-radius:18px 18px 0 0;padding:20px 16px 28px;max-height:90vh}.ui-dialog-actions{display:grid;grid-template-columns:1fr}.ui-dialog-btn{width:100%}}
+
+  .series-track-btn{cursor:pointer;display:inline-flex;align-items:center;gap:5px}.series-progress{background:#1d4ed8;color:#fff;border-radius:999px;padding:1px 6px;font-size:.65rem}
+  .quick-timer-btn{position:fixed;right:14px;bottom:76px;z-index:260;width:52px;height:52px;border:0;border-radius:50%;background:#f59e0b;color:#1f2937;font-size:1.35rem;box-shadow:0 8px 24px rgba(15,23,42,.25);cursor:pointer}
+  .workout-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:4500;align-items:flex-end;justify-content:center;padding:0}.workout-overlay.open{display:flex}.workout-sheet{background:#fff;width:min(520px,100%);max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;padding:20px 16px 26px;box-shadow:0 -14px 40px rgba(0,0,0,.25)}.workout-sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.workout-sheet-head h2{font-size:1.05rem;color:var(--primary);margin:0}.workout-close{border:0;background:#f1f5f9;border-radius:50%;width:32px;height:32px;cursor:pointer}.quick-times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.quick-time{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:13px 8px;font-weight:800;cursor:pointer}.custom-time{display:flex;gap:8px;margin-top:12px}.custom-time input,.custom-time select{min-width:0;border:1px solid #cbd5e1;border-radius:9px;padding:10px;font:inherit}.custom-time input{flex:1}.custom-time button,.tracker-rest-btn{border:0;background:#16a34a;color:#fff;border-radius:9px;padding:10px 13px;font-weight:800;cursor:pointer}.series-list{display:grid;gap:8px}.series-check{display:flex;width:100%;align-items:center;justify-content:space-between;border:1px solid #cbd5e1;background:#fff;border-radius:11px;padding:13px 14px;font-weight:750;cursor:pointer}.series-check.done{background:#f0fdf4;border-color:#86efac;color:#166534}.tracker-summary{font-size:.82rem;color:#64748b;margin-bottom:12px}.tracker-rest-wrap{display:none;margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb}.tracker-rest-wrap.show{display:block}.tracker-rest-btn{width:100%;font-size:.95rem}
+
+  .timer-widget{display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:4600;background:#fff;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.22);padding:16px 20px 14px;min-width:220px;text-align:center;border:2px solid var(--border)}.timer-widget.active{display:block}.timer-close{position:absolute;right:9px;top:8px;border:0;background:transparent;cursor:pointer}.timer-display{font-size:2.1rem;font-weight:900;color:var(--primary)}.timer-display.done{color:#dc2626}.timer-progress{height:7px;background:#e5e7eb;border-radius:8px;overflow:hidden;margin:8px 0 12px}.timer-bar{height:100%;background:#2563eb}.timer-bar.done{background:#dc2626}.timer-btns{display:flex;gap:7px}.timer-btn{flex:1;border:0;border-radius:8px;padding:8px;font-weight:750;cursor:pointer}.timer-btn.play{background:#2563eb;color:#fff}.timer-btn.reset{background:#f1f5f9;color:#334155}
 </style>
 </head>
 <body>
@@ -1054,6 +1060,21 @@
   </div>
 </div>
 
+<button class="quick-timer-btn" type="button" aria-label="Apri timer" title="Timer rapido" onclick="openTimerPicker()" style="">⏱</button>
+<div class="workout-overlay" id="timer-picker" onclick="if(event.target===this)closeWorkoutOverlay('timer-picker')"><div class="workout-sheet"><div class="workout-sheet-head"><h2>Timer rapido</h2><button class="workout-close" onclick="closeWorkoutOverlay('timer-picker')">✕</button></div><div class="quick-times"><button class="quick-time" onclick="startQuickTimer(30)">30s</button><button class="quick-time" onclick="startQuickTimer(45)">45s</button><button class="quick-time" onclick="startQuickTimer(60)">1 min</button><button class="quick-time" onclick="startQuickTimer(90)">1.5 min</button><button class="quick-time" onclick="startQuickTimer(120)">2 min</button><button class="quick-time" onclick="startQuickTimer(180)">3 min</button></div><div class="custom-time"><input id="custom-timer-value" type="number" min="1" inputmode="numeric" placeholder="Valore"><select id="custom-timer-unit"><option value="1">secondi</option><option value="60">minuti</option></select><button onclick="startCustomTimer()">Avvia</button></div></div></div>
+<div class="workout-overlay" id="series-tracker" onclick="if(event.target===this)closeWorkoutOverlay('series-tracker')"><div class="workout-sheet"><div class="workout-sheet-head"><h2 id="series-tracker-title">Serie completate</h2><button class="workout-close" onclick="closeWorkoutOverlay('series-tracker')">✕</button></div><div class="tracker-summary" id="series-tracker-summary"></div><div class="series-list" id="series-tracker-list"></div><div class="tracker-rest-wrap" id="tracker-rest-wrap"><button class="tracker-rest-btn" id="tracker-rest-btn" onclick="startTrackerRest()">▶ Avvia recupero</button></div></div></div>
+
+<!-- Timer widget -->
+<div class="timer-widget" id="timer-widget">
+  <button class="timer-close" onclick="closeTimer()">✕</button>
+  <div class="timer-display" id="timer-display">0:00</div>
+  <div class="timer-progress"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+  <div class="timer-btns">
+    <button class="timer-btn play" id="timer-play-btn" onclick="toggleTimer()">▶ Start</button>
+    <button class="timer-btn reset" onclick="resetTimer()">↻ Riavvia</button>
+  </div>
+</div>
+
 <div class="footer-bar" id="footer-bar">
   <small>Note salvate automaticamente <span class="saved-dot" id="saved-dot"></span></small>
   <button class="save-btn" onclick="saveWorkout()">💾 Salva allenamento</button>
@@ -1100,8 +1121,43 @@
     if (!await uiConfirm('Azzera le note del workout corrente?','Azzera note','danger')) return;
     notes = {};
     localStorage.removeItem(NOTES_KEY);
+    setProgress = {}; localStorage.removeItem(TK); refreshSeriesProgress();
     document.querySelectorAll('.note-input').forEach(el => el.value = '');
   }
+
+
+  // ── Countdown condiviso ────────────────────────────────────────────────────
+  let _tmTotal=0,_tmLeft=0,_tmInterval=null,_tmRunning=false;
+  function startTimer(secs){clearInterval(_tmInterval);_tmRunning=false;_tmTotal=secs;_tmLeft=secs;_updateTimerUI();document.getElementById('timer-widget').classList.add('active')}
+  function toggleTimer(){if(_tmLeft<=0){_tmLeft=_tmTotal;_tmRunning=false}_tmRunning=!_tmRunning;if(_tmRunning){_tmInterval=setInterval(()=>{_tmLeft--;_updateTimerUI();if(_tmLeft<=0){clearInterval(_tmInterval);_tmRunning=false;try{navigator.vibrate?.([300,100,300])}catch(e){}}},1000)}else clearInterval(_tmInterval);document.getElementById('timer-play-btn').textContent=_tmRunning?'⏸ Pausa':'▶ Riprendi'}
+  function resetTimer(){clearInterval(_tmInterval);_tmRunning=false;_tmLeft=_tmTotal;_updateTimerUI();toggleTimer()}
+  function closeTimer(){clearInterval(_tmInterval);_tmRunning=false;document.getElementById('timer-widget').classList.remove('active')}
+  function _updateTimerUI(){const m=Math.floor(_tmLeft/60),sec=_tmLeft%60,disp=document.getElementById('timer-display'),bar=document.getElementById('timer-bar'),btn=document.getElementById('timer-play-btn');disp.textContent=m+':'+(sec<10?'0':'')+sec;disp.className='timer-display'+(_tmLeft<=0?' done':'');bar.style.width=(_tmTotal?(_tmLeft/_tmTotal)*100:0)+'%';bar.className='timer-bar'+(_tmLeft<=0?' done':'');if(!_tmRunning&&_tmLeft>0)btn.textContent='▶ '+(_tmLeft<_tmTotal?'Riprendi':'Start')}
+  // ── Timer rapido e tracking serie ──────────────────────────────────────────
+  let setProgress={};try{setProgress=JSON.parse(localStorage.getItem(TK)||'{}')}catch(e){setProgress={}}
+  let trackerCurrent=null;
+  function saveSetProgress(){localStorage.setItem(TK,JSON.stringify(setProgress));refreshSeriesProgress()}
+  function progressFor(id,total){const current=Array.isArray(setProgress[id])?setProgress[id]:[];while(current.length<total)current.push(false);if(current.length>total)current.length=total;setProgress[id]=current;return current}
+  function refreshSeriesProgress(){document.querySelectorAll('[data-progress-id]').forEach(el=>{const id=el.dataset.progressId,total=Number(el.closest('[data-total]')?.dataset.total||0),done=progressFor(id,total).filter(Boolean).length;el.textContent=done+'/'+total})}
+  function closeWorkoutOverlay(id){document.getElementById(id)?.classList.remove('open')}
+  function openTimerPicker(){document.getElementById('timer-picker').classList.add('open');setTimeout(()=>document.querySelector('#timer-picker .quick-time')?.focus(),20)}
+  function startQuickTimer(seconds){closeWorkoutOverlay('timer-picker');runTimer(seconds)}
+  function startCustomTimer(){const value=Number(document.getElementById('custom-timer-value').value),unit=Number(document.getElementById('custom-timer-unit').value);if(!value||value<=0)return;startQuickTimer(Math.round(value*unit))}
+  function runTimer(seconds){startTimer(seconds);toggleTimer()}
+  function openSeriesTracker(id,sets,reps,restSeconds){
+    trackerCurrent={id,sets,reps,restSeconds};const state=progressFor(id,sets),card=document.getElementById(id),name=card?.querySelector('.exercise-name')?.textContent||'Esercizio';
+    document.getElementById('series-tracker-title').textContent=name;
+    document.getElementById('series-tracker-summary').textContent=sets+' serie × '+reps+' ripetizioni · '+state.filter(Boolean).length+' completate';
+    document.getElementById('series-tracker-list').innerHTML=state.map((done,i)=>`<button class="series-check ${done?'done':''}" aria-pressed="${done}" onclick="toggleTrackedSet(${i})"><span>Serie ${i+1}</span><span>${done?'✓ Completata':'Da fare'}</span></button>`).join('');
+    document.getElementById('tracker-rest-wrap').classList.toggle('show',restSeconds>0);
+    document.getElementById('tracker-rest-btn').textContent=restSeconds>0?'▶ Avvia recupero '+restSeconds+'s':'▶ Avvia recupero';
+    document.getElementById('series-tracker').classList.add('open');
+  }
+  function toggleTrackedSet(index){if(!trackerCurrent)return;const state=progressFor(trackerCurrent.id,trackerCurrent.sets);state[index]=!state[index];saveSetProgress();openSeriesTracker(trackerCurrent.id,trackerCurrent.sets,trackerCurrent.reps,trackerCurrent.restSeconds);if(state[index]&&trackerCurrent.restSeconds)document.getElementById('tracker-rest-btn').focus()}
+  function startTrackerRest(){if(!trackerCurrent)return;const seconds=trackerCurrent.restSeconds||60;closeWorkoutOverlay('series-tracker');runTimer(seconds)}
+
+  function enhanceExistingSeriesBadges(){document.querySelectorAll('.card .badge.series').forEach((badge,index)=>{const text=badge.textContent.trim();let m=text.match(/(\d+)\s*serie\s*[×x]\s*(\d+)\s*rip/i)||text.match(/(\d+)\s*[×x]\s*(\d+)\s*serie/i);if(!m)return;let sets,reps;if(/serie\s*[×x]/i.test(text)){sets=+m[1];reps=+m[2]}else{reps=+m[1];sets=+m[2]}const card=badge.closest('.card'),id=card.id||'exercise-'+index;const button=document.createElement('button');button.className='badge series series-track-btn';button.dataset.seriesId=id;button.dataset.total=sets;button.innerHTML=badge.innerHTML+` <span class="series-progress" data-progress-id="${id}">0/${sets}</span>`;button.onclick=()=>openSeriesTracker(id,sets,reps,0);badge.replaceWith(button)});refreshSeriesProgress()}
+  enhanceExistingSeriesBadges();
 
   // ── Save workout to history ──
   function saveWorkout() {
@@ -1128,6 +1184,7 @@
     // Clear scratch notes
     notes = {};
     localStorage.removeItem(NOTES_KEY);
+    setProgress = {}; localStorage.removeItem(TK); refreshSeriesProgress();
     document.querySelectorAll('.note-input').forEach(el => el.value = '');
 
     uiAlert(`✅ Allenamento Programma ${prog} salvato!\n${dateStr} alle ${timeStr}`);
