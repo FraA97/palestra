@@ -333,6 +333,13 @@
 
   .template-picker-btn{width:100%;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:7px 9px;font-size:.72rem;font-weight:750;cursor:pointer;text-align:left}
   .template-catalog{display:grid;gap:9px;margin-top:12px}.template-card{display:block;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:11px;cursor:pointer}.template-card:hover{border-color:#60a5fa;background:#eff6ff}.template-card strong,.template-card span,.template-card code,.template-card small{display:block}.template-card strong{color:#1e3a5f}.template-card span{font-size:.78rem;color:#64748b;margin:3px 0}.template-card code{font-size:.74rem;background:#f1f5f9;padding:5px;border-radius:5px}.template-card small{font-size:.68rem;color:#166534;margin-top:5px}.recognition-preview{border-radius:9px;padding:8px 9px;margin-top:8px}.recognition-preview.advanced{background:#f0fdf4;border:1px solid #bbf7d0}.recognition-preview.raw{background:#f8fafc;border:1px solid #cbd5e1}.recognition-preview strong{font-size:.7rem}.recognition-preview small{display:block;color:#64748b;font-size:.67rem;margin-top:4px}
+
+  .required-mark{color:#dc2626;font-weight:900;margin-left:3px}
+  .required-input:required:invalid{border-color:#fca5a5;background:#fff7f7}
+  .required-input:required:focus:invalid{border-color:#dc2626;box-shadow:0 0 0 3px #fee2e2}
+  .required-field-wrap{flex:1;min-width:0}
+  .required-field-wrap label{font-size:.7rem;color:#475569;margin-bottom:4px}
+  .required-group-hint{font-size:.68rem;color:#64748b;margin:1px 0 6px}
 </style>
 </head>
 <body>
@@ -365,8 +372,8 @@
       <button type="button" onclick="loadDraft()" title="Carica bozza salvata" aria-label="Carica bozza salvata" style="border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:6px 9px;cursor:pointer;font-size:.78rem;font-weight:700;text-transform:none;letter-spacing:0">📂 Carica bozza</button>
     </div>
     <div class="field">
-      <label>Nome cliente / Titolo</label>
-      <input type="text" id="meta-title" placeholder="es. Mario Rossi – Scheda Ipertrofia" oninput="autosaveDraft()" />
+      <label for="meta-title">Nome cliente / Titolo <span class="required-mark" aria-hidden="true">*</span></label>
+      <input class="required-input" type="text" id="meta-title" placeholder="es. Mario Rossi – Scheda Ipertrofia" required aria-required="true" oninput="autosaveDraft()" />
     </div>
     <div class="field">
       <label>Periodo / Settimane <span style="font-weight:400;color:var(--muted)">(opzionale)</span></label>
@@ -709,8 +716,6 @@ function updateExField(secId, exId, field, value) {
   } else if (field.startsWith('prog-')) {
     const idx = parseInt(field.slice(5));
     ex.progs[idx] = value;
-    const previewEl = document.getElementById(`preview-${exId}-${idx}`);
-    if (previewEl) previewEl.innerHTML = renderBadgePreview(value);
     const suggestEl=document.getElementById(`suggest-${exId}-${idx}`);
     if(suggestEl)suggestEl.innerHTML=renderSmartSuggestions(secId,exId,idx,value);
   }
@@ -767,16 +772,19 @@ function renderExercisesInSection(secId) {
       placeholder="es. 3x10 60%"
       oninput="updateExField(${secId}, ${ex.id}, 'prog-${i}', this.value)" />
     <div class="template-helper"><button type="button" class="template-picker-btn" onclick="openTemplatePicker(${secId},${ex.id},${i})">✨ Scegli template e anteprima</button></div>
-    <div class="badge-preview" id="preview-${ex.id}-${i}">${renderBadgePreview(ex.progs[i] || '')}</div>
     <div class="smart-suggestions" id="suggest-${ex.id}-${i}">${renderSmartSuggestions(secId,ex.id,i,ex.progs[i] || '')}</div>
   </div>`).join('');
     div.innerHTML = `
       <div class="ex-row-top">
-        <input type="text" id="ex-name-${ex.id}" value="${escHtml(ex.name)}"
-          placeholder="Nome esercizio (es. Squat)"
-          oninput="updateExField(${secId}, ${ex.id}, 'name', this.value)" />
+        <div class="required-field-wrap">
+          <label for="ex-name-${ex.id}">Nome esercizio <span class="required-mark" aria-hidden="true">*</span></label>
+          <input class="required-input" type="text" id="ex-name-${ex.id}" value="${escHtml(ex.name)}"
+            placeholder="es. Squat" required aria-required="true"
+            oninput="updateExField(${secId}, ${ex.id}, 'name', this.value)" />
+        </div>
         <button class="del-ex-btn" onclick="removeExercise(${secId}, ${ex.id})" title="Elimina">✕</button>
       </div>
+      <div class="required-group-hint"><span class="required-mark" aria-hidden="true">*</span> Compila la descrizione per almeno un programma</div>
       <div class="prog-row">${progFieldsHtml}</div>
       <div class="link-field">
         <label>🎥 Link video YouTube (opzionale)</label>
@@ -928,7 +936,7 @@ function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale')
   const encodedId = encodeURIComponent(ex.id);
   const badges = parsed.badges.map(([t,txt,data],badgeIndex) => {
     if (t === 'rest') {
-      const secs = parseRestSecs(txt);
+      const secs = Number(parsed.meta.restSeconds || parseRestSecs(txt));
       return secs > 0 ? `<button class="badge rest" onclick="runTimer(${secs})">${escHtml(txt)}</button>` : `<span class="badge rest">${escHtml(txt)}</span>`;
     }
     if (t === 'series' && data && data.sets && data.reps && !locked) {
@@ -950,10 +958,13 @@ function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale')
 }
 
 function parseRestSecs(txt) {
-  const mMinSec = txt.match(/(\d+)['′]\s*(\d+)/);
-  if (mMinSec) return parseInt(mMinSec[1]) * 60 + parseInt(mMinSec[2]);
-  const mSec = txt.match(/(\d+)/);
-  return mSec ? parseInt(mSec[1]) : 0;
+  const value = String(txt || '');
+  const mMinSec = value.match(/(\d+)['′]\s*(\d+)/);
+  if (mMinSec) return parseInt(mMinSec[1], 10) * 60 + parseInt(mMinSec[2], 10);
+  const mMinutes = value.match(/(\d+(?:[.,]\d+)?)\s*(?:min(?:ut[oi])?|m)\b/i);
+  if (mMinutes) return Math.round(parseFloat(mMinutes[1].replace(',', '.')) * 60);
+  const mSeconds = value.match(/(\d+)\s*(?:sec(?:ond[oi])?|s|[”"])?\b/i);
+  return mSeconds ? parseInt(mSeconds[1], 10) : 0;
 }
 
 const PREVIEW_FREE = 3;
@@ -1094,7 +1105,7 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
   .prog-row-date{font-size:.75rem;color:var(--muted);white-space:nowrap;padding-top:2px;min-width:80px}.prog-row-note{font-size:.85rem;font-weight:500}
   /* ── Timer widget ── */
   .badge.rest{cursor:pointer;}.badge.rest:active{filter:brightness(.92)}
-  .timer-widget{display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:300;background:white;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.22);padding:16px 20px 14px;min-width:220px;text-align:center;border:2px solid var(--border)}
+  .timer-widget{display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:4700;background:white;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.22);padding:16px 20px 14px;min-width:220px;text-align:center;border:2px solid var(--border)}
   .timer-widget.active{display:block}
   .timer-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:1rem;cursor:pointer;color:var(--muted);line-height:1}
   .timer-display{font-size:2.6rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--primary);line-height:1;margin:4px 0 10px}
@@ -1464,7 +1475,22 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     document.getElementById('series-tracker').classList.add('open');
   }
   function toggleTrackedSet(index){if(!trackerCurrent)return;const state=progressFor(trackerCurrent.id,trackerCurrent.sets);state[index]=!state[index];saveSetProgress();openSeriesTracker(trackerCurrent.id,trackerCurrent.sets,trackerCurrent.reps,trackerCurrent.restSeconds,trackerCurrent.cardId);if(state[index]&&trackerCurrent.restSeconds)document.getElementById('tracker-rest-btn').focus()}
-  function startTrackerRest(){if(!trackerCurrent)return;const seconds=trackerCurrent.restSeconds||60;closeWorkoutOverlay('series-tracker');runTimer(seconds)}
+  function completeNextSetForRecovery(){
+    if(!trackerCurrent)return;
+    const state=progressFor(trackerCurrent.id,trackerCurrent.sets);
+    const nextIndex=state.findIndex(done=>!done);
+    if(nextIndex>=0){
+      state[nextIndex]=true;
+      saveSetProgress();
+    }
+    openSeriesTracker(trackerCurrent.id,trackerCurrent.sets,trackerCurrent.reps,trackerCurrent.restSeconds,trackerCurrent.cardId);
+  }
+  function startTrackerRest(){
+    if(!trackerCurrent)return;
+    const seconds=trackerCurrent.restSeconds||60;
+    completeNextSetForRecovery();
+    runTimer(seconds);
+  }
 
   refreshSeriesProgress();
   // ── Timer ──────────────────────────────────────────────────────────────────
@@ -1680,8 +1706,35 @@ function parseCsvLine(line) {
 }
 
 // ── Output actions ───────────────────────────────────────────────────────────
+function validateRequiredFields() {
+  const titleInput=document.getElementById('meta-title');
+  if(!titleInput.value.trim()){
+    titleInput.focus();
+    showToast('❌ Inserisci il nome cliente / titolo');
+    return false;
+  }
+  for(const sec of sections){
+    for(const ex of sec.exercises){
+      const nameInput=document.getElementById(`ex-name-${ex.id}`);
+      if(!String(ex.name||'').trim()){
+        if(!sec.open){sec.open=true;renderSections();}
+        document.getElementById(`ex-name-${ex.id}`)?.focus();
+        showToast('❌ Inserisci il nome dell’esercizio');
+        return false;
+      }
+      if(!Array.isArray(ex.progs)||!ex.progs.some(value=>String(value||'').trim())){
+        if(!sec.open){sec.open=true;renderSections();}
+        document.getElementById(`prog-input-${ex.id}-0`)?.focus();
+        showToast('❌ Compila almeno una descrizione programma per ogni esercizio');
+        return false;
+      }
+    }
+  }
+  return true;
+}
 function getGeneratedHtml(isPreview = false) {
-  const title = document.getElementById('meta-title').value.trim() || 'Scheda Palestra';
+  if(!validateRequiredFields())return null;
+  const title = document.getElementById('meta-title').value.trim();
   const weeks = document.getElementById('meta-weeks').value.trim();
   const { programs, progKeys, progLabelsCopy } = buildPrograms();
   const totalEx = Object.values(programs).flat().reduce((s,sec) => s + sec.exercises.length, 0);
