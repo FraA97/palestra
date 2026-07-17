@@ -285,6 +285,16 @@
   <a href="istruzioni_template.html">📋 Guida</a>
 </footer>
 
+<div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation">
+  <div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title">
+    <button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button>
+    <h2 id="ui-dialog-title"></h2>
+    <div class="ui-dialog-message" id="ui-dialog-message"></div>
+    <input class="ui-dialog-input" id="ui-dialog-input" style="display:none">
+    <div class="ui-dialog-actions" id="ui-dialog-actions"></div>
+  </div>
+</div>
+
 <!-- Paywall Modal -->
 <div class="paywall-overlay" id="paywall-overlay" onclick="if(event.target===this)closePaywall()">
   <div class="paywall-modal">
@@ -408,6 +418,7 @@ async function processFile(file) {
 
     log('🧩 Parsing esercizi…');
     const { meta, programs, progKeys, progLabels } = parseRows(table, colLabels, baseName);
+    await resolveSeriesRepsAmbiguities(programs);
     const counts = progKeys.map((k, i) => {
       const n = programs[k].reduce((s, sec) => s + sec.exercises.length, 0);
       return `Prog ${progLabels[i]}: ${n}`;
@@ -653,7 +664,49 @@ function sectionType(name) {
   return 'misc';
 }
 
-function parsePrescription(value) {
+// ── Interpretazione intelligente serie / ripetizioni ─────────────────────────
+const SERIES_REPS_OVERRIDES = new Map();
+function seriesRepsKey(value,contextKey=''){return String(contextKey||'')+'::'+String(value||'').trim().toLowerCase().replace(/\s+/g,' ')}
+function inferSeriesReps(first,second,source,contextKey=''){
+  const a=Number(first),b=Number(second),key=seriesRepsKey(source,contextKey),override=SERIES_REPS_OVERRIDES.get(key);
+  if(override)return {...override,ambiguous:false,confidence:'confirmed'};
+  if(a===b)return {sets:a,reps:b,ambiguous:false,confidence:'equal'};
+  const low=Math.min(a,b),high=Math.max(a,b);
+  // Euristica conservativa: il valore piccolo è quasi certamente il numero di serie
+  // solo quando rientra nella fascia tipica 1-5 e l'altro valore è almeno 6.
+  if(low<=5&&high>=6)return {sets:low,reps:high,ambiguous:false,confidence:'high'};
+  // Nei casi non nettamente distinguibili non si forza una decisione silenziosa.
+  return {
+    sets:a,reps:b,ambiguous:true,confidence:'uncertain',contextKey,
+    candidateA:{sets:a,reps:b},candidateB:{sets:b,reps:a},source:String(source||'')
+  };
+}
+function collectSeriesRepsAmbiguities(programs){
+  const ambiguities=[];
+  for(const sections of Object.values(programs||{}))for(const section of sections||[])for(const ex of section.exercises||[]){
+    const parsed=parsePrescription(ex.params,ex.id);
+    const ambiguity=parsed.meta&&parsed.meta.seriesRepsAmbiguity;
+    if(ambiguity&&!SERIES_REPS_OVERRIDES.has(seriesRepsKey(ex.params,ex.id)))ambiguities.push(ambiguity);
+  }
+  return ambiguities;
+}
+async function resolveSeriesRepsAmbiguities(programs){
+  const ambiguities=collectSeriesRepsAmbiguities(programs);
+  for(const item of ambiguities){
+    const a=item.candidateA,b=item.candidateB;
+    const first=await uiDialog({
+      title:'Conferma serie e ripetizioni',
+      html:`<p>La prescrizione <strong>${uiEscape(item.source)}</strong> può essere interpretata in due modi.</p><p style="margin-top:10px">Seleziona il risultato corretto:</p>`,
+      cancelText:`${b.sets} serie × ${b.reps} rip`,
+      confirmText:`${a.sets} serie × ${a.reps} rip`,
+      tone:'primary'
+    });
+    SERIES_REPS_OVERRIDES.set(seriesRepsKey(item.source,item.contextKey),first?{sets:a.sets,reps:a.reps}:{sets:b.sets,reps:b.reps});
+  }
+  return true;
+}
+
+function parsePrescription(value,contextKey = '') {
   const original = String(value || '').trim();
   const empty = () => ({ status:'empty', original:'', badges:[], warnings:[], meta:{ sets:null,reps:null,restSeconds:null,method:null } });
   if (!original) return empty();
@@ -718,16 +771,38 @@ function parsePrescription(value) {
     return {status:'exact',original,badges,warnings,meta};
   }
 
-  // Serie/ripetizioni: x, “serie da”, “set da” e ordine invertito.
-  const seriesPatterns = [
-    /(\d+)\s*(?:serie|series|set|sets|s)?\s*(?:x|×)\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?|r\b)?/i,
-    /(\d+)\s*(?:serie|series|set|sets|s)\s*(?:da|di|per)\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?|r\b)?/i,
-    /(\d+)\s*(?:rip(?:etizioni?)?|reps?|r)\s*(?:x|×|per)\s*(\d+)\s*(?:serie|series|set|sets|s)/i
-  ];
+  // Serie/ripetizioni: prima usa le etichette esplicite, poi l'euristica.
   let seriesData=null;
-  for (let i=0;i<seriesPatterns.length&&!seriesData;i++) {
-    m=firstMatch(seriesPatterns[i]);
-    if(m){seriesData=i===2?{sets:+m[2],reps:+m[1]}:{sets:+m[1],reps:+m[2]};consumeMatch(m);}
+  m=firstMatch(/(\d+)\s*(?:serie|series|set|sets)\s*(?:x|×|da|di|per)\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?|r\b)?/i);
+  if(m){seriesData={sets:+m[1],reps:+m[2],confidence:'explicit'};consumeMatch(m);}
+  if(!seriesData){
+    m=firstMatch(/(\d+)\s*(?:rip(?:etizioni?)?|reps?|r)\s*(?:x|×|per)\s*(\d+)\s*(?:serie|series|set|sets|s)\b/i);
+    if(m){seriesData={sets:+m[2],reps:+m[1],confidence:'explicit'};consumeMatch(m);}
+  }
+  if(!seriesData){
+    m=firstMatch(/(\d+)\s*s\s*(?:x|×)\s*(\d+)\s*r\b/i);
+    if(m){seriesData={sets:+m[1],reps:+m[2],confidence:'explicit'};consumeMatch(m);}
+  }
+  if(!seriesData){
+    m=firstMatch(/(\d+)\s*r\s*(?:x|×)\s*(\d+)\s*s\b/i);
+    if(m){seriesData={sets:+m[2],reps:+m[1],confidence:'explicit'};consumeMatch(m);}
+  }
+  if(!seriesData){
+    m=firstMatch(/(\d+)\s*(?:x|×)\s*(\d+)\s*(rip(?:etizioni?)?|reps?|r\b)?/i);
+    if(m){
+      if(m[3])seriesData={sets:+m[1],reps:+m[2],confidence:'explicit-reps'};
+      else seriesData=inferSeriesReps(+m[1],+m[2],original,contextKey);
+      consumeMatch(m);
+      if(seriesData.ambiguous){
+        meta.seriesRepsAmbiguity={
+          source:original,
+          contextKey,
+          candidateA:seriesData.candidateA,
+          candidateB:seriesData.candidateB
+        };
+        warnings.push('Conferma necessaria: ordine serie/ripetizioni ambiguo');
+      }
+    }
   }
 
   // Recupero: rec, recupero, pausa/e; secondi, virgolette o minuti.
@@ -778,7 +853,7 @@ function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale')
   const ytId = ytIdFromUrl(ex.link);
   const videoUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : ex.link;
   const ytBtn = videoUrl ? `<a class="yt-btn" href="${escHtml(videoUrl)}" target="_blank" rel="noopener external">▶ Apri video</a>` : '';
-  const parsed = parsePrescription(ex.params);
+  const parsed = parsePrescription(ex.params, ex.id);
   const encodedId = encodeURIComponent(ex.id);
   const badges = parsed.badges.map(([t,txt,data],badgeIndex) => {
     if (t === 'rest') {
