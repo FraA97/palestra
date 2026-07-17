@@ -782,7 +782,7 @@ function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale')
   const encodedId = encodeURIComponent(ex.id);
   const badges = parsed.badges.map(([t,txt,data],badgeIndex) => {
     if (t === 'rest') {
-      const secs = parseRestSecs(txt);
+      const secs = Number(parsed.meta.restSeconds || parseRestSecs(txt));
       return secs > 0 ? `<button class="badge rest" onclick="runTimer(${secs})">${escHtml(txt)}</button>` : `<span class="badge rest">${escHtml(txt)}</span>`;
     }
     if (t === 'series' && data && data.sets && data.reps && !locked) {
@@ -804,11 +804,13 @@ function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale')
 }
 
 function parseRestSecs(txt) {
-  // "⏱ 1'30"" → 90s | "⏱ 60"" → 60s | "⏱ 2'00"" → 120s
-  const mMinSec = txt.match(/(\d+)['′]\s*(\d+)/);
-  if (mMinSec) return parseInt(mMinSec[1]) * 60 + parseInt(mMinSec[2]);
-  const mSec = txt.match(/(\d+)/);
-  return mSec ? parseInt(mSec[1]) : 0;
+  const value = String(txt || '');
+  const mMinSec = value.match(/(\d+)['′]\s*(\d+)/);
+  if (mMinSec) return parseInt(mMinSec[1], 10) * 60 + parseInt(mMinSec[2], 10);
+  const mMinutes = value.match(/(\d+(?:[.,]\d+)?)\s*(?:min(?:ut[oi])?|m)\b/i);
+  if (mMinutes) return Math.round(parseFloat(mMinutes[1].replace(',', '.')) * 60);
+  const mSeconds = value.match(/(\d+)\s*(?:sec(?:ond[oi])?|s|[”"])?\b/i);
+  return mSeconds ? parseInt(mSeconds[1], 10) : 0;
 }
 
 const PREVIEW_FREE = 3; // exercises shown for free per program tab
@@ -949,7 +951,7 @@ function generateHtml(meta, programs, progKeys, progLabels, storageKey, isPrevie
   .prog-row-date{font-size:.75rem;color:var(--muted);white-space:nowrap;padding-top:2px;min-width:80px}.prog-row-note{font-size:.85rem;font-weight:500}
   /* ── Timer widget ── */
   .badge.rest{cursor:pointer;}.badge.rest:active{filter:brightness(.92)}
-  .timer-widget{display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:300;background:white;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.22);padding:16px 20px 14px;min-width:220px;text-align:center;border:2px solid var(--border)}
+  .timer-widget{display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:4700;background:white;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.22);padding:16px 20px 14px;min-width:220px;text-align:center;border:2px solid var(--border)}
   .timer-widget.active{display:block}
   .timer-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:1rem;cursor:pointer;color:var(--muted);line-height:1}
   .timer-display{font-size:2.6rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--primary);line-height:1;margin:4px 0 10px}
@@ -1287,6 +1289,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   // ── Timer rapido e tracking serie ──────────────────────────────────────────
   let setProgress={};try{setProgress=JSON.parse(_ls.getItem(TK)||'{}')}catch(e){setProgress={}}
   let trackerCurrent=null;
+  let _timerFromTracker=false;
   function saveSetProgress(){_ls.setItem(TK,JSON.stringify(setProgress));refreshSeriesProgress()}
   function progressFor(id,total){const current=Array.isArray(setProgress[id])?setProgress[id]:[];while(current.length<total)current.push(false);if(current.length>total)current.length=total;setProgress[id]=current;return current}
   function refreshSeriesProgress(){document.querySelectorAll('[data-progress-id]').forEach(el=>{const id=el.dataset.progressId,total=Number(el.closest('[data-total]')?.dataset.total||0),done=progressFor(id,total).filter(Boolean).length;el.textContent=done+'/'+total})}
@@ -1294,7 +1297,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   function openTimerPicker(){document.getElementById('timer-picker').classList.add('open');setTimeout(()=>document.querySelector('#timer-picker .quick-time')?.focus(),20)}
   function startQuickTimer(seconds){closeWorkoutOverlay('timer-picker');runTimer(seconds)}
   function startCustomTimer(){const value=Number(document.getElementById('custom-timer-value').value),unit=Number(document.getElementById('custom-timer-unit').value);if(!value||value<=0)return;startQuickTimer(Math.round(value*unit))}
-  function runTimer(seconds){startTimer(seconds);toggleTimer()}
+  function runTimer(seconds,fromTracker=false){_timerFromTracker=fromTracker;startTimer(seconds);toggleTimer()}
   function openSeriesTracker(id,sets,reps,restSeconds,cardId=id){
     trackerCurrent={id,sets,reps,restSeconds,cardId};const state=progressFor(id,sets),card=document.getElementById(cardId),name=card?.querySelector('.exercise-name')?.textContent||'Esercizio';
     document.getElementById('series-tracker-title').textContent=name;
@@ -1305,7 +1308,22 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     document.getElementById('series-tracker').classList.add('open');
   }
   function toggleTrackedSet(index){if(!trackerCurrent)return;const state=progressFor(trackerCurrent.id,trackerCurrent.sets);state[index]=!state[index];saveSetProgress();openSeriesTracker(trackerCurrent.id,trackerCurrent.sets,trackerCurrent.reps,trackerCurrent.restSeconds,trackerCurrent.cardId);if(state[index]&&trackerCurrent.restSeconds)document.getElementById('tracker-rest-btn').focus()}
-  function startTrackerRest(){if(!trackerCurrent)return;const seconds=trackerCurrent.restSeconds||60;closeWorkoutOverlay('series-tracker');runTimer(seconds)}
+  function completeNextSetForRecovery(){
+    if(!trackerCurrent)return;
+    const state=progressFor(trackerCurrent.id,trackerCurrent.sets);
+    const nextIndex=state.findIndex(done=>!done);
+    if(nextIndex>=0){
+      state[nextIndex]=true;
+      saveSetProgress();
+    }
+    openSeriesTracker(trackerCurrent.id,trackerCurrent.sets,trackerCurrent.reps,trackerCurrent.restSeconds,trackerCurrent.cardId);
+  }
+  function startTrackerRest(){
+    if(!trackerCurrent)return;
+    const seconds=trackerCurrent.restSeconds||60;
+    completeNextSetForRecovery();
+    runTimer(seconds,true);
+  }
 
   refreshSeriesProgress();
   // ── Timer ──────────────────────────────────────────────────────────────────
@@ -1317,7 +1335,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     document.getElementById('timer-widget').classList.add('active');
   }
   function toggleTimer(){
-    if(_tmLeft<=0){_tmLeft=_tmTotal;_tmRunning=false;}
+    if(_tmLeft<=0){closeTimer();return;}
     _tmRunning=!_tmRunning;
     if(_tmRunning){
       _tmInterval=setInterval(()=>{
@@ -1331,10 +1349,11 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     document.getElementById('timer-play-btn').textContent=_tmRunning?'⏸ Pausa':'▶ Riprendi';
   }
   function resetTimer(){
+    if(_timerFromTracker)completeNextSetForRecovery();
     clearInterval(_tmInterval);_tmRunning=false;_tmLeft=_tmTotal;_updateTimerUI();toggleTimer();
   }
   function closeTimer(){
-    clearInterval(_tmInterval);_tmRunning=false;
+    clearInterval(_tmInterval);_tmRunning=false;_timerFromTracker=false;
     document.getElementById('timer-widget').classList.remove('active');
   }
   function _updateTimerUI(){
@@ -1361,7 +1380,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
         o.start(ac.currentTime+t);o.stop(ac.currentTime+t+0.3);
       });
     }catch(e){}
-    document.getElementById('timer-play-btn').textContent='↻ Riavvia';
+    document.getElementById('timer-play-btn').textContent='\\u2705 Fine!';
   }
   // ── Video ──────────────────────────────────────────────────────────────────
   function openVideo(ytId,title){

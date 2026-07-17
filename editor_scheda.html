@@ -1457,6 +1457,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   // ── Timer rapido e tracking serie ──────────────────────────────────────────
   let setProgress={};try{setProgress=JSON.parse(_ls.getItem(TK)||'{}')}catch(e){setProgress={}}
   let trackerCurrent=null;
+  let _timerFromTracker=false;
   function saveSetProgress(){_ls.setItem(TK,JSON.stringify(setProgress));refreshSeriesProgress()}
   function progressFor(id,total){const current=Array.isArray(setProgress[id])?setProgress[id]:[];while(current.length<total)current.push(false);if(current.length>total)current.length=total;setProgress[id]=current;return current}
   function refreshSeriesProgress(){document.querySelectorAll('[data-progress-id]').forEach(el=>{const id=el.dataset.progressId,total=Number(el.closest('[data-total]')?.dataset.total||0),done=progressFor(id,total).filter(Boolean).length;el.textContent=done+'/'+total})}
@@ -1464,7 +1465,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   function openTimerPicker(){document.getElementById('timer-picker').classList.add('open');setTimeout(()=>document.querySelector('#timer-picker .quick-time')?.focus(),20)}
   function startQuickTimer(seconds){closeWorkoutOverlay('timer-picker');runTimer(seconds)}
   function startCustomTimer(){const value=Number(document.getElementById('custom-timer-value').value),unit=Number(document.getElementById('custom-timer-unit').value);if(!value||value<=0)return;startQuickTimer(Math.round(value*unit))}
-  function runTimer(seconds){startTimer(seconds);toggleTimer()}
+  function runTimer(seconds,fromTracker=false){_timerFromTracker=fromTracker;startTimer(seconds);toggleTimer()}
   function openSeriesTracker(id,sets,reps,restSeconds,cardId=id){
     trackerCurrent={id,sets,reps,restSeconds,cardId};const state=progressFor(id,sets),card=document.getElementById(cardId),name=card?.querySelector('.exercise-name')?.textContent||'Esercizio';
     document.getElementById('series-tracker-title').textContent=name;
@@ -1489,7 +1490,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     if(!trackerCurrent)return;
     const seconds=trackerCurrent.restSeconds||60;
     completeNextSetForRecovery();
-    runTimer(seconds);
+    runTimer(seconds,true);
   }
 
   refreshSeriesProgress();
@@ -1502,7 +1503,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     document.getElementById('timer-widget').classList.add('active');
   }
   function toggleTimer(){
-    if(_tmLeft<=0){_tmLeft=_tmTotal;_tmRunning=false;}
+    if(_tmLeft<=0){closeTimer();return;}
     _tmRunning=!_tmRunning;
     if(_tmRunning){
       _tmInterval=setInterval(()=>{
@@ -1516,10 +1517,11 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     document.getElementById('timer-play-btn').textContent=_tmRunning?'⏸ Pausa':'▶ Riprendi';
   }
   function resetTimer(){
+    if(_timerFromTracker)completeNextSetForRecovery();
     clearInterval(_tmInterval);_tmRunning=false;_tmLeft=_tmTotal;_updateTimerUI();toggleTimer();
   }
   function closeTimer(){
-    clearInterval(_tmInterval);_tmRunning=false;
+    clearInterval(_tmInterval);_tmRunning=false;_timerFromTracker=false;
     document.getElementById('timer-widget').classList.remove('active');
   }
   function _updateTimerUI(){
