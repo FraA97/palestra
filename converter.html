@@ -730,6 +730,14 @@ function parsePrescription(value,contextKey = '') {
     .replace(/\s{2,}/g, ' ').trim();
   let m;
 
+  // Prescrizione a sfinimento: tollera anche lettere separate dall'estrazione PDF.
+  m = original.match(/^\s*[xX×]\s*(\d+)\s*(?:a\s*)?s\s*f\s*i\s*n\s*i\s*m\s*e\s*n\s*t\s*o\s*$/i);
+  if (m) {
+    meta.sets=+m[1]; meta.method='sfinimento';
+    add('method',`${m[1]} serie a sfinimento`);
+    return {status:'exact',original,badges,warnings,meta};
+  }
+
   if (/^x$/i.test(original)) return { status:'exact', original, badges:[['series','✓']], warnings, meta };
 
   // Superset naturale: “Superset: Panca 4x10 + Croci 4x12 recupero 60s”.
@@ -770,11 +778,27 @@ function parsePrescription(value,contextKey = '') {
     if(m[1])add('raw','Esercizio: '+m[1].trim()); add('load','Carico: '+m[2].trim()); add('series','Serie: '+list(m[3])); add('load','RIR: '+list(m[4])); warnings.push('Ripetizioni non specificate');
     return {status:'exact',original,badges,warnings,meta};
   }
-
-  // Serie/ripetizioni: prima usa le etichette esplicite, poi l'euristica.
+  // Serie/ripetizioni: prima gestisce ripetizioni composte/per lato,
+  // poi usa le etichette esplicite e infine l'euristica.
   let seriesData=null;
-  m=firstMatch(/(\d+)\s*(?:serie|series|set|sets)\s*(?:x|×|da|di|per)\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?|r\b)?/i);
-  if(m){seriesData={sets:+m[1],reps:+m[2],confidence:'explicit'};consumeMatch(m);}
+
+  // A+B x C: C serie da A+B ripetizioni (destra + sinistra).
+  m=firstMatch(/(\d+)\s*\+\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?)?\s*(?:x|×)\s*(\d+)\s*(?:serie|series|set|sets|s\b)?/i);
+  if(m){
+    seriesData={sets:+m[3],reps:`${m[1]}+${m[2]}`,confidence:'compound-reps',repsPerSide:true};
+    consumeMatch(m);
+  }
+
+  // C x A+B: C serie da A+B ripetizioni.
+  if(!seriesData){
+    m=firstMatch(/(\d+)\s*(?:serie|series|set|sets|s\b)?\s*(?:x|×)\s*(\d+)\s*\+\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?)?/i);
+    if(m){
+      seriesData={sets:+m[1],reps:`${m[2]}+${m[3]}`,confidence:'compound-reps',repsPerSide:true};
+      consumeMatch(m);
+    }
+  }
+  if(!seriesData)m=firstMatch(/(\d+)\s*(?:serie|series|set|sets)\s*(?:x|×|da|di|per)\s*(\d+)\s*(?:rip(?:etizioni?)?|reps?|r\b)?/i);
+  if(!seriesData&&m){seriesData={sets:+m[1],reps:+m[2],confidence:'explicit'};consumeMatch(m);}
   if(!seriesData){
     m=firstMatch(/(\d+)\s*(?:rip(?:etizioni?)?|reps?|r)\s*(?:x|×|per)\s*(\d+)\s*(?:serie|series|set|sets|s)\b/i);
     if(m){seriesData={sets:+m[2],reps:+m[1],confidence:'explicit'};consumeMatch(m);}
@@ -809,6 +833,18 @@ function parsePrescription(value,contextKey = '') {
   m = firstMatch(/(?:\bR\s*|\brec\.?\s*|\brecupero\s*|\bpausa(?:e)?\s*|\bpause\s*)(?:da\s+|di\s+)?(\d+(?:[.,]\d+)?)\s*(min(?:ut[oi])?|m|sec(?:ondi?)?|s|[”"])?/i);
   if (m) { meta.restSeconds=secondsFrom(m[1],m[2]); add('rest',restLabel(meta.restSeconds)); consumeMatch(m); }
 
+  // Recupero senza prefisso: 60”, 60", 60″, 60s, 60 sec.
+  // L'unita' e' obbligatoria per non confondere carichi o ripetizioni con un timer.
+  if(!meta.restSeconds){
+    m=firstMatch(/\b(\d+(?:[.,]\d+)?)\s*(sec(?:ond[oi])?|s\b|[”"″])(?=\s|$|[,;])/i);
+    if(m){
+      meta.restSeconds=secondsFrom(m[1],m[2]);
+      add('rest',restLabel(meta.restSeconds));
+      consumeMatch(m);
+    }
+  }
+
+
   // Tempo sotto tensione.
   m = firstMatch(/(?:\btempo(?:\s+sotto\s+tensione)?|\bTUT)\s*:?\s*(\d+)\s*[-–—]\s*(\d+)\s*[-–—]\s*(\d+)(?:\s*[-–—]\s*(\d+))?/i);
   if (m) { meta.method='tempo'; add('method','Tempo: '+[m[1],m[2],m[3],m[4]].filter(Boolean).join('-')); consumeMatch(m); }
@@ -816,7 +852,11 @@ function parsePrescription(value,contextKey = '') {
   // Carico e intensità, ovunque nel testo.
   m = firstMatch(/\b(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?)\s*%/i);
   if(m){add('load',m[1].replace(/\s+/g,'').replace(/[–—]/g,'-').replace(',','.')+' %');consumeMatch(m);}
-  else if((m=firstMatch(/\b(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?)\s*(kg|kgs|lb|lbs)\b/i))){add('load',m[1].replace(',','.')+' '+(/^kg/i.test(m[2])?'kg':'lbs'));consumeMatch(m);}
+  else if((m=firstMatch(/\b(\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?)\s*(kg|kgs|lb|lbs)\b(?:\s*(o\s*\+|\+|o\s*più))?/i))){
+    const progression=m[3]?' '+m[3].replace(/\s+/g,' ').trim():'';
+    add('load',m[1].replace(',','.')+' '+(/^kg/i.test(m[2])?'kg':'lbs')+progression);
+    consumeMatch(m);
+  }
   else if((m=firstMatch(/\b(RPE|RIR)\s*(\d+(?:[.,]\d+)?)\b/i))){add('load',m[1].toUpperCase()+' '+m[2].replace(',','.'));consumeMatch(m);}
   else if((m=firstMatch(/\b(BW|peso\s+corporeo|bodyweight)\b/i))){add('load','BW');consumeMatch(m);}
 
