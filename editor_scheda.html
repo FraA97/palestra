@@ -1848,6 +1848,15 @@ function normalizeLoadedDraft(draft) {
   }
 }
 
+function showImportedDraftNotice(){
+  const source=new URLSearchParams(window.location.search).get('source');
+  if(source==='deterministic'){
+    showToast('✅ Conversione pronta: controlla e correggi la scheda prima di generare l’app',4200);
+  }else if(source==='ai'){
+    showToast('✅ Conversione AI pronta: controlla la scheda prima di generare l’app',4200);
+  }
+}
+
 function initializeEditor() {
   const params = new URLSearchParams(window.location.search);
   const newMode = params.get('mode') === 'new';
@@ -1883,6 +1892,7 @@ function initializeEditor() {
 }
 
 initializeEditor();
+showImportedDraftNotice();
 </script>
 
 <div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation">
