@@ -341,6 +341,7 @@
   .required-field-wrap label{font-size:.7rem;color:#475569;margin-bottom:4px}
   .required-group-hint{font-size:.68rem;color:#64748b;margin:1px 0 6px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -410,13 +411,13 @@
   <button class="add-section-btn" onclick="toggleSectionPicker()">+ Aggiungi sezione</button>
 
   <!-- Import hidden input -->
-  <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="importCsv(this)" />
+  <input type="file" id="xlsx-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importExcel(this)">
 
 </div>
 
 <div class="bottom-bar">
   <span class="save-label"><span class="save-dot" id="save-dot" style="background:#d1d5db"></span>bozza</span>
-  <button class="bottom-btn btn-import" onclick="document.getElementById('csv-input').click()">📂 Importa CSV</button>
+  <button class="bottom-btn btn-import" onclick="document.getElementById('xlsx-input').click()">📊 Importa Excel</button>
   <button class="bottom-btn btn-preview" onclick="previewHtml()">👁 Anteprima</button>
   <button class="bottom-btn btn-download" onclick="requestDownload()">⬇️ Genera App</button>
 </div>
@@ -1719,99 +1720,46 @@ async function loadDraft() {
   }
 }
 
-// ── Import from CSV ──────────────────────────────────────────────────────────
-function importCsv(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async e => {
-    try {
-      const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
-      if (!lines.length) { showToast('❌ File CSV vuoto'); return; }
-
-      // Detect header row and program count
-      const headerLine = lines.find(l => /^esercizio/i.test(parseCsvLine(l)[0]));
-      let csvProgCount = 3;
-      if (headerLine) {
-        const headerCols = parseCsvLine(headerLine);
-        const lastIsLink = /link/i.test(headerCols[headerCols.length - 1]);
-        csvProgCount = headerCols.length - 1 - (lastIsLink ? 1 : 0);
-        const newLabels = headerCols.slice(1, lastIsLink ? -1 : undefined).map((lbl, i) => {
-          const m = lbl.match(/(?:prog(?:ramma?)?\s*)?([A-Z0-9]+)\s*$/i);
-          return m ? m[1].toUpperCase() : String.fromCharCode(65 + i);
-        });
-        if (newLabels.length > 0) progLabels = newLabels;
+// ── Import from Excel ─────────────────────────────────────────────────────────
+function importExcel(input) {
+  const file=input.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async event=>{
+    try{
+      const workbook=XLSX.read(event.target.result,{type:'array'});
+      const sheet=workbook.Sheets['Scheda']||workbook.Sheets[workbook.SheetNames[0]];
+      const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});
+      if(matrix.length<2)throw new Error('Il foglio Scheda è vuoto');
+      const headers=matrix[0].map(v=>String(v||'').trim());
+      const norm=v=>String(v||'').trim().toLowerCase().replace(/\s*\*\s*$/,'');
+      const sectionIdx=headers.findIndex(v=>norm(v)==='sezione');
+      const exerciseIdx=headers.findIndex(v=>norm(v)==='esercizio');
+      const linkIdx=headers.findIndex(v=>/^(link|link video|video|youtube|url)$/i.test(String(v).trim()));
+      const progIdx=headers.map((v,i)=>({v,i})).filter(x=>/^(prog|programma)\s+/i.test(x.v));
+      if(sectionIdx<0||exerciseIdx<0||!progIdx.length)throw new Error('Servono le colonne Sezione, Esercizio e almeno un programma');
+      const data=matrix.slice(1).filter(row=>row.some(v=>String(v||'').trim()));
+      if(!await uiConfirm(`Trovate ${data.length} righe. Sostituire i dati attuali?`,'Importa Excel'))return;
+      progLabels=progIdx.map(x=>x.v.replace(/^(?:prog(?:ramma)?\s*)/i,'').trim()||String.fromCharCode(65+x.i));
+      sections=[];sectionCounter=0;exerciseCounter=0;
+      const bySection=new Map();
+      for(const row of data){
+        const name=String(row[exerciseIdx]||'').trim(); if(!name)continue;
+        const sectionName=String(row[sectionIdx]||'').trim()||'Generale';
+        let section=bySection.get(sectionName);
+        if(!section){section={id:++sectionCounter,name:sectionName,open:true,exercises:[]};bySection.set(sectionName,section);sections.push(section)}
+        const progs=progIdx.map(x=>String(row[x.i]||'').trim());
+        if(!progs.some(Boolean))continue;
+        const link=linkIdx>=0?String(row[linkIdx]||'').trim():'';
+        section.exercises.push({id:++exerciseCounter,name,progs,link:/^https?:\/\//i.test(link)?link:''});
       }
-
-      // Skip header row
-      const dataLines = lines.filter(l => !/^esercizio/i.test(parseCsvLine(l)[0]));
-      if (!await uiConfirm(`Trovate ${dataLines.length} righe. Sostituire i dati attuali?`,'Importa CSV')) return;
-
-      sections = [];
-      sectionCounter = 0;
-      exerciseCounter = 0;
-      let currentSec = null;
-
-      for (const line of lines) {
-        const cols = parseCsvLine(line);
-        const name = (cols[0] || '').trim();
-        const firstProg = (cols[1] || '').trim();
-        const link = (cols[cols.length - 1] || '').trim();
-
-        // Skip header
-        if (/^esercizio$/i.test(name)) continue;
-
-        // Section header: col0 empty, col1 has name, rest empty
-        if (!name && firstProg && cols.slice(2).every(c => !c.trim())) {
-          currentSec = { id: ++sectionCounter, name: firstProg, open: true, exercises: [] };
-          sections.push(currentSec);
-          continue;
-        }
-
-        if (!name) continue;
-
-        if (!currentSec) {
-          currentSec = { id: ++sectionCounter, name: 'Generale', open: true, exercises: [] };
-          sections.push(currentSec);
-        }
-
-        const progs = [];
-        for (let i = 0; i < progLabels.length; i++) {
-          progs.push((cols[i + 1] || '').trim());
-        }
-        currentSec.exercises.push({
-          id: ++exerciseCounter,
-          name,
-          progs,
-          link: /^https?:\/\//.test(link) ? link : ''
-        });
-      }
-
-      // Set title from filename
-      document.getElementById('meta-title').value = file.name.replace(/\.csv$/i, '');
-      renderProgTags();
-      renderSections();
-      saveDraft();
-      showToast(`✅ Importate ${sections.length} sezioni`);
-    } catch(err) {
-      showToast('❌ Errore nel CSV: ' + err.message);
-    }
-    input.value = '';
+      const info=workbook.Sheets['Informazioni'];
+      if(info){const values=XLSX.utils.sheet_to_json(info,{header:1,defval:'',raw:false});const lookup=label=>{const row=values.find(r=>String(r[0]||'').toLowerCase().includes(label));return row?String(row[1]||'').trim():''};document.getElementById('meta-title').value=lookup('nome cliente')||file.name.replace(/\.xlsx$/i,'');document.getElementById('meta-weeks').value=lookup('periodo')}
+      else document.getElementById('meta-title').value=file.name.replace(/\.xlsx$/i,'');
+      renderProgTags();renderSections();saveDraft();showToast(`✅ Importati ${exerciseCounter} esercizi da Excel`);
+    }catch(error){showToast('❌ Errore nel file Excel: '+error.message,4000)}
+    input.value='';
   };
-  reader.readAsText(file, 'UTF-8');
-}
-
-function parseCsvLine(line) {
-  const result = [];
-  let cur = '', inQuote = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { inQuote = !inQuote; }
-    else if (c === ',' && !inQuote) { result.push(cur); cur = ''; }
-    else { cur += c; }
-  }
-  result.push(cur);
-  return result;
+  reader.readAsArrayBuffer(file);
 }
 
 // ── Output actions ───────────────────────────────────────────────────────────

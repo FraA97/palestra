@@ -243,14 +243,14 @@
 
 <div class="page-header">
   <h1>Scheda Palestra Converter</h1>
-  <p>Carica un PDF tabellare compatibile e genera una App con note, storico e progressione. Il PDF deve rispettare la struttura descritta nella <a href="istruzioni_template.html#formato-tradizionale">Guida alla conversione tradizionale</a>.</p>
+  <p>Carica un file Excel GymSheet o un PDF tabellare compatibile e genera una App con note, storico e progressione. Il PDF deve rispettare la struttura descritta nella <a href="istruzioni_template.html#formato-tradizionale">Guida alla conversione tradizionale</a>.</p>
 </div>
 
 <div class="card">
   <div class="drop-zone" id="drop-zone">
-    <input type="file" id="pdf-input" accept=".pdf" />
+    <input type="file" id="pdf-input" accept=".pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
     <div class="drop-icon">📄</div>
-    <div class="drop-label">Carica il PDF della scheda</div>
+    <div class="drop-label">Carica Excel o PDF della scheda</div>
     <div class="drop-hint">Clicca o trascina qui il file</div>
   </div>
 
@@ -273,7 +273,7 @@
     </div>
   </div>
 
-  <button id="reset-btn" onclick="resetAll()">↩ Converti un altro PDF</button>
+  <button id="reset-btn" onclick="resetAll()">↩ Converti un altro file</button>
 </div>
 
 </div><!-- /main -->
@@ -340,6 +340,7 @@
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -391,8 +392,8 @@ dropZone.addEventListener('drop', e => {
   e.preventDefault();
   dropZone.classList.remove('drag-over');
   const f = e.dataTransfer.files[0];
-  if (f && f.type === 'application/pdf') processFile(f);
-  else uiAlert('Seleziona un file PDF.');
+  if (f && (/\.(pdf|xlsx)$/i.test(f.name))) processFile(f);
+  else uiAlert('Seleziona un file Excel .xlsx o PDF.');
 });
 
 // ── Main processing ────────────────────────────────────────────────────────
@@ -402,18 +403,24 @@ async function processFile(file) {
   setStatus('⏳', `Lettura: ${file.name}`);
   log(`📄 File: ${file.name} (${(file.size/1024).toFixed(0)} KB)`, 'info');
 
-  const baseName = file.name.replace(/\.pdf$/i, '');
+  const baseName = file.name.replace(/\.(pdf|xlsx)$/i, '');
   generatedFilename = slugify(baseName) + '.html';
 
   try {
     const arrayBuffer = await file.arrayBuffer();
     log('🔍 Estrazione testo dal PDF…');
 
-    const texts = await extractTexts(arrayBuffer);
-    log(`✅ Estratti ${texts.texts.length} elementi di testo`, 'ok');
-
-    log('📊 Ricostruzione tabella…');
-    const { table, colLabels } = buildTable(texts.texts, texts.links);
+    let table, colLabels;
+    if (/\.xlsx$/i.test(file.name)) {
+      log('📊 Lettura foglio Excel…');
+      ({ table, colLabels } = workbookToLegacy(arrayBuffer));
+    } else {
+      log('🔍 Estrazione testo dal PDF…');
+      const texts = await extractTexts(arrayBuffer);
+      log(`✅ Estratti ${texts.texts.length} elementi di testo`, 'ok');
+      log('📊 Ricostruzione tabella…');
+      ({ table, colLabels } = buildTable(texts.texts, texts.links));
+    }
     log(`✅ Trovate ${table.length} righe`, 'ok');
 
     log('🧩 Parsing esercizi…');
@@ -449,6 +456,29 @@ async function processFile(file) {
     log('❌ ' + err.message, 'err');
     console.error(err);
   }
+}
+
+function workbookToLegacy(arrayBuffer){
+  const workbook=XLSX.read(arrayBuffer,{type:'array'});
+  const sheet=workbook.Sheets['Scheda']||workbook.Sheets[workbook.SheetNames[0]];
+  const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});
+  if(matrix.length<2)throw new Error('Il foglio Scheda è vuoto');
+  const headers=matrix[0].map(v=>String(v||'').trim());
+  const norm=v=>String(v||'').trim().toLowerCase().replace(/\s*\*\s*$/,'');
+  const sectionIdx=headers.findIndex(v=>norm(v)==='sezione');
+  const exerciseIdx=headers.findIndex(v=>norm(v)==='esercizio');
+  const linkIdx=headers.findIndex(v=>/^(link|link video|video|youtube|url)$/i.test(String(v).trim()));
+  const progIdx=headers.map((v,i)=>({v,i})).filter(x=>/^(prog|programma)\s+/i.test(x.v));
+  if(sectionIdx<0||exerciseIdx<0||!progIdx.length)throw new Error('Servono le colonne Sezione, Esercizio e almeno un programma');
+  const colLabels=['Esercizio',...progIdx.map(x=>x.v),...(linkIdx>=0?['Link']:[])];
+  const table=[];let previousSection=null;
+  for(const row of matrix.slice(1)){
+    const name=String(row[exerciseIdx]||'').trim();if(!name)continue;
+    const section=String(row[sectionIdx]||'').trim()||'Generale';
+    if(section!==previousSection){table.push(['',section,...progIdx.slice(1).map(()=>''),...(linkIdx>=0?['']:[])]);previousSection=section}
+    table.push([name,...progIdx.map(x=>String(row[x.i]||'').trim()),...(linkIdx>=0?[String(row[linkIdx]||'').trim()]:[])]);
+  }
+  return {table,colLabels};
 }
 
 // ── PDF text extraction ────────────────────────────────────────────────────
