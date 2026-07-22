@@ -5,694 +5,78 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scheda Palestra Converter</title>
 <style>
-  :root {
-    --primary: #1e3a5f;
-    --green:   #16a34a;
-    --bg:      #f5f7fa;
-    --card:    #ffffff;
-    --border:  #e5e7eb;
-    --text:    #1a1a1a;
-    --muted:   #6b7280;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ── Navigazione condivisa GymSheet ── */
-  .site-nav{background:#1e3a5f;color:#fff;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-  .site-nav .site-logo{font-size:1.05rem;font-weight:800;color:#fff;text-decoration:none;white-space:nowrap}
-  .site-links{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end}
-  .site-links>a,.site-dropdown>summary{color:rgba(255,255,255,.78);text-decoration:none;font-size:.79rem;font-weight:600;padding:7px 9px;border-radius:7px;cursor:pointer;list-style:none}
-  .site-dropdown>summary::-webkit-details-marker{display:none}
-  .site-links>a:hover,.site-links>a.active,.site-dropdown>summary:hover,.site-dropdown>summary.active{color:#fff;background:rgba(255,255,255,.16)}
-  .site-dropdown{position:relative}
-  .site-dropdown-menu{position:absolute;right:0;top:calc(100% + 7px);min-width:205px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(15,23,42,.18)}
-  .site-dropdown-menu a{display:block;color:#1f2937;text-decoration:none;padding:9px 10px;border-radius:7px;font-size:.82rem;font-weight:600}
-  .site-dropdown-menu a:hover,.site-dropdown-menu a.active{background:#eff6ff;color:#1d4ed8}
-  .site-cta{background:#16a34a!important;color:#fff!important}
-  .site-cta:hover{background:#15803d!important}
-  @media(max-width:760px){.site-nav{align-items:flex-start;padding:10px 12px}.site-links{gap:1px}.site-links>a,.site-dropdown>summary{font-size:.72rem;padding:6px}.site-links .desktop-extra{display:none}.site-dropdown-menu{position:fixed;top:54px;right:10px;left:10px}}
-
-  /* ── App footer ── */
-  .app-footer{background:var(--primary);color:rgba(255,255,255,.7);padding:18px 24px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-size:.85rem;margin-top:auto}
-  .app-footer a{color:rgba(255,255,255,.75);text-decoration:none;font-weight:500}
-  .app-footer a:hover{color:white}
-
-  /* ── Page main wrapper ── */
-  .main{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 16px 40px}
-
-  .page-header{text-align:center;margin-bottom:28px}
-  .page-header h1{font-size:1.35rem;font-weight:800;color:var(--primary);margin-top:10px}
-  .page-header p{font-size:.88rem;color:var(--muted);margin-top:6px;max-width:420px;line-height:1.5}
-
-  .card {
-    background: var(--card);
-    border-radius: 16px;
-    padding: 28px 24px;
-    width: 100%;
-    max-width: 480px;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
-  }
-
-  /* ── Drop zone ── */
-  .drop-zone {
-    border: 2.5px dashed #93c5fd;
-    border-radius: 12px;
-    padding: 40px 20px;
-    text-align: center;
-    cursor: pointer;
-    background: #f0f7ff;
-    transition: all 0.2s;
-    position: relative;
-  }
-  .drop-zone:hover, .drop-zone.drag-over {
-    border-color: #3b82f6;
-    background: #dbeafe;
-  }
-  .drop-zone input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-  }
-  .drop-icon { font-size: 2.5rem; margin-bottom: 10px; }
-  .drop-label { font-size: 0.95rem; font-weight: 600; color: var(--primary); }
-  .drop-hint  { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
-
-  /* ── Status & log ── */
-  #status-area { margin-top: 20px; display: none; }
-
-  .status-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: #f9fafb;
-    border: 1px solid var(--border);
-    font-size: 0.88rem;
-  }
-  .status-icon { font-size: 1.2rem; flex-shrink: 0; }
-
-  .log {
-    background: #1e293b;
-    color: #94a3b8;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 0.75rem;
-    font-family: monospace;
-    margin-top: 10px;
-    max-height: 140px;
-    overflow-y: auto;
-    line-height: 1.6;
-  }
-  .log .ok  { color: #4ade80; }
-  .log .err { color: #f87171; }
-  .log .info { color: #60a5fa; }
-
-  /* ── Result ── */
-  #result-area { margin-top: 24px; display: none; }
-
-  .result-summary {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 16px;
-    font-size: 0.85rem;
-  }
-  .result-summary strong { color: #15803d; display: block; font-size: 0.95rem; margin-bottom: 4px; }
-  .result-summary span   { color: var(--muted); }
-
-  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
-
-  .btn {
-    flex: 1;
-    min-width: 120px;
-    padding: 12px 16px;
-    border-radius: 10px;
-    border: none;
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    text-decoration: none;
-    transition: opacity 0.2s;
-  }
-  .btn:active { opacity: 0.8; }
-  .btn-primary  { background: var(--primary); color: white; }
-  .btn-success  { background: var(--green);   color: white; }
-  .btn-outline  { background: transparent; border: 2px solid var(--border); color: var(--text); }
-
-  /* ── Reset ── */
-  #reset-btn {
-    margin-top: 20px;
-    background: transparent;
-    border: none;
-    font-size: 0.8rem;
-    color: var(--muted);
-    cursor: pointer;
-    display: none;
-  }
-  #reset-btn:hover { color: var(--text); }
-
-  /* ── Footer ── */
-  footer.app-footer {
-    margin-top: 40px;
-  }
-
-  /* ── Paywall Modal ── */
-  .paywall-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,.5); z-index: 300;
-    align-items: center; justify-content: center; padding: 16px;
-  }
-  .paywall-overlay.open { display: flex; }
-  .paywall-modal {
-    background: white; border-radius: 18px;
-    padding: 28px 24px; width: 100%; max-width: 440px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.2);
-  }
-  .paywall-modal h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
-  .paywall-modal p  { font-size: .88rem; color: #6b7280; margin-bottom: 20px; line-height: 1.5; }
-  .paywall-option {
-    border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px;
-    margin-bottom: 12px; cursor: pointer; transition: border-color .2s;
-  }
-  .paywall-option:hover { border-color: #2563eb; }
-  .paywall-option h3  { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
-  .paywall-option p   { font-size: .82rem; color: #6b7280; margin: 0; }
-  .paywall-option .price { font-size: 1.1rem; font-weight: 900; color: #1e3a5f; float: right; }
-  .paywall-divider { text-align: center; color: #9ca3af; font-size: .8rem; margin: 4px 0 12px; }
-  .trainer-key-section { margin-top: 4px; }
-  .trainer-key-row { display: flex; gap: 8px; align-items: center; }
-  .trainer-key-row input {
-    flex: 1; border: 2px solid #e5e7eb; border-radius: 8px;
-    padding: 9px 12px; font-size: .88rem; font-family: monospace;
-  }
-  .trainer-key-row input:focus { outline: none; border-color: #2563eb; }
-  .btn-key-use {
-    background: #1e3a5f; color: white; border: none; border-radius: 8px;
-    padding: 9px 16px; font-size: .85rem; font-weight: 700; cursor: pointer; white-space: nowrap;
-  }
-  .key-credits { font-size: .8rem; color: #16a34a; margin-top: 6px; font-weight: 600; display: none; }
-  .btn-close-modal {
-    float: right; background: #f3f4f6; border: none; border-radius: 50%;
-    width: 28px; height: 28px; cursor: pointer; font-size: 1rem; line-height: 28px; text-align: center;
-  }
-
-
-/* ── GymSheet dialog system ── */
-.ui-dialog-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(4px);z-index:5000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .16s ease}.ui-dialog-overlay.open{display:flex;opacity:1}.ui-dialog{width:min(500px,100%);max-height:min(86vh,760px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.3);padding:22px;transform:translateY(10px) scale(.98);animation:uiDialogIn .18s ease forwards}.ui-dialog h2{font-size:1.08rem;color:#1e3a5f;margin:0 0 8px}.ui-dialog-message{font-size:.88rem;line-height:1.55;color:#475569;white-space:pre-line}.ui-dialog-input{width:100%;margin-top:14px;padding:11px 12px;border:1.5px solid #d1d5db;border-radius:9px;font:inherit}.ui-dialog-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}.ui-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.ui-dialog-btn{border:0;border-radius:9px;padding:10px 15px;font-weight:750;cursor:pointer;font-size:.85rem}.ui-dialog-btn.secondary{background:#f1f5f9;color:#334155}.ui-dialog-btn.primary{background:#2563eb;color:#fff}.ui-dialog-btn.danger{background:#dc2626;color:#fff}.ui-dialog-btn.success{background:#16a34a;color:#fff}.ui-dialog-close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#475569}@keyframes uiDialogIn{to{transform:translateY(0) scale(1)}}
-@media(max-width:540px){.ui-dialog-overlay{align-items:flex-end;padding:0}.ui-dialog{width:100%;border-radius:18px 18px 0 0;padding:20px 16px 28px;max-height:90vh}.ui-dialog-actions{display:grid;grid-template-columns:1fr}.ui-dialog-btn{width:100%}}
+:root{--primary:#1e3a5f;--green:#16a34a;--bg:#f5f7fa;--card:#fff;--border:#e5e7eb;--text:#1a1a1a;--muted:#6b7280}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+.site-nav{background:#1e3a5f;color:#fff;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.site-logo{font-size:1.05rem;font-weight:800;color:#fff;text-decoration:none;white-space:nowrap}.site-links{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end}.site-links>a,.site-dropdown>summary{color:rgba(255,255,255,.78);text-decoration:none;font-size:.79rem;font-weight:600;padding:7px 9px;border-radius:7px;cursor:pointer;list-style:none}.site-dropdown>summary::-webkit-details-marker{display:none}.site-links>a:hover,.site-links>a.active,.site-dropdown>summary:hover,.site-dropdown>summary.active{color:#fff;background:rgba(255,255,255,.16)}.site-dropdown{position:relative}.site-dropdown-menu{position:absolute;right:0;top:calc(100% + 7px);min-width:205px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(15,23,42,.18)}.site-dropdown-menu a{display:block;color:#1f2937;text-decoration:none;padding:9px 10px;border-radius:7px;font-size:.82rem;font-weight:600}.site-dropdown-menu a:hover,.site-dropdown-menu a.active{background:#eff6ff;color:#1d4ed8}.site-cta{background:#16a34a!important;color:#fff!important}
+.main{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 16px 40px}.page-header{text-align:center;margin-bottom:28px}.page-header h1{font-size:1.35rem;font-weight:800;color:var(--primary);margin-top:10px}.page-header p{font-size:.88rem;color:var(--muted);margin-top:6px;max-width:500px;line-height:1.5}.card{background:var(--card);border-radius:16px;padding:28px 24px;width:100%;max-width:500px;box-shadow:0 2px 16px rgba(0,0,0,.08)}
+.drop-zone{border:2.5px dashed #93c5fd;border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;background:#f0f7ff;transition:.2s;position:relative}.drop-zone:hover,.drop-zone.drag-over{border-color:#3b82f6;background:#dbeafe}.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}.drop-icon{font-size:2.5rem;margin-bottom:10px}.drop-label{font-size:.95rem;font-weight:700;color:var(--primary)}.drop-hint{font-size:.78rem;color:var(--muted);margin-top:5px}
+#status-area{margin-top:20px;display:none}.status-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#f9fafb;border:1px solid var(--border);font-size:.88rem}.log{background:#1e293b;color:#94a3b8;border-radius:8px;padding:10px 14px;font-size:.75rem;font-family:monospace;margin-top:10px;max-height:180px;overflow-y:auto;line-height:1.6}.log .ok{color:#4ade80}.log .err{color:#f87171}.log .info{color:#60a5fa}#reset-btn{margin-top:18px;background:transparent;border:0;font-size:.8rem;color:var(--muted);cursor:pointer;display:none}.app-footer{background:var(--primary);color:rgba(255,255,255,.7);padding:18px 24px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-size:.85rem;margin-top:auto}.app-footer a{color:rgba(255,255,255,.75);text-decoration:none}
+@media(max-width:760px){.site-nav{align-items:flex-start;padding:10px 12px}.site-links>a,.site-dropdown>summary{font-size:.72rem;padding:6px}.site-links .desktop-extra{display:none}.site-dropdown-menu{position:fixed;top:54px;right:10px;left:10px}}
 </style>
 </head>
 <body>
-
 <nav class="site-nav" aria-label="Navigazione principale">
-  <a href="./" class="site-logo">🏋️ GymSheet</a>
-  <div class="site-links">
-    <a href="./">Home</a>
-    <a href="editor_scheda.html">Editor</a>
-    <details class="site-dropdown">
-      <summary class="active">Converter ▾</summary>
-      <div class="site-dropdown-menu">
-        <a href="converter.html" class="active">📄 Tradizionale PDF</a>
-        <a href="converter_universale.html">✨ Conversione AI</a>
-      </div>
-    </details>
-    <a href="istruzioni_template.html">Guida</a>
-    <a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a>
-    <a class="desktop-extra" href="landing.html#prezzi">Prezzi</a>
-    <a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a>
-  </div>
+<a href="./" class="site-logo">🏋️ GymSheet</a><div class="site-links"><a href="./">Home</a><a href="editor_scheda.html">Editor</a><details class="site-dropdown"><summary class="active">Converter ▾</summary><div class="site-dropdown-menu"><a href="converter.html" class="active">📄 Tradizionale PDF</a><a href="converter_universale.html">✨ Conversione AI</a></div></details><a href="istruzioni_template.html">Guida</a><a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a><a class="desktop-extra" href="landing.html#prezzi">Prezzi</a><a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a></div>
 </nav>
-
-<div class="main">
-
-<div class="page-header">
-  <h1>Scheda Palestra Converter</h1>
-  <p>Carica un file Excel GymSheet o un PDF tabellare compatibile e controlla il risultato nell’editor prima di generare l’app. Il PDF deve rispettare la struttura descritta nella <a href="istruzioni_template.html#formato-tradizionale">Guida alla conversione tradizionale</a>.</p>
-</div>
-
-<div class="card">
-  <div class="drop-zone" id="drop-zone">
-    <input type="file" id="pdf-input" accept=".pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-    <div class="drop-icon">📄</div>
-    <div class="drop-label">Carica Excel o PDF della scheda</div>
-    <div class="drop-hint">Clicca o trascina qui il file</div>
-  </div>
-
-  <div id="status-area">
-    <div class="status-row">
-      <span class="status-icon" id="status-icon">⏳</span>
-      <span id="status-text">Elaborazione in corso…</span>
-    </div>
-    <div class="log" id="log"></div>
-  </div>
-  <button id="reset-btn" onclick="resetAll()">↩ Converti un altro file</button>
-</div>
-
-</div><!-- /main -->
-
-<footer class="app-footer">
-  <a href="landing.html">🏠 Home</a>
-  <a href="editor_scheda.html">✏️ Editor</a>
-  <a href="converter.html">📄 Converter</a>
-  <a href="istruzioni_template.html">📋 Guida</a>
-</footer>
-
-<div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation">
-  <div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title">
-    <button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button>
-    <h2 id="ui-dialog-title"></h2>
-    <div class="ui-dialog-message" id="ui-dialog-message"></div>
-    <input class="ui-dialog-input" id="ui-dialog-input" style="display:none">
-    <div class="ui-dialog-actions" id="ui-dialog-actions"></div>
-  </div>
-</div>
-
-<!-- PDF.js -->
+<main class="main"><div class="page-header"><h1>Scheda Palestra Converter</h1><p>Carica un file Excel GymSheet o un PDF tabellare compatibile. Il risultato verrà aperto nell’editor, dove potrai controllarlo e correggerlo prima di generare l’app.</p></div><section class="card"><div class="drop-zone" id="drop-zone"><input type="file" id="file-input" accept=".pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"><div class="drop-icon">📄</div><div class="drop-label">Carica Excel o PDF della scheda</div><div class="drop-hint">Seleziona o trascina qui il file</div></div><div id="status-area"><div class="status-row"><span id="status-icon">⏳</span><span id="status-text">Elaborazione in corso…</span></div><div class="log" id="log"></div></div><button id="reset-btn" type="button">↩ Converti un altro file</button></section></main>
+<footer class="app-footer"><a href="landing.html">🏠 Home</a><a href="editor_scheda.html">✏️ Editor</a><a href="converter.html">📄 Converter</a><a href="istruzioni_template.html">📋 Guida</a></footer>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-let generatedHtml = null;
-let generatedPreviewHtml = null;
-let generatedFilename = 'scheda.html';
-
-// ── UI helpers ─────────────────────────────────────────────────────────────
-function log(msg, cls = '') {
-  const el = document.getElementById('log');
-  const line = document.createElement('div');
-  if (cls) line.className = cls;
-  line.textContent = msg;
-  el.appendChild(line);
-  el.scrollTop = el.scrollHeight;
-}
-
-function setStatus(icon, text) {
-  document.getElementById('status-icon').textContent = icon;
-  document.getElementById('status-text').textContent  = text;
-}
-
-function showSection(id) {
-  document.getElementById(id).style.display = 'block';
-}
-
-function resetAll() {
-  generatedHtml = null;
-  generatedPreviewHtml = null;
-  document.getElementById('status-area').style.display = 'none';
-  document.getElementById('result-area').style.display = 'none';
-  document.getElementById('reset-btn').style.display   = 'none';
-  document.getElementById('log').innerHTML = '';
-  document.getElementById('pdf-input').value = '';
-}
-
-// ── File input ─────────────────────────────────────────────────────────────
-const dropZone = document.getElementById('drop-zone');
-const pdfInput = document.getElementById('pdf-input');
-
-pdfInput.addEventListener('change', e => {
-  if (e.target.files[0]) processFile(e.target.files[0]);
-});
-
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f && (/\.(pdf|xlsx)$/i.test(f.name))) processFile(f);
-  else uiAlert('Seleziona un file Excel .xlsx o PDF.');
-});
-
-// ── Main processing ────────────────────────────────────────────────────────
-async function processFile(file) {
-  resetAll();
-  showSection('status-area');
-  setStatus('⏳', `Lettura: ${file.name}`);
-  log(`📄 File: ${file.name} (${(file.size/1024).toFixed(0)} KB)`, 'info');
-
-  const baseName = file.name.replace(/\.(pdf|xlsx)$/i, '');
-  generatedFilename = slugify(baseName) + '.html';
-
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    log('🔍 Estrazione testo dal PDF…');
-
-    let table, colLabels;
-    if (/\.xlsx$/i.test(file.name)) {
-      log('📊 Lettura foglio Excel…');
-      ({ table, colLabels } = workbookToLegacy(arrayBuffer));
-    } else {
-      log('🔍 Estrazione testo dal PDF…');
-      const texts = await extractTexts(arrayBuffer);
-      log(`✅ Estratti ${texts.texts.length} elementi di testo`, 'ok');
-      log('📊 Ricostruzione tabella…');
-      ({ table, colLabels } = buildTable(texts.texts, texts.links));
-    }
-    log(`✅ Trovate ${table.length} righe`, 'ok');
-
-    log('🧩 Parsing esercizi…');
-    const { meta, programs, progKeys, progLabels } = parseRows(table, colLabels, baseName);
-    const counts = progKeys.map((key,index)=>{
-      const total=(programs[key]||[]).reduce((sum,section)=>sum+(section.exercises||[]).length,0);
-      return `Prog ${progLabels[index]}: ${total}`;
-    });
-    if(progKeys.every(key=>!(programs[key]||[]).some(section=>(section.exercises||[]).length)){
-      throw new Error('Nessun esercizio trovato. Controlla la struttura del file.');
-    }
-    log(`✅ ${counts.join(' | ')}`,'ok');
-    setStatus('✅','Conversione completata. Apertura dell’editor…');
-    openDeterministicResultInEditor(meta,programs,progKeys,progLabels,file.name,counts);
-  } catch (err) {
-    setStatus('❌', 'Errore durante la conversione');
-    log('❌ ' + err.message, 'err');
-    console.error(err);
-  }
-}
-
-function workbookToLegacy(arrayBuffer){
-  const workbook=XLSX.read(arrayBuffer,{type:'array'});
-  const sheet=workbook.Sheets['Scheda']||workbook.Sheets[workbook.SheetNames[0]];
-  const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});
-  if(matrix.length<2)throw new Error('Il foglio Scheda è vuoto');
-  const headers=matrix[0].map(v=>String(v||'').trim());
-  const norm=v=>String(v||'').trim().toLowerCase().replace(/\s*\*\s*$/,'');
-  const sectionIdx=headers.findIndex(v=>norm(v)==='sezione');
-  const exerciseIdx=headers.findIndex(v=>norm(v)==='esercizio');
-  const linkIdx=headers.findIndex(v=>/^(link|link video|video|youtube|url)$/i.test(String(v).trim()));
-  const progIdx=headers.map((v,i)=>({v,i})).filter(x=>/^(prog|programma)\s+/i.test(x.v));
-  if(sectionIdx<0||exerciseIdx<0||!progIdx.length)throw new Error('Servono le colonne Sezione, Esercizio e almeno un programma');
-  const colLabels=['Esercizio',...progIdx.map(x=>x.v),...(linkIdx>=0?['Link']:[])];
-  const table=[];let previousSection=null;
-  for(const row of matrix.slice(1)){
-    const name=String(row[exerciseIdx]||'').trim();if(!name)continue;
-    const section=String(row[sectionIdx]||'').trim()||'Generale';
-    if(section!==previousSection){table.push(['',section,...progIdx.slice(1).map(()=>''),...(linkIdx>=0?['']:[])]);previousSection=section}
-    table.push([name,...progIdx.map(x=>String(row[x.i]||'').trim()),...(linkIdx>=0?[String(row[linkIdx]||'').trim()]:[])]);
-  }
-  return {table,colLabels};
-}
-
-// ── PDF text extraction ────────────────────────────────────────────────────
-async function extractTexts(arrayBuffer) {
-  const pdf  = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const texts = [];
-  const links = []; // {x1, y1, x2, y2, url}
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page    = await pdf.getPage(p);
-    const content = await page.getTextContent();
-    for (const item of content.items) {
-      if (!item.str || !item.str.trim()) continue;
-      texts.push({
-        str: item.str.trim(),
-        x:   Math.round(item.transform[4] * 10) / 10,
-        y:   Math.round(item.transform[5] * 10) / 10,
-        w:   item.width
-      });
-    }
-    // Extract hyperlink annotations (URLs embedded as PDF links, not visible text)
-    try {
-      const annotations = await page.getAnnotations();
-      for (const ann of annotations) {
-        if (ann.subtype === 'Link' && ann.url) {
-          const [x1, y1, x2, y2] = ann.rect;
-          links.push({ x1, y1, x2, y2, url: ann.url });
-        }
-      }
-    } catch (_) { /* annotation extraction is best-effort */ }
-  }
-  return { texts, links };
-}
-
-// ── Table reconstruction ───────────────────────────────────────────────────
-function buildTable(texts, links = []) {
-  // Group by Y with tolerance ±3 pts
-  const TOL = 3;
-  const rowMap = {};
-  for (const t of texts) {
-    let found = null;
-    for (const yk of Object.keys(rowMap)) {
-      if (Math.abs(parseFloat(yk) - t.y) <= TOL) { found = yk; break; }
-    }
-    const key = found || String(t.y);
-    if (!rowMap[key]) rowMap[key] = { y: t.y, items: [] };
-    rowMap[key].items.push(t);
-  }
-
-  // Sort rows top-to-bottom (descending Y in PDF coords)
-  const rows = Object.values(rowMap).sort((a, b) => b.y - a.y);
-
-  // Find header row
-  const headerIdx = rows.findIndex(r =>
-    r.items.some(t => /esercizio/i.test(t.str))
-  );
-  if (headerIdx === -1) throw new Error('Intestazione tabella non trovata. Assicurati che la prima colonna si chiami "Esercizio".');
-
-  // Build column boundaries from header items
-  const headerItems = [...rows[headerIdx].items].sort((a, b) => a.x - b.x);
-  const colDefs = [];
-  for (const item of headerItems) {
-    const last = colDefs[colDefs.length - 1];
-    if (last && Math.abs(last.x - item.x) < 5) {
-      last.str += ' ' + item.str;
-      last.xEnd = Math.max(last.xEnd, item.x + item.w);
-    } else {
-      colDefs.push({ x: item.x, xEnd: item.x + item.w, str: item.str });
-    }
-  }
-
-  // Midpoint boundaries between columns
-  const boundaries = [];
-  for (let i = 0; i < colDefs.length - 1; i++) {
-    boundaries.push((colDefs[i].xEnd + colDefs[i + 1].x) / 2);
-  }
-
-  // Convert each data row to array of cell strings
-  const table = [];
-  for (let i = headerIdx + 1; i < rows.length; i++) {
-    const rowItems = [...rows[i].items].sort((a, b) => a.x - b.x);
-    const cells = new Array(colDefs.length).fill('');
-    for (const item of rowItems) {
-      let colIdx = colDefs.length - 1;
-      for (let b = 0; b < boundaries.length; b++) {
-        if (item.x < boundaries[b]) { colIdx = b; break; }
-      }
-      cells[colIdx] = (cells[colIdx] + ' ' + item.str).trim();
-    }
-    table.push(cells);
-  }
-
-  // Inject annotation URLs into last column where cell is empty or already has a URL
-  // (covers PDFs where link text is an annotation, not visible text)
-  if (links.length > 0) {
-    for (let i = 0; i < table.length; i++) {
-      const rowY = rows[headerIdx + 1 + i].y;
-      const lastCol = table[i].length - 1;
-      if (/^https?:\/\//i.test(table[i][lastCol])) continue; // already has URL text
-      for (const lnk of links) {
-        const linkMidY = (lnk.y1 + lnk.y2) / 2;
-        if (Math.abs(linkMidY - rowY) <= 12) {
-          table[i][lastCol] = lnk.url;
-          break;
-        }
-      }
-    }
-  }
-
-  return { table, colLabels: colDefs.map(c => c.str) };
-}
-
-// ── Parse table rows into programs ────────────────────────────────────────
-function parseRows(rows, colLabels, baseName) {
-  const weeksMatch = rows.flat().join(' ').match(/Settimana[^\n·,]*/i);
-  const meta = {
-    title:  baseName,
-    weeks:  weeksMatch ? weeksMatch[0].trim() : ''
-  };
-
-  // Detect link column: header must contain link/video/youtube/url keyword
-  // OR last column cells contain URLs
-  const lastColIdx = colLabels.length - 1;
-  const headerSaysLink = colLabels.length > 1 && /link|video|youtube|youtu|url/i.test(colLabels[lastColIdx]);
-  const lastColHasUrls = rows.some(r => /^https?:\/\//i.test((r[lastColIdx] || '').trim()));
-  const lastColIsLink = headerSaysLink || lastColHasUrls;
-  const linkColIdx = lastColIsLink ? lastColIdx : -1;
-
-  // Program columns: col[1] to col[last-1] (if link col) or col[last]
-  const progColCount = colLabels.length - 1 - (lastColIsLink ? 1 : 0);
-  const KEYS = 'abcdefghijklmnopqrstuvwxyz';
-  const progKeys = Array.from({ length: progColCount }, (_, i) => KEYS[i] || String(i));
-
-  const progLabels = colLabels.slice(1, lastColIsLink ? -1 : undefined).map((lbl, i) => {
-    const m = lbl.match(/(?:prog(?:ramma?)?\s*)?([A-Z0-9]+)\s*$/i);
-    return m ? m[1].toUpperCase() : KEYS[i].toUpperCase();
-  });
-
-  const programs = Object.fromEntries(progKeys.map(k => [k, []]));
-  let currentSection = { name: 'Generale', type: 'misc' };
-  const idCounter = {};
-
-  function makeId(prog, name) {
-    const slug = prog + '-' + slugify(name).slice(0, 30);
-    idCounter[slug] = (idCounter[slug] || 0) + 1;
-    return idCounter[slug] > 1 ? slug + '-' + idCounter[slug] : slug;
-  }
-
-  function getSection(progKey) {
-    const list = programs[progKey];
-    if (!list.length || list[list.length - 1].section !== currentSection.name) {
-      list.push({ section: currentSection.name, stype: currentSection.type, exercises: [] });
-    }
-    return list[list.length - 1];
-  }
-
-  const isUrl = v => /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test((v||'').trim()) || /^https?:\/\//i.test((v||'').trim());
-  const normalizeUrl = v => { const x=(v||'').trim(); return isUrl(x) && !/^https?:\/\//i.test(x) ? 'https://'+x : x; };
-
-  for (const row of rows) {
-    const name = (row[0] || '').trim();
-    const progVals = progKeys.map((_, i) => (row[i + 1] || '').trim());
-    const linkCell = linkColIdx >= 0 ? (row[linkColIdx] || '').trim() : '';
-    // Il testo del link può essere estratto da PDF.js in una colonna programma.
-    const rowUrl = row.slice(1).find(isUrl) || '';
-    const effectiveLink = normalizeUrl(isUrl(linkCell) ? linkCell : rowUrl);
-
-    // Section header: col0 empty, col1 has text, col2 absent/empty
-    if (!name && progVals[0] && !isUrl(progVals[0]) && (!row[2] || (row[2] || '').trim() === '')) {
-      currentSection = { name: progVals[0], type: sectionType(progVals[0]) };
-      continue;
-    }
-
-    // Section header in any prog column (e.g. col2 for Prog B sections)
-    if (!name && progVals.some(v => v && !isUrl(v))) {
-      const sectionName = progVals.find(v => v && !isUrl(v));
-      if (sectionName) {
-        currentSection = { name: sectionName, type: sectionType(sectionName) };
-        continue;
-      }
-    }
-
-    if (!name) continue;
-    if (/vietata|copyright|physio/i.test(name)) continue;
-
-    for (let i = 0; i < progKeys.length; i++) {
-      const val = progVals[i];
-      if (!val || isUrl(val)) continue;
-      getSection(progKeys[i]).exercises.push({
-        id:     makeId(progKeys[i], name),
-        name:   name,
-        params: val,
-        link:   effectiveLink
-      });
-    }
-  }
-
-  return { meta, programs, progKeys, progLabels };
-}
-
-// ── Utility ────────────────────────────────────────────────────────────────
-function slugify(s) {
-  return s.toLowerCase()
-    .replace(/[àáâã]/g,'a').replace(/[èéê]/g,'e').replace(/[ìí]/g,'i')
-    .replace(/[òó]/g,'o').replace(/[ùú]/g,'u')
-    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
-}
-
-function sectionType(name) {
-  const n = name.toLowerCase();
-  if (/warm|riscaldamento/.test(n)) return 'warmup';
-  if (/inferior|basso|gamb|quad|leg/.test(n)) return 'lower';
-  if (/superior|alto|petto|schiena|spalle|braccia/.test(n)) return 'upper';
-  return 'misc';
-}
-
-// ── Passaggio della conversione deterministica all'editor ─────────────────────
+'use strict';
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const EDITOR_DRAFT_KEY='editor_scheda_draft';
 const IMPORT_REPORT_KEY='editor_scheda_import_report';
+const dropZone=document.getElementById('drop-zone');
+const fileInput=document.getElementById('file-input');
 
-function deterministicResultToEditorDraft(meta,programs,progKeys,progLabels,sourceFile){
-  const sectionMap=new Map(),sectionOrder=[];
-  let sectionCounter=0,exerciseCounter=0;
-  progKeys.forEach((progKey,programIndex)=>{
-    for(const sourceSection of programs[progKey]||[]){
-      const sectionName=String(sourceSection.section||'Generale').trim()||'Generale';
-      const sectionKey=sectionName.toLocaleLowerCase('it');
-      if(!sectionMap.has(sectionKey)){
-        const section={id:++sectionCounter,name:sectionName,open:true,exercises:[]};
-        sectionMap.set(sectionKey,{section,exerciseMap:new Map()});
-        sectionOrder.push(sectionKey);
-      }
-      const target=sectionMap.get(sectionKey);
-      for(const sourceExercise of sourceSection.exercises||[]){
-        const name=String(sourceExercise.name||'').trim();
-        if(!name)continue;
-        const exerciseKey=name.toLocaleLowerCase('it');
-        let exercise=target.exerciseMap.get(exerciseKey);
-        if(!exercise){
-          exercise={id:++exerciseCounter,name,progs:Array(progLabels.length).fill(''),link:''};
-          target.exerciseMap.set(exerciseKey,exercise);
-          target.section.exercises.push(exercise);
-        }
-        exercise.progs[programIndex]=String(sourceExercise.params||'').trim();
-        if(!exercise.link&&sourceExercise.link)exercise.link=String(sourceExercise.link).trim();
-      }
-    }
-  });
-  const sections=sectionOrder.map(key=>sectionMap.get(key).section).filter(section=>section.exercises.length);
-  if(!sections.length)throw new Error('La conversione non contiene esercizi validi');
-  return {
-    title:String(meta?.title||sourceFile||'Scheda Palestra').replace(/\.[^.]+$/,''),
-    weeks:String(meta?.weeks||''),progLabels:[...progLabels],sections,
-    _sc:sectionCounter,_ec:exerciseCounter,_source:'deterministic',_schemaVersion:'1.0'
-  };
+function log(message,cssClass=''){const line=document.createElement('div');if(cssClass)line.className=cssClass;line.textContent=message;document.getElementById('log').appendChild(line)}
+function setStatus(icon,text){document.getElementById('status-icon').textContent=icon;document.getElementById('status-text').textContent=text}
+function resetAll(){document.getElementById('status-area').style.display='none';document.getElementById('reset-btn').style.display='none';document.getElementById('log').innerHTML='';fileInput.value=''}
+function slugify(value){return String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)}
+function sectionType(name){const value=String(name||'').toLowerCase();if(/warm|riscaldamento/.test(value))return'warmup';if(/inferior|basso|gamb|quad|leg/.test(value))return'lower';if(/superior|alto|petto|schiena|spalle|braccia/.test(value))return'upper';return'misc'}
+function isUrl(value){return /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(String(value||'').trim())||/^https?:\/\//i.test(String(value||'').trim())}
+function normalizeUrl(value){const text=String(value||'').trim();return isUrl(text)&&!/^https?:\/\//i.test(text)?'https://'+text:text}
+
+fileInput.addEventListener('change',event=>{const file=event.target.files[0];if(file)processFile(file)});
+dropZone.addEventListener('dragover',event=>{event.preventDefault();dropZone.classList.add('drag-over')});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',event=>{event.preventDefault();dropZone.classList.remove('drag-over');const file=event.dataTransfer.files[0];if(file&&/\.(pdf|xlsx)$/i.test(file.name))processFile(file);else alert('Seleziona un file Excel .xlsx o PDF.')});
+document.getElementById('reset-btn').addEventListener('click',resetAll);
+
+async function processFile(file){
+ resetAll();document.getElementById('status-area').style.display='block';setStatus('⏳',`Lettura: ${file.name}`);log(`📄 File: ${file.name} (${Math.ceil(file.size/1024)} KB)`,'info');
+ const baseName=file.name.replace(/\.(pdf|xlsx)$/i,'');
+ try{
+  const arrayBuffer=await file.arrayBuffer();let table,colLabels;
+  if(/\.xlsx$/i.test(file.name)){log('📊 Lettura foglio Excel…');({table,colLabels}=workbookToTable(arrayBuffer))}
+  else{log('🔍 Estrazione testo dal PDF…');const source=await extractTexts(arrayBuffer);log(`✅ Estratti ${source.texts.length} elementi di testo`,'ok');({table,colLabels}=buildTable(source.texts,source.links))}
+  log(`✅ Trovate ${table.length} righe`,'ok');log('🧩 Preparazione della bozza…');
+  const {meta,programs,progKeys,progLabels}=parseRows(table,colLabels,baseName);
+  const counts=progKeys.map((key,index)=>{const total=(programs[key]||[]).reduce((sum,section)=>sum+(section.exercises||[]).length,0);return`Prog ${progLabels[index]}: ${total}`});
+  if(progKeys.every(key=>!(programs[key]||[]).some(section=>(section.exercises||[]).length)))throw new Error('Nessun esercizio trovato. Controlla la struttura del file.');
+  const draft=resultToEditorDraft(meta,programs,progKeys,progLabels,file.name);
+  localStorage.setItem(EDITOR_DRAFT_KEY,JSON.stringify(draft));localStorage.setItem(IMPORT_REPORT_KEY,JSON.stringify({createdAt:new Date().toISOString(),source:'deterministic',sourceFile:file.name,counts}));
+  log(`✅ ${counts.join(' | ')}`,'ok');setStatus('✅','Conversione completata. Apertura dell’editor…');location.href='editor_scheda.html?source=deterministic';
+ }catch(error){setStatus('❌','Errore durante la conversione');log('❌ '+(error.message||String(error)),'err');document.getElementById('reset-btn').style.display='block';console.error(error)}
 }
 
-function openDeterministicResultInEditor(meta,programs,progKeys,progLabels,sourceFile,counts){
-  const draft=deterministicResultToEditorDraft(meta,programs,progKeys,progLabels,sourceFile);
-  localStorage.setItem(EDITOR_DRAFT_KEY,JSON.stringify(draft));
-  localStorage.setItem(IMPORT_REPORT_KEY,JSON.stringify({
-    createdAt:new Date().toISOString(),source:'deterministic',sourceFile:sourceFile||'',counts:counts||[]
-  }));
-  location.href='editor_scheda.html?source=deterministic';
+function workbookToTable(arrayBuffer){
+ const workbook=XLSX.read(arrayBuffer,{type:'array'});const sheet=workbook.Sheets.Scheda||workbook.Sheets[workbook.SheetNames[0]];const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});if(matrix.length<2)throw new Error('Il foglio Scheda è vuoto');
+ const headers=matrix[0].map(value=>String(value||'').trim());const norm=value=>String(value||'').trim().toLowerCase().replace(/\s*\*\s*$/,'');const sectionIndex=headers.findIndex(value=>norm(value)==='sezione');const exerciseIndex=headers.findIndex(value=>norm(value)==='esercizio');const linkIndex=headers.findIndex(value=>/^(link|link video|video|youtube|url)$/i.test(String(value).trim()));const programIndexes=headers.map((value,index)=>({value,index})).filter(item=>/^(prog|programma)\s+/i.test(item.value));
+ if(sectionIndex<0||exerciseIndex<0||!programIndexes.length)throw new Error('Servono le colonne Sezione, Esercizio e almeno un programma');
+ const colLabels=['Esercizio',...programIndexes.map(item=>item.value),...(linkIndex>=0?['Link']:[])];const table=[];let previousSection=null;
+ for(const row of matrix.slice(1)){const name=String(row[exerciseIndex]||'').trim();if(!name)continue;const section=String(row[sectionIndex]||'').trim()||'Generale';if(section!==previousSection){table.push(['',section,...programIndexes.slice(1).map(()=>''),...(linkIndex>=0?['']:[])]);previousSection=section}table.push([name,...programIndexes.map(item=>String(row[item.index]||'').trim()),...(linkIndex>=0?[String(row[linkIndex]||'').trim()]:[])])}
+ return{table,colLabels};
 }
 
-// La generazione e il pagamento sono gestiti esclusivamente da editor_scheda.html.
-function uiDialog(options={}){
-  const overlay=document.getElementById('ui-dialog-overlay');
-  if(!overlay)return Promise.resolve(options.cancelText?false:true);
-  const title=document.getElementById('ui-dialog-title'),message=document.getElementById('ui-dialog-message'),input=document.getElementById('ui-dialog-input'),actions=document.getElementById('ui-dialog-actions'),close=overlay.querySelector('.ui-dialog-close');
-  title.textContent=options.title||'GymSheet';message.innerHTML=options.html||uiEscape(options.message||'');actions.innerHTML='';
-  input.style.display=options.input?'block':'none';input.type=options.inputType||'text';input.value=options.inputValue||'';input.placeholder=options.inputPlaceholder||'';
-  return new Promise(resolve=>{
-    let done=false;const finish=value=>{if(done)return;done=true;overlay.classList.remove('open');document.removeEventListener('keydown',onKey);setTimeout(()=>{overlay.style.display='none'},170);resolve(value)};
-    const onKey=e=>{if(e.key==='Escape')finish(options.input?null:false);if(e.key==='Enter'&&options.input)finish(input.value.trim())};document.addEventListener('keydown',onKey);
-    const add=(label,value,cls)=>{const b=document.createElement('button');b.type='button';b.className='ui-dialog-btn '+cls;b.textContent=label;b.onclick=()=>finish(value==='__input__'?input.value.trim():value);actions.appendChild(b)};
-    if(options.cancelText)add(options.cancelText,false,'secondary');add(options.confirmText||'OK',options.input?'__input__':true,options.tone||'primary');
-    close.onclick=()=>finish(options.input?null:false);overlay.onclick=e=>{if(e.target===overlay)finish(options.input?null:false)};
-    overlay.style.display='flex';requestAnimationFrame(()=>overlay.classList.add('open'));setTimeout(()=>{(options.input?input:actions.querySelector('.primary,.success,.danger,.ui-dialog-btn'))?.focus()},30);
-  });
-}
-function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function uiAlert(message,title='GymSheet'){return uiDialog({title,message,confirmText:'Chiudi'})}
-function uiConfirm(message,title='Conferma',tone='primary'){return uiDialog({title,message,cancelText:'Annulla',confirmText:'Continua',tone})}
-function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({title,message,input:true,inputPlaceholder:placeholder,cancelText:'Annulla',confirmText:'Continua'})}
+async function extractTexts(arrayBuffer){const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;const texts=[],links=[];for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){const page=await pdf.getPage(pageNumber);const content=await page.getTextContent();for(const item of content.items){if(!item.str||!item.str.trim())continue;texts.push({str:item.str.trim(),x:item.transform[4],y:item.transform[5],w:item.width})}try{for(const annotation of await page.getAnnotations()){if(annotation.subtype==='Link'&&annotation.url){const[x1,y1,x2,y2]=annotation.rect;links.push({x1,y1,x2,y2,url:annotation.url})}}}catch(_error){}}return{texts,links}}
+function buildTable(texts,links=[]){const tolerance=3,rowMap={};for(const text of texts){let key=Object.keys(rowMap).find(y=>Math.abs(Number(y)-text.y)<=tolerance);key=key||String(text.y);if(!rowMap[key])rowMap[key]={y:text.y,items:[]};rowMap[key].items.push(text)}const rows=Object.values(rowMap).sort((a,b)=>b.y-a.y);const headerIndex=rows.findIndex(row=>row.items.some(item=>/esercizio/i.test(item.str)));if(headerIndex<0)throw new Error('Intestazione tabella non trovata. La prima colonna deve chiamarsi Esercizio.');const headerItems=[...rows[headerIndex].items].sort((a,b)=>a.x-b.x),columns=[];for(const item of headerItems){const last=columns[columns.length-1];if(last&&Math.abs(last.x-item.x)<5){last.str+=' '+item.str;last.xEnd=Math.max(last.xEnd,item.x+item.w)}else columns.push({x:item.x,xEnd:item.x+item.w,str:item.str})}const boundaries=[];for(let index=0;index<columns.length-1;index++)boundaries.push((columns[index].xEnd+columns[index+1].x)/2);const table=[];for(let index=headerIndex+1;index<rows.length;index++){const cells=new Array(columns.length).fill('');for(const item of [...rows[index].items].sort((a,b)=>a.x-b.x)){let column=columns.length-1;for(let boundary=0;boundary<boundaries.length;boundary++){if(item.x<boundaries[boundary]){column=boundary;break}}cells[column]=(cells[column]+' '+item.str).trim()}const last=cells.length-1;if(!/^https?:\/\//i.test(cells[last])){const rowY=rows[index].y,link=links.find(candidate=>Math.abs((candidate.y1+candidate.y2)/2-rowY)<=12);if(link)cells[last]=link.url}table.push(cells)}return{table,colLabels:columns.map(column=>column.str)}}
+
+function parseRows(rows,colLabels,baseName){const meta={title:baseName,weeks:(rows.flat().join(' ').match(/Settimana[^\n·,]*/i)||[''])[0].trim()};const lastIndex=colLabels.length-1;const hasLinkHeader=colLabels.length>1&&/link|video|youtube|youtu|url/i.test(colLabels[lastIndex]);const hasLinkValues=rows.some(row=>/^https?:\/\//i.test(String(row[lastIndex]||'').trim()));const linkIndex=hasLinkHeader||hasLinkValues?lastIndex:-1;const programCount=colLabels.length-1-(linkIndex>=0?1:0);if(programCount<1)throw new Error('Nessuna colonna programma trovata');const keys='abcdefghijklmnopqrstuvwxyz';const progKeys=Array.from({length:programCount},(_value,index)=>keys[index]||String(index));const progLabels=colLabels.slice(1,linkIndex>=0?-1:undefined).map((label,index)=>{const match=String(label).match(/(?:prog(?:ramma?)?\s*)?([A-Z0-9]+)\s*$/i);return match?match[1].toUpperCase():(keys[index]||String(index)).toUpperCase()});const programs=Object.fromEntries(progKeys.map(key=>[key,[]]));let currentSection={name:'Generale',type:'misc'};const counters={};const makeId=(program,name)=>{const base=program+'-'+slugify(name);counters[base]=(counters[base]||0)+1;return counters[base]>1?base+'-'+counters[base]:base};const getSection=key=>{const list=programs[key];if(!list.length||list[list.length-1].section!==currentSection.name)list.push({section:currentSection.name,stype:currentSection.type,exercises:[]});return list[list.length-1]};for(const row of rows){const name=String(row[0]||'').trim();const values=progKeys.map((_key,index)=>String(row[index+1]||'').trim());const linkCell=linkIndex>=0?String(row[linkIndex]||'').trim():'';const rowLink=row.slice(1).find(isUrl)||'';const link=normalizeUrl(isUrl(linkCell)?linkCell:rowLink);if(!name&&values.some(value=>value&&!isUrl(value))){const section=values.find(value=>value&&!isUrl(value));currentSection={name:section,type:sectionType(section)};continue}if(!name||/vietata|copyright|physio/i.test(name))continue;for(let index=0;index<progKeys.length;index++){const prescription=values[index];if(!prescription||isUrl(prescription))continue;getSection(progKeys[index]).exercises.push({id:makeId(progKeys[index],name),name,params:prescription,link})}}return{meta,programs,progKeys,progLabels}}
+
+function resultToEditorDraft(meta,programs,progKeys,progLabels,sourceFile){const sectionMap=new Map(),order=[];let sectionCounter=0,exerciseCounter=0;progKeys.forEach((programKey,programIndex)=>{for(const sourceSection of programs[programKey]||[]){const sectionName=String(sourceSection.section||'Generale').trim()||'Generale',sectionKey=sectionName.toLocaleLowerCase('it');if(!sectionMap.has(sectionKey)){const section={id:++sectionCounter,name:sectionName,open:true,exercises:[]};sectionMap.set(sectionKey,{section,exerciseMap:new Map()});order.push(sectionKey)}const target=sectionMap.get(sectionKey);for(const sourceExercise of sourceSection.exercises||[]){const name=String(sourceExercise.name||'').trim();if(!name)continue;const exerciseKey=name.toLocaleLowerCase('it');let exercise=target.exerciseMap.get(exerciseKey);if(!exercise){exercise={id:++exerciseCounter,name,progs:Array(progLabels.length).fill(''),link:''};target.exerciseMap.set(exerciseKey,exercise);target.section.exercises.push(exercise)}exercise.progs[programIndex]=String(sourceExercise.params||'').trim();if(!exercise.link&&sourceExercise.link)exercise.link=String(sourceExercise.link).trim()}}});const sections=order.map(key=>sectionMap.get(key).section).filter(section=>section.exercises.length);if(!sections.length)throw new Error('La conversione non contiene esercizi validi');return{title:String(meta.title||sourceFile||'Scheda Palestra').replace(/\.[^.]+$/,''),weeks:String(meta.weeks||''),progLabels:[...progLabels],sections,_sc:sectionCounter,_ec:exerciseCounter,_source:'deterministic',_schemaVersion:'1.0'}}
 </script>
 </body>
 </html>
