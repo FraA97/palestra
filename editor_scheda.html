@@ -1055,10 +1055,9 @@ function renderExerciseCard(ex, stype, locked = false, sectionName = 'Generale')
     return `<span class="badge ${t}">${escHtml(txt)}</span>`;
   }).join('');
   const warnings = parsed.warnings.map(txt => `<span class="badge warning">${escHtml(txt)}</span>`).join('');
-  const badgesHtml = (badges || warnings) ? `<div class="badges" data-parse-status="${parsed.status}" data-original="${escHtml(parsed.original)}">${badges}${warnings}</div>` : '';
-  const noteArea = locked ? '' : `
-    <div class="note-label">📝 Note / Peso usato</div>
-    <textarea class="note-input" rows="1" placeholder="es. peso, note…" oninput="saveNote('${ex.id}',this.value)"></textarea>`;
+  const badgesHtml = (badges || warnings) ? `<div class="badges" data-parse-status="${parsed.status}" data-original="${escHtml(parsed.original)}">${badges}${warnings}</div>` : '';  const noteArea = locked ? '' : `
+    <div class="note-head"><div class="note-label">📝 Note / Peso usato</div><button type="button" class="history-note-btn" onclick="showProg('${ex.id}')">📚 Storico</button></div>
+    <textarea class="note-input" data-note-id="${ex.id}" rows="1" placeholder="es. peso, note…" oninput="saveNote('${ex.id}',this.value,this)"></textarea>`;
   return `  <div class="card ${stype}${locked ? ' card-locked' : ''}" id="${ex.id}" data-section="${escHtml(sectionName || 'Generale')}">
     <div class="card-top"><span class="exercise-name">${escHtml(ex.name)}</span>${ytBtn}</div>
     ${badgesHtml}${noteArea}
@@ -1185,6 +1184,19 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
   .note-label{font-size:.72rem;color:var(--muted);margin-top:10px;margin-bottom:4px;font-weight:500}
   .note-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85rem;background:#fafafa;color:var(--text);resize:none;font-family:inherit;transition:border-color .2s;min-height:38px}
   .note-input:focus{outline:none;border-color:#93c5fd;background:white}
+  .note-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+  .note-head .note-label{margin:0}
+  .history-note-btn{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:7px;padding:4px 8px;font-size:.7rem;font-weight:700;cursor:pointer}
+  .history-note-btn:active{background:#dbeafe}
+  .tracker-note-wrap{margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb}
+  .tracker-note-wrap label{display:block;font-size:.75rem;font-weight:700;color:#475569;margin-bottom:5px}
+  .tracker-note{width:100%;min-height:72px;border:1px solid #cbd5e1;border-radius:9px;padding:9px 10px;font:inherit;resize:vertical}
+  .tracker-note:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}
+  .workout-note-btn{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap}
+  .workout-note-btn.has-note{background:#f0fdf4;border-color:#86efac;color:#166534}
+  .session-general-note{margin:8px 0 4px;padding:9px 10px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:.8rem;line-height:1.45}
+  .session-card.just-saved{animation:newSessionPulse 2.4s ease;border:2px solid #22c55e}
+  @keyframes newSessionPulse{0%,35%{box-shadow:0 0 0 6px rgba(34,197,94,.22);transform:translateY(-2px)}100%{box-shadow:0 1px 4px rgba(0,0,0,.07);transform:none}}
 
   /* GYMSHEET_FIX_V3 */
   .note-input:placeholder-shown{border:2px solid #ef4444;background:#fff1f2}
@@ -1308,9 +1320,7 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
 
 <button class="quick-timer-btn" type="button" aria-label="Apri timer" title="Timer rapido" onclick="openTimerPicker()" style="${isPreview ? 'display:none' : ''}">⏱</button>
 <div class="workout-overlay" id="timer-picker" onclick="if(event.target===this)closeWorkoutOverlay('timer-picker')"><div class="workout-sheet"><div class="workout-sheet-head"><h2>Timer rapido</h2><button class="workout-close" onclick="closeWorkoutOverlay('timer-picker')">✕</button></div><div class="quick-times">${[30,45,60,90,120,180].map(v=>`<button class="quick-time" onclick="startQuickTimer(${v})">${v<60?v+'s':v/60+' min'}</button>`).join('')}</div><div class="custom-time"><input id="custom-timer-value" type="number" min="1" inputmode="numeric" placeholder="Valore"><select id="custom-timer-unit"><option value="1">secondi</option><option value="60">minuti</option></select><button onclick="startCustomTimer()">Avvia</button></div></div></div>
-<div class="workout-overlay" id="series-tracker" onclick="if(event.target===this)closeWorkoutOverlay('series-tracker')"><div class="workout-sheet"><div class="workout-sheet-head"><h2 id="series-tracker-title">Serie completate</h2><button class="workout-close" onclick="closeWorkoutOverlay('series-tracker')">✕</button></div><div class="tracker-summary" id="series-tracker-summary"></div><div class="series-list" id="series-tracker-list"></div><div class="tracker-rest-wrap" id="tracker-rest-wrap"><button class="tracker-rest-btn" id="tracker-rest-btn" onclick="startTrackerRest()">▶ Avvia recupero</button></div></div></div>
-
-<!-- Timer widget -->
+<div class="workout-overlay" id="series-tracker" onclick="if(event.target===this)closeWorkoutOverlay('series-tracker')"><div class="workout-sheet"><div class="workout-sheet-head"><h2 id="series-tracker-title">Serie completate</h2><button class="workout-close" onclick="closeWorkoutOverlay('series-tracker')">✕</button></div><div class="tracker-summary" id="series-tracker-summary"></div><div class="series-list" id="series-tracker-list"></div><div class="tracker-rest-wrap" id="tracker-rest-wrap"><button class="tracker-rest-btn" id="tracker-rest-btn" onclick="startTrackerRest()">▶ Avvia recupero</button></div><div class="tracker-note-wrap"><label for="series-tracker-note">📝 Nota / Peso usato</label><textarea class="tracker-note" id="series-tracker-note" placeholder="Aggiungi o modifica la nota dell’esercizio…" oninput="saveTrackerNote(this.value)"></textarea></div></div></div>  <!-- Timer widget -->
 <div class="timer-widget" id="timer-widget">
   <button class="timer-close" onclick="closeTimer()">✕</button>
   <div class="timer-display" id="timer-display">0:00</div>
@@ -1336,8 +1346,8 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
 </div>
 
 <div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation"><div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title"><button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button><h2 id="ui-dialog-title"></h2><div class="ui-dialog-message" id="ui-dialog-message"></div><input class="ui-dialog-input" id="ui-dialog-input" style="display:none"><div class="ui-dialog-actions" id="ui-dialog-actions"></div></div></div>
-<div class="footer-bar" id="footer-bar" style="${isPreview ? 'display:none' : ''}">
-  <small>Note salvate <span class="saved-dot" id="saved-dot"></span></small>
+<div class="footer-bar" id="footer-bar" style="${isPreview ? 'display:none' : ''}">  <small>Note salvate <span class="saved-dot" id="saved-dot"></span></small>
+  <button class="workout-note-btn" id="workout-note-btn" onclick="editWorkoutNote()">📝 Nota allenamento</button>
   <button class="save-btn" onclick="saveWorkout()">💾 Salva allenamento</button>
   <button class="reset-btn" onclick="resetNotes()">🗑</button>
   <div class="data-menu-wrap">
@@ -1381,9 +1391,9 @@ function uiDialog(options={}){
 function uiEscape(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function uiAlert(message,title='GymSheet'){return uiDialog({title,message,confirmText:'Chiudi'})}
 function uiConfirm(message,title='Conferma',tone='primary'){return uiDialog({title,message,cancelText:'Annulla',confirmText:'Continua',tone})}
-function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({title,message,input:true,inputPlaceholder:placeholder,cancelText:'Annulla',confirmText:'Continua'})}
-
-  let notes={}, currentTab=${firstKey};
+function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({title,message,input:true,inputPlaceholder:placeholder,cancelText:'Annulla',confirmText:'Continua'})}  let notes={}, currentTab=${firstKey};
+  const WK=NK+'_workout_note';
+  let workoutNote='';
   const _ls=(()=>{try{localStorage.setItem('_t','1');localStorage.removeItem('_t');return localStorage;}catch(e){const m={};return{getItem:k=>m[k]??null,setItem:(k,v)=>{m[k]=v;},removeItem:k=>{delete m[k];}};} })();
   /*GYMSHEET_DATA_START*/const EMBEDDED_DATA={"ts":0,"notes":{},"history":[]};/*GYMSHEET_DATA_END*/
 
@@ -1411,20 +1421,22 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     return uiConfirm('Attenzione: '+missing+' esercizi non hanno una nota.\\n\\nGli esercizi senza nota non saranno riportati come eseguiti nello storico.\\n\\nVuoi salvare comunque l’allenamento?','Allenamento incompleto');
   }
   window.addEventListener('pageshow',()=>{const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);}});
-
-  function loadNotes(){
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){const t=savedTabOr(currentTab);if(t!==currentTab)showTab(t);}});  function loadNotes(){
     if(!_ls.getItem(NK)&&Object.keys(EMBEDDED_DATA.notes).length){
       _ls.setItem(NK,JSON.stringify(EMBEDDED_DATA.notes));
     }
     try{notes=JSON.parse(_ls.getItem(NK)||'{}');}catch(e){notes={};}
+    workoutNote=_ls.getItem(WK)||'';
+    updateWorkoutNoteButton();
     document.querySelectorAll('.note-input').forEach(el=>{
-      const id=el.closest('.card').id; if(notes[id])el.value=notes[id];
+      const id=el.dataset.noteId||el.closest('.card')?.id;if(id&&notes[id])el.value=notes[id];
     });
   }
   let st=null;
-  function saveNote(id,v){
+  function saveNote(id,v,source=null){
     if(v.trim()==='')delete notes[id];else notes[id]=v;
+    document.querySelectorAll('.note-input[data-note-id="'+CSS.escape(id)+'"]').forEach(el=>{if(el!==source&&el.value!==v)el.value=v});
+    if(trackerCurrent&&trackerCurrent.cardId===id){const tracker=document.getElementById('series-tracker-note');if(tracker&&tracker!==source&&tracker.value!==v)tracker.value=v}
     clearTimeout(st);
     st=setTimeout(()=>{
       _ls.setItem(NK,JSON.stringify(notes));
@@ -1432,9 +1444,12 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
       d.classList.add('saved');setTimeout(()=>d.classList.remove('saved'),1500);
     },500);
   }
-  async function resetNotes(){
+  function saveTrackerNote(value){if(trackerCurrent)saveNote(trackerCurrent.cardId,value,document.getElementById('series-tracker-note'))}
+  function updateWorkoutNoteButton(){const button=document.getElementById('workout-note-btn');if(!button)return;button.classList.toggle('has-note',!!workoutNote.trim());button.textContent=workoutNote.trim()?'📝 Nota inserita':'📝 Nota allenamento'}
+  async function editWorkoutNote(){const value=await uiDialog({title:'Nota allenamento',message:'Nota facoltativa riferita all’allenamento in generale:',input:true,inputValue:workoutNote,inputPlaceholder:'es. energia, durata, sensazioni generali…',cancelText:'Annulla',confirmText:'Salva'});if(value===null)return;workoutNote=String(value).trim();if(workoutNote)_ls.setItem(WK,workoutNote);else _ls.removeItem(WK);updateWorkoutNoteButton()}  async function resetNotes(){
     if(!await uiConfirm('Azzera le note correnti?','Azzera note','danger'))return;
     notes={};_ls.removeItem(NK);
+    workoutNote='';_ls.removeItem(WK);updateWorkoutNoteButton();
     setProgress={};_ls.removeItem(TK);refreshSeriesProgress();
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
   }
@@ -1444,14 +1459,16 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     const now=new Date();
     const ds=now.toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
     const ts=now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
-    const sess={id:now.getTime(),date:ds,time:ts,program:prog,notes:{...notes}};
-    let h=loadHistory();h.unshift(sess);
-    _ls.setItem(HK,JSON.stringify(h));
+    const sess={id:now.getTime(),date:ds,time:ts,program:prog,notes:{...notes},generalNote:workoutNote};
+    const history=loadHistory();history.unshift(sess);
+    _ls.setItem(HK,JSON.stringify(history));
     notes={};_ls.removeItem(NK);
+    workoutNote='';_ls.removeItem(WK);updateWorkoutNoteButton();
     setProgress={};_ls.removeItem(TK);refreshSeriesProgress();
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
-    await uiAlert('\\u2705 Programma '+prog+' salvato!\\n'+ds+' alle '+ts, 'Allenamento salvato');
-    renderHistory();
+    showTab('storico');
+    renderHistory(sess.id);
+    await uiAlert('\\u2705 Programma '+prog+' salvato!\\n'+ds+' alle '+ts,'Allenamento salvato');
   }
   function loadHistory(){
     if(!_ls.getItem(HK)&&EMBEDDED_DATA.history.length){
@@ -1509,14 +1526,17 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     const m=document.getElementById('data-menu');
     if(m&&!m.contains(e.target)&&!e.target.closest('.data-menu-btn'))m.style.display='none';
   });
-  function renderHistory(){
-    const h=loadHistory(),c=document.getElementById('storico-content');
-    if(!h.length){c.innerHTML='<div class="storico-empty"><div style="font-size:2.5rem;margin-bottom:12px">\\u{1F4CB}</div><strong>Nessun allenamento salvato</strong><br><span style="font-size:.8rem">Premi &quot;Salva allenamento&quot; al termine</span></div>';return;}
-    c.innerHTML=h.map(s=>{
-      const exs=Object.entries(s.notes).filter(([,v])=>v.trim());
-      const rows=exs.map(([id,val])=>'<div class="session-ex" onclick="showProg(\\''+id+'\\')"><div style="display:flex;justify-content:space-between"><div><div class="session-ex-name">'+esc(EX[id]||id)+'</div><div class="session-ex-section">'+esc(EX_SECTION[id]||'Generale')+'</div></div><span style="font-size:.7rem;color:#93c5fd">&#9656;</span></div><div class="session-ex-note">'+esc(val)+'</div></div>').join('');
-      return '<div class="session-card"><div class="session-header" onclick="togSess(\\'sess-'+s.id+'\\')"><div class="session-meta"><div class="session-date">'+s.date+' \xb7 '+s.time+'</div><div class="session-sub">'+exs.length+' esercizi</div></div><span class="prog-badge '+s.program.toLowerCase()+'">Prog. '+s.program+'</span><span class="chevron" id="chev-'+s.id+'">&#9660;</span><button class="del-session-btn" onclick="delSess(event,'+s.id+')">&#128465;</button></div><div class="session-body" id="sess-'+s.id+'">'+(rows||'<div style="color:var(--muted);font-size:.8rem">Nessuna nota</div>')+'</div></div>';
+  function renderHistory(highlightId=null){
+    const history=loadHistory(),container=document.getElementById('storico-content');
+    if(!history.length){container.innerHTML='<div class="storico-empty"><div style="font-size:2.5rem;margin-bottom:12px">📋</div><strong>Nessun allenamento salvato</strong><br><span style="font-size:.8rem">Premi "Salva allenamento" al termine</span></div>';return;}
+    container.innerHTML=history.map(session=>{
+      const exerciseIds=Object.keys(session.notes||{}).filter(id=>String(session.notes[id]||'').trim());
+      const rows=exerciseIds.map(id=>'<div class="session-ex"><span>'+esc(EX[id]||id)+'</span><strong>'+esc(session.notes[id])+'</strong></div>').join('');
+      const general=session.generalNote?'<div class="session-general-note"><strong>Nota allenamento</strong><br>'+esc(session.generalNote)+'</div>':'';
+      const highlighted=highlightId===session.id?' just-saved':'';
+      return '<div class="session-card'+highlighted+'" data-session-id="'+session.id+'"><div class="session-header" onclick="togSess(\\'sess-'+session.id+'\\')"><div class="session-meta"><div class="session-date">'+session.date+' \\xb7 '+session.time+'</div><div class="session-sub">'+exerciseIds.length+' esercizi'+(session.generalNote?' · nota generale':'')+'</div></div><span class="prog-badge '+String(session.program||'').toLowerCase()+'">Prog. '+esc(session.program||'')+'</span><span class="chevron" id="chev-'+session.id+'">&#9660;</span><button class="del-session-btn" onclick="delSess(event,'+session.id+')">&#128465;</button></div><div class="session-body" id="sess-'+session.id+'">'+general+(rows||'<div style="color:var(--muted);font-size:.8rem">Nessuna nota esercizi</div>')+'</div></div>';
     }).join('');
+    if(highlightId){requestAnimationFrame(()=>{const card=container.querySelector('[data-session-id="'+highlightId+'"]');if(card){card.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>card.classList.remove('just-saved'),2600)}})}
   }
   function togSess(id){const b=document.getElementById(id),sid=id.replace('sess-',''),ch=document.getElementById('chev-'+sid);b.classList.toggle('open');if(ch)ch.classList.toggle('open');}
   async function delSess(e,id){e.stopPropagation();if(!await uiConfirm('Eliminare questo allenamento?','Elimina allenamento','danger'))return;_ls.setItem(HK,JSON.stringify(loadHistory().filter(s=>s.id!==id)));renderHistory();}
@@ -1579,8 +1599,8 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     document.getElementById('series-tracker-title').textContent=name;
     document.getElementById('series-tracker-summary').textContent=sets+' serie × '+reps+' ripetizioni · '+state.filter(Boolean).length+' completate';
     document.getElementById('series-tracker-list').innerHTML=state.map(function(done,i){return '<button class="series-check '+(done?'done':'')+'" aria-pressed="'+done+'" onclick="toggleTrackedSet('+i+')"><span>Serie '+(i+1)+'</span><span>'+(done?'✓ Completata':'Da fare')+'</span></button>'}).join('');
-    document.getElementById('tracker-rest-wrap').classList.toggle('show',restSeconds>0);
-    document.getElementById('tracker-rest-btn').textContent=restSeconds>0?'▶ Avvia recupero '+restSeconds+'s':'▶ Avvia recupero';
+    document.getElementById('tracker-rest-wrap').classList.toggle('show',restSeconds>0);    document.getElementById('tracker-rest-btn').textContent=restSeconds>0?'▶ Avvia recupero '+restSeconds+'s':'▶ Avvia recupero';
+    const trackerNote=document.getElementById('series-tracker-note');if(trackerNote)trackerNote.value=notes[cardId]||'';
     document.getElementById('series-tracker').classList.add('open');
   }
   function toggleTrackedSet(index){if(!trackerCurrent)return;const state=progressFor(trackerCurrent.id,trackerCurrent.sets);state[index]=!state[index];saveSetProgress();openSeriesTracker(trackerCurrent.id,trackerCurrent.sets,trackerCurrent.reps,trackerCurrent.restSeconds,trackerCurrent.cardId);if(state[index]&&trackerCurrent.restSeconds)document.getElementById('tracker-rest-btn').focus()}
