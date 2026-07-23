@@ -1172,6 +1172,7 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
   header{background:var(--primary);color:white;padding:16px 16px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
   header h1{font-size:1.1rem;font-weight:700;letter-spacing:.5px}
   header p{font-size:.8rem;opacity:.75;margin-top:2px}
+  .app-header-row{display:flex;justify-content:space-between;align-items:center;min-height:4px}.back-to-app{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 9px;font-size:.75rem;font-weight:700;cursor:pointer;margin-bottom:8px}.file-sync-state{font-size:.68rem;color:#64748b;line-height:1.25;max-width:145px}.file-sync-state.ok{color:#166534}.file-sync-state.warn{color:#92400e}
   .tabs{display:flex;margin-top:12px;gap:4px;overflow-x:auto}
   .tab-btn{flex:1;min-width:60px;padding:10px 6px;background:transparent;border:none;color:rgba(255,255,255,.65);font-size:.82rem;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
   ${dynTabCss}
@@ -1302,6 +1303,7 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
 </head>
 <body>
 <header>
+  <div class="app-header-row"><button id="back-to-gym-app" class="back-to-app" type="button" hidden onclick="location.href='../mie_schede.html'">‹ Le Mie Schede</button><span></span></div>
   <h1>🏋️ ${title}</h1>
   <p>${subtitle}</p>
   <div class="tabs">
@@ -1356,6 +1358,7 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
 
 <div class="ui-dialog-overlay" id="ui-dialog-overlay" role="presentation"><div class="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title"><button class="ui-dialog-close" type="button" aria-label="Chiudi">✕</button><h2 id="ui-dialog-title"></h2><div class="ui-dialog-message" id="ui-dialog-message"></div><input class="ui-dialog-input" id="ui-dialog-input" style="display:none"><div class="ui-dialog-actions" id="ui-dialog-actions"></div></div></div>
 <div class="footer-bar" id="footer-bar" style="${isPreview ? 'display:none' : ''}">  <small>Note salvate <span class="saved-dot" id="saved-dot"></span></small>
+  <span class="file-sync-state" id="file-sync-state">Backup HTML non collegato</span>
   <button class="workout-note-btn" id="workout-note-btn" onclick="editWorkoutNote()">＋ Nota</button>
   <button class="save-btn" onclick="saveWorkout()">💾 Salva allenamento</button>
   <button class="reset-btn" onclick="resetNotes()">🗑</button>
@@ -1364,6 +1367,7 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
     <div class="data-menu" id="data-menu">
       <button onclick="saveUpdatedHtml(true);toggleDataMenu()">💾 Salva / sincronizza HTML</button>
       <button onclick="saveUpdatedHtml(false);toggleDataMenu()">📥 Scarica copia HTML</button>
+      <button onclick="connectLocalHtmlFile();toggleDataMenu()">🔗 Collega file HTML locale</button>
     </div>
   </div>
 </div>
@@ -1477,6 +1481,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
     showTab('storico');
     renderHistory(sess.id);
+    await autoSyncAfterWorkout();
     await uiAlert('\\u2705 Programma '+prog+' salvato!\\n'+ds+' alle '+ts,'Allenamento salvato');
   }
   function loadHistory(){
@@ -1485,6 +1490,27 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     }
     try{return JSON.parse(_ls.getItem(HK)||'[]');}catch(e){return[];}}
   // ── Export / Import / Update file ─────────────────────────────────────────
+  let linkedFileHandle=null;
+  function setFileSyncState(text,tone=''){const el=document.getElementById('file-sync-state');if(!el)return;el.textContent=text;el.className='file-sync-state '+tone}
+  function openHandleDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('GymAppDB',2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('schede'))db.createObjectStore('schede',{keyPath:'id'});if(!db.objectStoreNames.contains('fileHandles'))db.createObjectStore('fileHandles',{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+  async function storeLinkedHandle(handle){const db=await openHandleDb();try{await new Promise((resolve,reject)=>{const tx=db.transaction('fileHandles','readwrite');tx.objectStore('fileHandles').put({id:pwaSheetId()||location.pathname,handle});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}finally{db.close()}}
+  async function restoreLinkedHandle(){if(!('showSaveFilePicker'in window)||!indexedDB)return;try{const db=await openHandleDb();linkedFileHandle=await new Promise((resolve,reject)=>{const req=db.transaction('fileHandles','readonly').objectStore('fileHandles').get(pwaSheetId()||location.pathname);req.onsuccess=()=>resolve(req.result?.handle||null);req.onerror=()=>reject(req.error)});db.close();if(linkedFileHandle){const state=await linkedFileHandle.queryPermission({mode:'readwrite'});setFileSyncState(state==='granted'?'Backup HTML collegato':'Ricollega backup HTML',state==='granted'?'ok':'warn')}}catch(error){console.warn('Ripristino file handle non disponibile',error)}}
+  async function connectLocalHtmlFile(){
+    if(!window.showSaveFilePicker){await uiAlert('Su questo browser il file non può essere sovrascritto direttamente. Usa “Scarica copia HTML” dopo l’allenamento.','Salvataggio file');return}
+    try{linkedFileHandle=await window.showSaveFilePicker({suggestedName:document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html',types:[{description:'Scheda GymSheet HTML',accept:{'text/html':['.html']}}]});await storeLinkedHandle(linkedFileHandle);await writeLinkedHtmlFile();setFileSyncState('Backup HTML collegato','ok');await uiAlert('File collegato. Da ora, quando salvi un allenamento, GymSheet proverà ad aggiornare automaticamente questo file.','Backup collegato')}catch(error){if(error?.name!=='AbortError'){console.warn(error);await uiAlert('Non è stato possibile collegare il file.','Salvataggio file')}}
+  }
+  async function writeLinkedHtmlFile(html=currentHtmlWithData()){
+    if(!linkedFileHandle)return false;
+    let permission=await linkedFileHandle.queryPermission({mode:'readwrite'});if(permission!=='granted')return false;
+    const writable=await linkedFileHandle.createWritable();await writable.write(html);await writable.close();setFileSyncState('Backup HTML aggiornato','ok');return true
+  }
+  async function autoSyncAfterWorkout(){
+    await syncPwaCopy().catch(console.warn);
+    if(linkedFileHandle){try{if(await writeLinkedHtmlFile())return}catch(error){console.warn('Sync file non riuscita',error)}}
+    setFileSyncState('Dati nell’app · aggiorna il backup HTML','warn');
+  }
+  function showOnlineNavigation(){const online=location.protocol==='https:'&&/\/schede\/[^/]+\.html$/.test(location.pathname);const button=document.getElementById('back-to-gym-app');if(button)button.hidden=!online}
+
   function currentHtmlWithData(){
     const payload={ts:Date.now(),notes:JSON.parse(_ls.getItem(NK)||'{}'),history:JSON.parse(_ls.getItem(HK)||'[]'),sets:JSON.parse(_ls.getItem(TK)||'{}'),workoutNote:_ls.getItem(WK)||''};
     let html='<!DOCTYPE html>\\n'+document.documentElement.outerHTML;
@@ -1503,7 +1529,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   async function saveUpdatedHtml(usePicker=true){
     const html=currentHtmlWithData();await syncPwaCopy(html).catch(console.warn);
     if(usePicker&&window.showSaveFilePicker){
-      try{const handle=await window.showSaveFilePicker({suggestedName:document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html',types:[{description:'Scheda GymSheet HTML',accept:{'text/html':['.html']}}]});const writer=await handle.createWritable();await writer.write(html);await writer.close();await uiAlert('✅ File HTML aggiornato sul dispositivo.');return}catch(error){if(error?.name==='AbortError')return;console.warn(error)}
+      try{const handle=await window.showSaveFilePicker({suggestedName:document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html',types:[{description:'Scheda GymSheet HTML',accept:{'text/html':['.html']}}]});linkedFileHandle=handle;await storeLinkedHandle(handle);const writer=await handle.createWritable();await writer.write(html);await writer.close();setFileSyncState('Backup HTML collegato','ok');await uiAlert('✅ File HTML aggiornato e collegato ai prossimi salvataggi.');return}catch(error){if(error?.name==='AbortError')return;console.warn(error)}
     }
     downloadCurrentHtml(html);await uiAlert('✅ Copia HTML aggiornata scaricata.');
   }
@@ -1626,7 +1652,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     runTimer(seconds,true);
   }
 
-  refreshSeriesProgress();
+  refreshSeriesProgress();showOnlineNavigation();restoreLinkedHandle();
   // ── Timer ──────────────────────────────────────────────────────────────────
   let _tmTotal=0,_tmLeft=0,_tmInterval=null,_tmRunning=false;
   function startTimer(secs){
