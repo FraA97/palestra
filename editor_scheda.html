@@ -1487,10 +1487,10 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   // ── Export / Import / Update file ─────────────────────────────────────────
   function currentHtmlWithData(){
     const payload={ts:Date.now(),notes:JSON.parse(_ls.getItem(NK)||'{}'),history:JSON.parse(_ls.getItem(HK)||'[]'),sets:JSON.parse(_ls.getItem(TK)||'{}'),workoutNote:_ls.getItem(WK)||''};
-    let html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
-    return html.replace(/\/\*GYMSHEET_DATA_START\*\/.*?\/\*GYMSHEET_DATA_END\*\//s,'/*GYMSHEET_DATA_START*/const EMBEDDED_DATA='+JSON.stringify(payload)+';/*GYMSHEET_DATA_END*/');
+    let html='<!DOCTYPE html>\\n'+document.documentElement.outerHTML;
+    return html.replace(/\\/\\*GYMSHEET_DATA_START\\*\\/.*?\\/\\*GYMSHEET_DATA_END\\*\\//s,'/*GYMSHEET_DATA_START*/const EMBEDDED_DATA='+JSON.stringify(payload)+';/*GYMSHEET_DATA_END*/');
   }
-  function pwaSheetId(){const match=location.pathname.match(/\/schede\/([^/]+)\.html$/);return match?decodeURIComponent(match[1]):null}
+  function pwaSheetId(){const match=location.pathname.match(/\\/schede\\/([^/]+)\\.html$/);return match?decodeURIComponent(match[1]):null}
   async function syncPwaCopy(html=currentHtmlWithData()){
     const id=pwaSheetId();if(!id||!indexedDB)return false;
     const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('GymAppDB',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});

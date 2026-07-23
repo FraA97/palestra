@@ -9,12 +9,16 @@ function download(html, filename) {
   const a = document.createElement('a'); a.href = url; a.download = safeFilename(filename);
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
-async function storeGenerated(html, filename, source = 'generated', shouldDownload = true) {
+async function storeGenerated(html, filename, source = 'generated', shouldDownload = true, shouldOpen = true) {
   const clean = safeFilename(filename);
   const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/<[^>]+>/g, '').trim() || clean.replace(/\.html$/i, '');
   const id = `${clean.replace(/\.html$/i, '').toLowerCase()}-${Date.now().toString(36)}`;
   const record = await salvaScheda(id, html, { filename: clean, title, source });
   if (shouldDownload) download(html, clean);
+  if (shouldOpen) {
+    if ('serviceWorker' in navigator) await navigator.serviceWorker.ready;
+    location.href = `./schede/${encodeURIComponent(record.id)}.html`;
+  }
   return record;
 }
 window.GymSheetPWA = { ...(window.GymSheetPWA || {}), storeGenerated, downloadHtml: download };

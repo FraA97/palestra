@@ -5,6 +5,8 @@ const list = document.getElementById('sheet-list');
 const statusBox = document.getElementById('app-status');
 const importInput = document.getElementById('import-html');
 const installButton = document.getElementById('install-app');
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 let deferredInstallPrompt = null;
 
 function setStatus(message, type = '') {
@@ -154,8 +156,9 @@ window.addEventListener('appinstalled', () => {
 });
 
 installButton?.addEventListener('click', async () => {
+  if (isStandalone) { setStatus('GymSheet è già installata sul dispositivo.', 'success'); return; }
   if (!deferredInstallPrompt) {
-    setStatus('Usa il menu del browser e scegli “Aggiungi alla schermata Home”.', 'info');
+    setStatus(isIos ? 'Su iPhone/iPad: apri questa pagina in Safari, tocca Condividi e scegli “Aggiungi alla schermata Home”.' : 'Apri il menu del browser e scegli “Installa app” oppure “Aggiungi alla schermata Home”.', 'info');
     return;
   }
   deferredInstallPrompt.prompt();
