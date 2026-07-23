@@ -1218,8 +1218,9 @@ function generateHtml(meta, programs, progKeys, progLabelsList, storageKey, isPr
   .session-ex-name{font-size:.82rem;font-weight:600}.session-ex-section{font-size:.68rem;color:#64748b;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.35px}.session-ex-note{font-size:.8rem;color:var(--muted);margin-top:3px}
   .prog-modal-section{display:inline-block;font-size:.68rem;color:#475569;background:#f1f5f9;border-radius:5px;padding:2px 6px;margin-top:4px;font-weight:600}
   .del-session-btn{background:transparent;border:none;font-size:1rem;cursor:pointer;padding:2px 4px;color:#9ca3af}
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end}.modal-overlay.open{display:flex}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4800;align-items:flex-end}.modal-overlay.open{display:flex}
   .modal-sheet{background:white;border-radius:18px 18px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:20px 16px 40px}
+  .modal-sheet.history-sheet{min-height:280px;padding-bottom:48px}
   .modal-title{font-size:1rem;font-weight:700;margin-bottom:4px}.modal-close{float:right;background:#f3f4f6;border:none;border-radius:50%;width:28px;height:28px;font-size:1rem;cursor:pointer;line-height:28px;text-align:center}
   .prog-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}.prog-row:last-child{border-bottom:none}
   .prog-row-date{font-size:.75rem;color:var(--muted);white-space:nowrap;padding-top:2px;min-width:80px}.prog-row-note{font-size:.85rem;font-weight:500}
@@ -1309,7 +1310,7 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
 </div>`}
 
 <div class="modal-overlay" id="prog-modal" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal-sheet">
+  <div class="modal-sheet history-sheet">
     <button class="modal-close" onclick="document.getElementById('prog-modal').classList.remove('open')">✕</button>
     <div class="modal-title" id="prog-modal-title"></div>
     <div style="font-size:.75rem;color:var(--muted);margin-bottom:14px" id="prog-modal-sub"></div>
@@ -1528,10 +1529,17 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   });
   function renderHistory(highlightId=null){
     const history=loadHistory(),container=document.getElementById('storico-content');
-    if(!history.length){container.innerHTML='<div class="storico-empty"><div style="font-size:2.5rem;margin-bottom:12px">📋</div><strong>Nessun allenamento salvato</strong><br><span style="font-size:.8rem">Premi "Salva allenamento" al termine</span></div>';return;}
+    if(!history.length){
+      container.innerHTML='<div class="storico-empty"><div style="font-size:2.5rem;margin-bottom:12px">📋</div><strong>Nessun allenamento salvato</strong><br><span style="font-size:.8rem">Premi "Salva allenamento" al termine</span></div>';
+      return;
+    }
     container.innerHTML=history.map(session=>{
       const exerciseIds=Object.keys(session.notes||{}).filter(id=>String(session.notes[id]||'').trim());
-      const rows=exerciseIds.map(id=>'<div class="session-ex"><span>'+esc(EX[id]||id)+'</span><strong>'+esc(session.notes[id])+'</strong></div>').join('');
+      const rows=exerciseIds.map(id=>{
+        const exerciseName=EX[id]||id;
+        const sectionName=EX_SECTION[id]||'Generale';
+        return '<div class="session-ex" role="button" tabindex="0" onclick="showProg(\\''+encodeURIComponent(id)+'\\')" onkeydown="if(event.key===\\'Enter\\'||event.key===\\' \\'){event.preventDefault();showProg(\\''+encodeURIComponent(id)+'\\')}"><div class="session-ex-name">'+esc(exerciseName)+'</div><div class="session-ex-section">'+esc(sectionName)+'</div><div class="session-ex-note">'+esc(session.notes[id])+'</div></div>';
+      }).join('');
       const general=session.generalNote?'<div class="session-general-note"><strong>Nota allenamento</strong><br>'+esc(session.generalNote)+'</div>':'';
       const highlighted=highlightId===session.id?' just-saved':'';
       return '<div class="session-card'+highlighted+'" data-session-id="'+session.id+'"><div class="session-header" onclick="togSess(\\'sess-'+session.id+'\\')"><div class="session-meta"><div class="session-date">'+session.date+' \\xb7 '+session.time+'</div><div class="session-sub">'+exerciseIds.length+' esercizi'+(session.generalNote?' · nota generale':'')+'</div></div><span class="prog-badge '+String(session.program||'').toLowerCase()+'">Prog. '+esc(session.program||'')+'</span><span class="chevron" id="chev-'+session.id+'">&#9660;</span><button class="del-session-btn" onclick="delSess(event,'+session.id+')">&#128465;</button></div><div class="session-body" id="sess-'+session.id+'">'+general+(rows||'<div style="color:var(--muted);font-size:.8rem">Nessuna nota esercizi</div>')+'</div></div>';
@@ -1541,6 +1549,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   function togSess(id){const b=document.getElementById(id),sid=id.replace('sess-',''),ch=document.getElementById('chev-'+sid);b.classList.toggle('open');if(ch)ch.classList.toggle('open');}
   async function delSess(e,id){e.stopPropagation();if(!await uiConfirm('Eliminare questo allenamento?','Elimina allenamento','danger'))return;_ls.setItem(HK,JSON.stringify(loadHistory().filter(s=>s.id!==id)));renderHistory();}
   function showProg(exId){
+    try{exId=decodeURIComponent(exId)}catch(_error){}
     const entries=loadHistory().filter(s=>s.notes[exId]&&s.notes[exId].trim()).map(s=>({date:s.date+' '+s.time,prog:s.program,note:s.notes[exId]}));
     document.getElementById('prog-modal-title').textContent=EX[exId]||exId;
     const sectionName=EX_SECTION[exId]||'Generale';
