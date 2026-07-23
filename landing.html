@@ -137,7 +137,7 @@
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script src="pwa-register.js" defer></script>
-</head>
+<script src="install-app.js" defer></script></head>
 <body>
 
 <!-- Success banner (shown after Stripe redirect) -->
@@ -154,7 +154,7 @@
   <a href="./" class="site-logo">🏋️ GymSheet</a>
   <div class="site-links">
     <a href="./" class="active">Home</a>
-    <a href="editor_scheda.html">Editor</a>
+    <a href="mie_schede.html">Le Mie Schede</a><a href="editor_scheda.html">Editor</a>
     <details class="site-dropdown">
       <summary class="">Converter ▾</summary>
       <div class="site-dropdown-menu">
@@ -177,8 +177,9 @@
     <a href="editor_scheda.html?mode=new" class="btn-hero-primary">✏️ Crea scheda gratis</a>
     <a href="converter_universale.html" class="btn-hero-outline">✨ Converti qualsiasi file con AI</a>
     <a href="converter.html" class="btn-hero-outline">📄 Converter PDF classico</a>
+  <button type="button" class="btn-hero-outline" data-install-gymsheet>⬇ Installa GymSheet</button>
   </div>
-  <p class="hero-note">L'anteprima è sempre gratuita · Nessun account richiesto</p>
+  <p class="hero-note">L'anteprima è sempre gratuita · Nessun account richiesto</p><p data-install-message hidden style="margin:12px auto 0;max-width:640px;background:#eff6ff;color:#1e3a5f;padding:10px 14px;border-radius:10px;font-size:.84rem"></p>
 </section>
 
 <!-- Features -->
