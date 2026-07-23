@@ -14,7 +14,12 @@
 /* ── GymSheet dialog system ── */
 .ui-dialog-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(4px);z-index:5000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .16s ease}.ui-dialog-overlay.open{display:flex;opacity:1}.ui-dialog{width:min(500px,100%);max-height:min(86vh,760px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.3);padding:22px;transform:translateY(10px) scale(.98);animation:uiDialogIn .18s ease forwards}.ui-dialog h2{font-size:1.08rem;color:#1e3a5f;margin:0 0 8px}.ui-dialog-message{font-size:.88rem;line-height:1.55;color:#475569;white-space:pre-line}.ui-dialog-input{width:100%;margin-top:14px;padding:11px 12px;border:1.5px solid #d1d5db;border-radius:9px;font:inherit}.ui-dialog-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}.ui-dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.ui-dialog-btn{border:0;border-radius:9px;padding:10px 15px;font-weight:750;cursor:pointer;font-size:.85rem}.ui-dialog-btn.secondary{background:#f1f5f9;color:#334155}.ui-dialog-btn.primary{background:#2563eb;color:#fff}.ui-dialog-btn.danger{background:#dc2626;color:#fff}.ui-dialog-btn.success{background:#16a34a;color:#fff}.ui-dialog-close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#475569}@keyframes uiDialogIn{to{transform:translateY(0) scale(1)}}
 @media(max-width:540px){.ui-dialog-overlay{align-items:flex-end;padding:0}.ui-dialog{width:100%;border-radius:18px 18px 0 0;padding:20px 16px 28px;max-height:90vh}.ui-dialog-actions{display:grid;grid-template-columns:1fr}.ui-dialog-btn{width:100%}}
-</style></head><body>
+</style>  <meta name="theme-color" content="#1e3a5f">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script src="pwa-register.js" defer></script>
+</head><body>
 <nav class="site-nav" aria-label="Navigazione principale">
   <a href="./" class="site-logo">🏋️ GymSheet</a>
   <div class="site-links">

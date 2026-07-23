@@ -1,0 +1,17 @@
+{
+  "id": "/palestra/",
+  "name": "GymSheet - Schede di allenamento",
+  "short_name": "GymSheet",
+  "description": "Crea, importa e usa offline le tue schede di allenamento.",
+  "start_url": "/palestra/?utm_source=pwa",
+  "scope": "/palestra/",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#1e3a5f",
+  "lang": "it-IT",
+  "orientation": "any",
+  "icons": [
+    {"src":"icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

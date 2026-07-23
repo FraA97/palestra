@@ -188,3 +188,12 @@ Il PDF deve contenere una tabella testuale con prima colonna `Esercizio`, colonn
 ### Parser naturale e assistenza durante l’allenamento
 
 Il parser accetta varianti come `4x10 rec 60`, `4 serie da 10 recupero 1 minuto` e `4 set da 10 con pause da 60"`. Le parti riconosciute diventano card interattive; ogni testo residuo resta visibile come nota. Le card serie/ripetizioni consentono di segnare le serie completate e avviare il recupero. Nell’app è sempre disponibile il pulsante timer con tempi rapidi e durata personalizzata.
+
+
+### 📲 PWA local-first
+- `index.html` è la libreria locale delle schede.
+- `GymAppDB` / store `schede` conserva ogni HTML in IndexedDB.
+- `sw.js` rende disponibili offline shell, converter e schede salvate.
+- L’import/export usa direttamente file `.html`; il JSON non è più necessario.
+- Quando disponibile, File System Access API sovrascrive il file scelto; sugli altri browser viene scaricata una nuova copia.
+- I link email usano `?download_token=...`: la PWA riscatta il token, archivia e scarica la scheda.

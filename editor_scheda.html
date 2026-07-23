@@ -342,6 +342,12 @@
   .required-group-hint{font-size:.68rem;color:#64748b;margin:1px 0 6px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta name="theme-color" content="#1e3a5f">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script src="pwa-register.js" defer></script>
+  <script type="module" src="pwa-bridge.js"></script>
 </head>
 <body>
 
@@ -1356,9 +1362,8 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
   <div class="data-menu-wrap">
     <button class="data-menu-btn" onclick="toggleDataMenu()" title="Esporta / Importa / Aggiorna file">⋯</button>
     <div class="data-menu" id="data-menu">
-      <button onclick="updateFile();toggleDataMenu()">🔄 Aggiorna file (salva dati)</button>
-      <button onclick="exportData();toggleDataMenu()">📤 Esporta dati JSON</button>
-      <button onclick="importData();toggleDataMenu()">📥 Importa dati JSON</button>
+      <button onclick="saveUpdatedHtml(true);toggleDataMenu()">💾 Salva / sincronizza HTML</button>
+      <button onclick="saveUpdatedHtml(false);toggleDataMenu()">📥 Scarica copia HTML</button>
     </div>
   </div>
 </div>
@@ -1429,6 +1434,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
       _ls.setItem(NK,JSON.stringify(EMBEDDED_DATA.notes));
     }
     try{notes=JSON.parse(_ls.getItem(NK)||'{}');}catch(e){notes={};}
+    if(!_ls.getItem(WK)&&EMBEDDED_DATA.workoutNote)_ls.setItem(WK,EMBEDDED_DATA.workoutNote);
     workoutNote=_ls.getItem(WK)||'';
     updateWorkoutNoteButton();
     document.querySelectorAll('.note-input').forEach(el=>{
@@ -1442,14 +1448,14 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     if(trackerCurrent&&trackerCurrent.cardId===id){const tracker=document.getElementById('series-tracker-note');if(tracker&&tracker!==source&&tracker.value!==v)tracker.value=v}
     clearTimeout(st);
     st=setTimeout(()=>{
-      _ls.setItem(NK,JSON.stringify(notes));
+      _ls.setItem(NK,JSON.stringify(notes));schedulePwaSync();
       const d=document.getElementById('saved-dot');
       d.classList.add('saved');setTimeout(()=>d.classList.remove('saved'),1500);
     },500);
   }
   function saveTrackerNote(value){if(trackerCurrent)saveNote(trackerCurrent.cardId,value,document.getElementById('series-tracker-note'))}
   function updateWorkoutNoteButton(){const button=document.getElementById('workout-note-btn');if(!button)return;const hasNote=!!workoutNote.trim();button.classList.toggle('has-note',hasNote);button.textContent=hasNote?'✓ Nota':'＋ Nota';button.title=hasNote?'Modifica nota allenamento':'Aggiungi nota allenamento'}
-  async function editWorkoutNote(){const value=await uiDialog({title:'Nota allenamento',message:'Nota facoltativa riferita all’allenamento in generale:',input:true,inputValue:workoutNote,inputPlaceholder:'es. energia, durata, sensazioni generali…',cancelText:'Annulla',confirmText:'Salva'});if(value===null)return;workoutNote=String(value).trim();if(workoutNote)_ls.setItem(WK,workoutNote);else _ls.removeItem(WK);updateWorkoutNoteButton()}  async function resetNotes(){
+  async function editWorkoutNote(){const value=await uiDialog({title:'Nota allenamento',message:'Nota facoltativa riferita all’allenamento in generale:',input:true,inputValue:workoutNote,inputPlaceholder:'es. energia, durata, sensazioni generali…',cancelText:'Annulla',confirmText:'Salva'});if(value===null)return;workoutNote=String(value).trim();if(workoutNote)_ls.setItem(WK,workoutNote);else _ls.removeItem(WK);updateWorkoutNoteButton();schedulePwaSync()}  async function resetNotes(){
     if(!await uiConfirm('Azzera le note correnti?','Azzera note','danger'))return;
     notes={};_ls.removeItem(NK);
     workoutNote='';_ls.removeItem(WK);updateWorkoutNoteButton();
@@ -1479,48 +1485,29 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     }
     try{return JSON.parse(_ls.getItem(HK)||'[]');}catch(e){return[];}}
   // ── Export / Import / Update file ─────────────────────────────────────────
-  function exportData(){
-    const data={notes:JSON.parse(_ls.getItem(NK)||'{}'),history:JSON.parse(_ls.getItem(HK)||'[]'),exportedAt:new Date().toISOString()};
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download='gymsheet-backup-'+new Date().toLocaleDateString('it-IT').split('/').join('-')+'.json';
-    a.click();URL.revokeObjectURL(a.href);
+  function currentHtmlWithData(){
+    const payload={ts:Date.now(),notes:JSON.parse(_ls.getItem(NK)||'{}'),history:JSON.parse(_ls.getItem(HK)||'[]'),sets:JSON.parse(_ls.getItem(TK)||'{}'),workoutNote:_ls.getItem(WK)||''};
+    let html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    return html.replace(/\/\*GYMSHEET_DATA_START\*\/.*?\/\*GYMSHEET_DATA_END\*\//s,'/*GYMSHEET_DATA_START*/const EMBEDDED_DATA='+JSON.stringify(payload)+';/*GYMSHEET_DATA_END*/');
   }
-  function importData(){
-    const input=document.createElement('input');
-    input.type='file';input.accept='.json,application/json';
-    input.onchange=e=>{
-      const file=e.target.files[0];if(!file)return;
-      const reader=new FileReader();
-      reader.onload=async ev=>{
-        try{
-          const d=JSON.parse(ev.target.result);
-          if(!d.notes||!d.history)throw new Error('Formato non valido');
-          if(!await uiConfirm('Importare i dati? Le note attuali verranno sostituite.','Importa dati'))return;
-          _ls.setItem(NK,JSON.stringify(d.notes));
-          _ls.setItem(HK,JSON.stringify(d.history));
-          loadNotes();renderHistory();
-          uiAlert('✅ Dati importati!');
-        }catch(err){uiAlert('❌ File non valido: '+err.message);}
-      };
-      reader.readAsText(file,'UTF-8');
-    };
-    input.click();
+  function pwaSheetId(){const match=location.pathname.match(/\/schede\/([^/]+)\.html$/);return match?decodeURIComponent(match[1]):null}
+  async function syncPwaCopy(html=currentHtmlWithData()){
+    const id=pwaSheetId();if(!id||!indexedDB)return false;
+    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('GymAppDB',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+    try{await new Promise((resolve,reject)=>{const tx=db.transaction('schede','readwrite'),store=tx.objectStore('schede'),get=store.get(id);get.onsuccess=()=>{const old=get.result||{id,createdAt:Date.now(),metaData:{filename:document.title+'.html',title:document.title,source:'pwa'}};store.put({...old,htmlString:html,updatedAt:Date.now()})};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}finally{db.close()}
+    return true;
   }
-  function updateFile(){
-    const n=JSON.parse(_ls.getItem(NK)||'{}');
-    const h=JSON.parse(_ls.getItem(HK)||'[]');
-    const newData=JSON.stringify({ts:Date.now(),notes:n,history:h});
-    let html=document.documentElement.outerHTML;
-    html=html.replace(/\\/\\*GYMSHEET_DATA_START\\*\\/.*?\\/\\*GYMSHEET_DATA_END\\*\\//s,
-      '/*GYMSHEET_DATA_START*/const EMBEDDED_DATA='+newData+';/*GYMSHEET_DATA_END*/');
-    const blob=new Blob([html],{type:'text/html'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html';
-    a.click();URL.revokeObjectURL(a.href);
+  let pwaSyncTimer=null;
+  function schedulePwaSync(){clearTimeout(pwaSyncTimer);pwaSyncTimer=setTimeout(()=>syncPwaCopy().catch(console.warn),700)}
+  function downloadCurrentHtml(html){const blob=new Blob([html],{type:'text/html'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+  async function saveUpdatedHtml(usePicker=true){
+    const html=currentHtmlWithData();await syncPwaCopy(html).catch(console.warn);
+    if(usePicker&&window.showSaveFilePicker){
+      try{const handle=await window.showSaveFilePicker({suggestedName:document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html',types:[{description:'Scheda GymSheet HTML',accept:{'text/html':['.html']}}]});const writer=await handle.createWritable();await writer.write(html);await writer.close();await uiAlert('✅ File HTML aggiornato sul dispositivo.');return}catch(error){if(error?.name==='AbortError')return;console.warn(error)}
+    }
+    downloadCurrentHtml(html);await uiAlert('✅ Copia HTML aggiornata scaricata.');
   }
+  function updateFile(){return saveUpdatedHtml(true)}
   function toggleDataMenu(){
     const menu=document.getElementById('data-menu');
     const footer=document.getElementById('footer-bar');
@@ -1600,10 +1587,11 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   loadNotes(); showTab(savedTabOr(${firstKey}));
 
   // ── Timer rapido e tracking serie ──────────────────────────────────────────
+  if(!_ls.getItem(TK)&&EMBEDDED_DATA.sets)_ls.setItem(TK,JSON.stringify(EMBEDDED_DATA.sets));
   let setProgress={};try{setProgress=JSON.parse(_ls.getItem(TK)||'{}')}catch(e){setProgress={}}
   let trackerCurrent=null;
   let _timerFromTracker=false;
-  function saveSetProgress(){_ls.setItem(TK,JSON.stringify(setProgress));refreshSeriesProgress()}
+  function saveSetProgress(){_ls.setItem(TK,JSON.stringify(setProgress));refreshSeriesProgress();schedulePwaSync()}
   function progressFor(id,total){const current=Array.isArray(setProgress[id])?setProgress[id]:[];while(current.length<total)current.push(false);if(current.length>total)current.length=total;setProgress[id]=current;return current}
   function refreshSeriesProgress(){document.querySelectorAll('[data-progress-id]').forEach(el=>{const id=el.dataset.progressId,total=Number(el.closest('[data-total]')?.dataset.total||0),done=progressFor(id,total).filter(Boolean).length;el.textContent=done+'/'+total})}
   function closeWorkoutOverlay(id){document.getElementById(id)?.classList.remove('open')}
@@ -1855,12 +1843,13 @@ window.addEventListener('message', e => {
 async function downloadHtml() {
   const result = await getGeneratedHtml();
   if (!result) return;
-  const blob = new Blob([result.html], { type: 'text/html' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = result.filename;
-  a.click();
-  showToast('✅ App scaricata: ' + result.filename);
+  if (window.GymSheetPWA?.storeGenerated) {
+    await window.GymSheetPWA.storeGenerated(result.html,result.filename,'editor',true);
+  } else {
+    const blob=new Blob([result.html],{type:'text/html'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=result.filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  }
+  showToast('✅ App salvata e scaricata: '+result.filename);
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -2050,11 +2039,9 @@ async function downloadWithTrainerKey(key) {
       body: JSON.stringify({ key, html: _pendingHtml, filename: _pendingFilename })
     });
     if (!res.ok) { const d = await res.json(); uiAlert('❌ ' + (d.error || 'Errore download')); return; }
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = _pendingFilename;
-    a.click();
+    const html = await res.text();
+    if(window.GymSheetPWA?.storeGenerated) await window.GymSheetPWA.storeGenerated(html,_pendingFilename,'trainer',true);
+    else {const blob=new Blob([html],{type:'text/html'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=_pendingFilename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);}
     showToast('✅ App scaricata: ' + _pendingFilename);
     closePaywall();
     checkTrainerKeyCredits(key);
