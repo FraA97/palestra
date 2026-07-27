@@ -1,5 +1,37 @@
-import { salvaScheda, getSchede, getSchedaById, eliminaScheda } from './db.js?v=20260727-1';
+import { salvaScheda, getSchede, getSchedaById, eliminaScheda, getBackupSettings, saveBackupSettings, clearBackupSettings } from './db.js?v=20260727-3';
 
+
+function backupSupported(){return 'showDirectoryPicker' in window}
+async function permission(handle,request=false){
+  if(!handle)return 'denied';
+  let state=await handle.queryPermission({mode:'readwrite'});
+  if(state!=='granted'&&request)state=await handle.requestPermission({mode:'readwrite'});
+  return state;
+}
+async function writeBackup(directory,html,filename){
+  const file=await directory.getFileHandle(safeFilename(filename),{create:true});
+  const writer=await file.createWritable();await writer.write(html);await writer.close();
+}
+async function backupState(request=false){
+  if(!backupSupported())return {status:'unsupported'};
+  const settings=await getBackupSettings();
+  if(!settings?.directoryHandle)return {status:'missing'};
+  return {status:await permission(settings.directoryHandle,request),settings};
+}
+async function configureBackupDirectory(){
+  if(!backupSupported())throw new Error('Il browser non supporta il backup automatico in cartella.');
+  const directoryHandle=await window.showDirectoryPicker({mode:'readwrite',id:'gymsheet-backup'});
+  if(await permission(directoryHandle,true)!=='granted')throw new Error('Permesso di scrittura non concesso.');
+  await saveBackupSettings({directoryHandle,directoryName:directoryHandle.name,lastSuccessAt:null});
+  return directoryHandle;
+}
+async function backupHtmlIfGranted(html,filename){
+  const state=await backupState(false);
+  if(state.status!=='granted')return state;
+  await writeBackup(state.settings.directoryHandle,html,filename);
+  await saveBackupSettings({...state.settings,lastSuccessAt:Date.now(),lastFilename:safeFilename(filename)});
+  return {status:'saved'};
+}
 const WORKER_BASE = 'https://gymsheet-worker.francescoartibani.workers.dev';
 const list = document.getElementById('sheet-list');
 const statusBox = document.getElementById('app-status');
@@ -59,6 +91,7 @@ export async function storeAndDownloadHtml(html, metaData = {}, options = {}) {
     source: metaData.source || 'local',
     importedAt: metaData.importedAt || new Date().toISOString()
   });
+  try { await backupHtmlIfGranted(html, filename); } catch (error) { console.warn('Backup cartella non riuscito', error); }
   if (options.download !== false) downloadHtml(html, filename);
   await renderLibrary();
   if (options.open !== false) await openSheet(record.id);
@@ -133,6 +166,25 @@ async function redeemDownloadToken(token) {
   await storeAndDownloadHtml(html, { filename, source: 'email-token' }, { download: true, open: true });
 }
 
+
+async function renderBackupPanel(){
+ const box=document.getElementById('backup-panel');if(!box)return;
+ let state;try{state=await backupState(false)}catch(error){state={status:'error',error}}
+ const title=box.querySelector('[data-backup-title]'),text=box.querySelector('[data-backup-text]'),main=box.querySelector('[data-backup-main]'),change=box.querySelector('[data-backup-change]');
+ change.hidden=true;
+ if(state.status==='unsupported'){title.textContent='Backup manuale';text.textContent='Questo browser non consente il salvataggio automatico in una cartella. Usa Scarica sulle singole schede.';main.hidden=true;return}
+ main.hidden=false;
+ if(state.status==='missing'){title.textContent='Backup automatico non configurato';text.textContent='Scegli una cartella una sola volta: GymSheet manterrà lì una copia aggiornata delle schede.';main.textContent='Configura cartella backup';main.onclick=configureFromPanel;return}
+ change.hidden=false;change.onclick=configureFromPanel;
+ if(state.status==='granted'){title.textContent='Backup automatico attivo';text.textContent=`Cartella: ${state.settings.directoryName||'selezionata'}`;main.textContent='Verifica ora';main.onclick=async()=>{await backupAllStored(true);setStatus('Backup aggiornato.','success')};return}
+ title.textContent='Riattiva backup';text.textContent=`La cartella ${state.settings.directoryName||'già scelta'} è ricordata. Riattiva l’accesso con un tocco.`;main.textContent='Riattiva accesso';main.onclick=async()=>{const next=await backupState(true);if(next.status==='granted'){await backupAllStored(false);setStatus('Backup riattivato.','success')}else setStatus('Permesso non concesso.','error');await renderBackupPanel()};
+}
+async function configureFromPanel(){try{await configureBackupDirectory();await backupAllStored(false);setStatus('Cartella backup configurata e schede copiate.','success');await renderBackupPanel()}catch(error){if(error?.name!=='AbortError')setStatus(error.message,'error')}}
+async function backupAllStored(requestPermission=false){
+ const state=await backupState(requestPermission);if(state.status!=='granted')return state;
+ const records=await getSchede();for(const record of records)await writeBackup(state.settings.directoryHandle,record.htmlString,record.metaData?.filename||`${record.id}.html`);
+ await saveBackupSettings({...state.settings,lastSuccessAt:Date.now()});return {status:'saved'};
+}
 async function registerPwa() {
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('./sw.js', { scope: './' }); }
@@ -184,6 +236,7 @@ window.GymSheetPWA = { storeAndDownloadHtml, importHtmlFile, downloadHtml, rende
 
 await registerPwa();
 await renderLibrary();
+await renderBackupPanel();
 const token = new URLSearchParams(location.search).get('download_token');
 if (token) {
   try { await redeemDownloadToken(token); }

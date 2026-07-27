@@ -1369,7 +1369,7 @@ ${isPreview ? '' : `<div class="panel" id="panel-storico">
     <div class="data-menu" id="data-menu">
       <button onclick="saveUpdatedHtml(true);toggleDataMenu()">💾 Salva / sincronizza HTML</button>
       <button onclick="saveUpdatedHtml(false);toggleDataMenu()">📥 Scarica copia HTML</button>
-      <button onclick="connectLocalHtmlFile();toggleDataMenu()">🔗 Collega file HTML locale</button>
+      <button onclick="configureGlobalBackup();toggleDataMenu()">📁 Configura backup automatico</button>
     </div>
   </div>
 </div>
@@ -1523,11 +1523,12 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   function handleStorageKey(){return onlineSheetId()||location.pathname}
   function openHandleDb(){
     return new Promise((resolve,reject)=>{
-      const req=indexedDB.open('GymAppDB',2);
+      const req=indexedDB.open('GymAppDB',3);
       req.onupgradeneeded=()=>{
         const db=req.result;
         if(!db.objectStoreNames.contains('schede'))db.createObjectStore('schede',{keyPath:'id'});
         if(!db.objectStoreNames.contains('fileHandles'))db.createObjectStore('fileHandles',{keyPath:'id'});
+        if(!db.objectStoreNames.contains('backupSettings'))db.createObjectStore('backupSettings',{keyPath:'id'});
       };
       req.onsuccess=()=>resolve(req.result);
       req.onerror=()=>reject(req.error);
@@ -1596,6 +1597,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   }
   async function autoSyncAfterWorkout(){
     await syncPwaCopy().catch(console.warn);
+    if(await writeGlobalBackup().catch(()=>false))return;
     if(linkedFileHandle){
       try{if(await writeLinkedHtmlFile())return}catch(error){console.warn('Sync file non riuscita',error)}
     }
@@ -1607,6 +1609,39 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     if(button)button.hidden=!online;
   }
 
+  let backupDirectoryHandle=null,backupPermissionState='missing';
+  const BACKUP_META_KEY=NK+'_backup_prompt';
+  function backupPromptMeta(){try{return JSON.parse(_ls.getItem(BACKUP_META_KEY)||'{}')}catch(e){return{}}}
+  function saveBackupPromptMeta(value){_ls.setItem(BACKUP_META_KEY,JSON.stringify(value))}
+  async function getGlobalBackupSettings(){const db=await openHandleDb();try{return await new Promise((resolve,reject)=>{const q=db.transaction('backupSettings','readonly').objectStore('backupSettings').get('global');q.onsuccess=()=>resolve(q.result||null);q.onerror=()=>reject(q.error)})}finally{db.close()}}
+  async function putGlobalBackupSettings(value){const db=await openHandleDb();try{await new Promise((resolve,reject)=>{const tx=db.transaction('backupSettings','readwrite');tx.objectStore('backupSettings').put({id:'global',...value,updatedAt:Date.now()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}finally{db.close()}}
+  async function inspectGlobalBackup(){
+    if(!('showDirectoryPicker' in window)){backupPermissionState='unsupported';setFileSyncState('Backup HTML manuale','warn');return}
+    const settings=await getGlobalBackupSettings();backupDirectoryHandle=settings?.directoryHandle||null;
+    if(!backupDirectoryHandle){backupPermissionState='missing';setFileSyncState('Backup cartella non configurato','warn');maybeOfferBackup(false);return}
+    backupPermissionState=await backupDirectoryHandle.queryPermission({mode:'readwrite'});
+    setFileSyncState(backupPermissionState==='granted'?'Backup automatico attivo':'Riattiva backup cartella',backupPermissionState==='granted'?'ok':'warn');
+    if(backupPermissionState!=='granted')maybeOfferBackup(true);
+  }
+  async function configureGlobalBackup(){
+    if(!('showDirectoryPicker' in window)){await uiAlert('Questo browser non supporta il backup automatico in cartella. Usa Scarica copia HTML.','Backup');return false}
+    try{const dir=await window.showDirectoryPicker({mode:'readwrite',id:'gymsheet-backup'});let state=await dir.queryPermission({mode:'readwrite'});if(state!=='granted')state=await dir.requestPermission({mode:'readwrite'});if(state!=='granted')return false;backupDirectoryHandle=dir;backupPermissionState='granted';await putGlobalBackupSettings({directoryHandle:dir,directoryName:dir.name,lastSuccessAt:null});await writeGlobalBackup();setFileSyncState('Backup automatico attivo','ok');return true}catch(error){if(error?.name!=='AbortError')console.warn(error);return false}
+  }
+  async function reactivateGlobalBackup(){
+    if(!backupDirectoryHandle)return configureGlobalBackup();
+    try{const state=await backupDirectoryHandle.requestPermission({mode:'readwrite'});backupPermissionState=state;if(state==='granted'){await writeGlobalBackup();setFileSyncState('Backup automatico attivo','ok');return true}}catch(error){console.warn(error)}return false
+  }
+  async function writeGlobalBackup(html=currentHtmlWithData()){
+    if(!backupDirectoryHandle||backupPermissionState!=='granted')return false;
+    const file=await backupDirectoryHandle.getFileHandle(safeLocalFilename(),{create:true});const writer=await file.createWritable();await writer.write(html);await writer.close();const settings=await getGlobalBackupSettings()||{};await putGlobalBackupSettings({...settings,directoryHandle:backupDirectoryHandle,directoryName:backupDirectoryHandle.name,lastSuccessAt:Date.now(),lastFilename:safeLocalFilename()});setFileSyncState('Backup HTML aggiornato','ok');return true
+  }
+  async function maybeOfferBackup(reconnect){
+    if(IS_PREVIEW||backupPermissionState==='unsupported')return;
+    const meta=backupPromptMeta(),now=Date.now(),opens=(meta.opens||0)+1;saveBackupPromptMeta({...meta,opens});
+    const due=reconnect||!meta.dismissedAt||opens%3===0||now-meta.dismissedAt>1209600000;if(!due)return;
+    setTimeout(async()=>{const ok=await uiConfirm(reconnect?'La cartella backup è già ricordata. Riattiva l’accesso con un tocco per aggiornare il file al termine dell’allenamento.':'Vuoi proteggere i tuoi allenamenti? Scegli una cartella una sola volta e GymSheet manterrà aggiornato il file HTML.','Backup automatico');if(ok){const done=reconnect?await reactivateGlobalBackup():await configureGlobalBackup();if(!done)saveBackupPromptMeta({opens,dismissedAt:Date.now()})}else saveBackupPromptMeta({opens,dismissedAt:Date.now()})},700)
+  }
+
   function currentHtmlWithData(){
     const payload={ts:Date.now(),notes:JSON.parse(_ls.getItem(NK)||'{}'),history:JSON.parse(_ls.getItem(HK)||'[]'),sets:JSON.parse(_ls.getItem(TK)||'{}'),workoutNote:_ls.getItem(WK)||''};
     let html='<!DOCTYPE html>\\n'+document.documentElement.outerHTML;
@@ -1615,12 +1650,12 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   function pwaSheetId(){const match=location.pathname.match(/\\/schede\\/([^/]+)\\.html$/);return match?decodeURIComponent(match[1]):null}
   async function syncPwaCopy(html=currentHtmlWithData()){
     const id=pwaSheetId();if(!id||!indexedDB)return false;
-    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('GymAppDB',2);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('GymAppDB',3);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
     try{await new Promise((resolve,reject)=>{const tx=db.transaction('schede','readwrite'),store=tx.objectStore('schede'),get=store.get(id);get.onsuccess=()=>{const old=get.result||{id,createdAt:Date.now(),metaData:{filename:document.title+'.html',title:document.title,source:'pwa'}};store.put({...old,htmlString:html,updatedAt:Date.now()})};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}finally{db.close()}
     return true;
   }
   let pwaSyncTimer=null;
-  function schedulePwaSync(){clearTimeout(pwaSyncTimer);pwaSyncTimer=setTimeout(()=>syncPwaCopy().catch(console.warn),700)}
+  function schedulePwaSync(){clearTimeout(pwaSyncTimer);pwaSyncTimer=setTimeout(async()=>{await syncPwaCopy().catch(console.warn);await writeGlobalBackup().catch(console.warn)},700)}
   function downloadCurrentHtml(html){const blob=new Blob([html],{type:'text/html'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
   async function saveUpdatedHtml(usePicker=true){
     const html=currentHtmlWithData();await syncPwaCopy(html).catch(console.warn);
@@ -1748,7 +1783,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     runTimer(seconds,true);
   }
 
-  refreshSeriesProgress();showOnlineNavigation();restoreLinkedHandle();
+  refreshSeriesProgress();showOnlineNavigation();restoreLinkedHandle();inspectGlobalBackup();
   // ── Timer ──────────────────────────────────────────────────────────────────
   let _tmTotal=0,_tmLeft=0,_tmInterval=null,_tmRunning=false;
   function startTimer(secs){

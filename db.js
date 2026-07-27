@@ -1,6 +1,7 @@
 const DB_NAME = 'GymAppDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'schede';
+const SETTINGS_STORE = 'backupSettings';
 
 function requestToPromise(request) {
   return new Promise((resolve, reject) => {
@@ -20,6 +21,7 @@ export function openGymDB() {
         store.createIndex('createdAt', 'createdAt');
       }
       if (!db.objectStoreNames.contains('fileHandles')) db.createObjectStore('fileHandles', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(SETTINGS_STORE)) db.createObjectStore(SETTINGS_STORE, { keyPath: 'id' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('Impossibile aprire GymAppDB'));
@@ -89,4 +91,32 @@ export async function eliminaScheda(id) {
 
 export async function clearSchede() {
   await run('readwrite', store => store.clear());
+}
+
+export async function getBackupSettings() {
+  const db = await openGymDB();
+  try {
+    const tx = db.transaction(SETTINGS_STORE, 'readonly');
+    return (await requestToPromise(tx.objectStore(SETTINGS_STORE).get('global'))) || null;
+  } finally { db.close(); }
+}
+export async function saveBackupSettings(settings) {
+  const db = await openGymDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(SETTINGS_STORE, 'readwrite');
+      tx.objectStore(SETTINGS_STORE).put({ id:'global', ...settings, updatedAt:Date.now() });
+      tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+    });
+  } finally { db.close(); }
+}
+export async function clearBackupSettings() {
+  const db = await openGymDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(SETTINGS_STORE, 'readwrite');
+      tx.objectStore(SETTINGS_STORE).delete('global');
+      tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+    });
+  } finally { db.close(); }
 }
