@@ -2126,40 +2126,108 @@ async function checkTrainerKeyCredits(key, doDownload = false) {
   info.style.display = 'block';
   info.style.color = '#6b7280';
   info.textContent = 'Verifica chiave…';
+  let data;
   try {
-    const res = await fetch(`${WORKER_URL}/trainer/credits?key=${encodeURIComponent(key)}`);
-    const data = await res.json();
-    if (!res.ok) { info.style.color = '#dc2626'; info.textContent = '❌ Chiave non valida'; return; }
-    info.style.color = '#16a34a';
-    info.textContent = `✅ Chiave valida · ${data.credits} crediti rimanenti`;
-    localStorage.setItem(TRAINER_KEY_STORAGE, key);
-    if (doDownload) {
-      if (data.credits <= 0) { info.style.color = '#dc2626'; info.textContent = '❌ Crediti esauriti'; return; }
-      await downloadWithTrainerKey(key);
+    const res = await fetch(`${WORKER_URL}/trainer/credits?key=${encodeURIComponent(key)}`, { cache: 'no-store' });
+    const body = await res.text();
+    try { data = body ? JSON.parse(body) : {}; }
+    catch { throw new Error(`Risposta non valida dal servizio (${res.status})`); }
+    if (!res.ok) {
+      info.style.color = '#dc2626';
+      info.textContent = '❌ ' + (data.error || 'Chiave non valida');
+      return;
     }
-  } catch { info.style.color = '#dc2626'; info.textContent = '❌ Errore di connessione'; }
-}
+  } catch (error) {
+    console.error('Verifica chiave trainer fallita', error);
+    info.style.color = '#dc2626';
+    info.textContent = '❌ Impossibile verificare la chiave: ' + (error.message || 'errore di rete');
+    return;
+  }
 
+  info.style.color = '#16a34a';
+  info.textContent = `✅ Chiave valida · ${data.credits} crediti rimanenti`;
+  localStorage.setItem(TRAINER_KEY_STORAGE, key);
+
+  if (!doDownload) return;
+  if (data.credits <= 0) {
+    info.style.color = '#dc2626';
+    info.textContent = '❌ Crediti esauriti';
+    return;
+  }
+
+  const result = await downloadWithTrainerKey(key);
+  if (!result.ok) {
+    info.style.color = '#dc2626';
+    info.textContent = '❌ ' + result.error;
+    return;
+  }
+  if (result.warning) {
+    info.style.color = '#92400e';
+    info.textContent = '⚠️ ' + result.warning;
+  }
+}
 async function downloadWithTrainerKey(key) {
-  if (!_pendingHtml) return;
+  if (!_pendingHtml) return { ok:false, error:'Nessuna scheda pronta. Chiudi e riapri Genera App.' };
   const btn = document.querySelector('.btn-key-use');
-  btn.textContent = 'Download…'; btn.disabled = true;
+  btn.textContent = 'Generazione…';
+  btn.disabled = true;
   try {
     const res = await fetch(`${WORKER_URL}/trainer/download`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, html: _pendingHtml, filename: _pendingFilename })
     });
-    if (!res.ok) { const d = await res.json(); uiAlert('❌ ' + (d.error || 'Errore download')); return; }
-    const html = await res.text();
-    if(window.GymSheetPWA?.storeGenerated) await window.GymSheetPWA.storeGenerated(html,_pendingFilename,'trainer',true);
-    else {const blob=new Blob([html],{type:'text/html'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=_pendingFilename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);}
-    showToast('✅ App scaricata: ' + _pendingFilename);
-    closePaywall();
-    checkTrainerKeyCredits(key);
-  } finally { btn.textContent = 'Usa chiave'; btn.disabled = false; }
-}
 
+    if (!res.ok) {
+      const body = await res.text();
+      let message = `Errore del servizio (${res.status})`;
+      try { message = JSON.parse(body).error || message; }
+      catch { if (body) message += ': ' + body.slice(0, 160); }
+      return { ok:false, error:message };
+    }
+
+    const html = await res.text();
+    if (!html || !html.includes('<html')) {
+      return { ok:false, error:'Il servizio non ha restituito un file HTML valido.' };
+    }
+
+    // Il credito è già stato consumato dal Worker. Un eventuale errore locale
+    // non deve essere presentato come errore di connessione né richiedere un secondo credito.
+    try {
+      if (window.GymSheetPWA?.storeGenerated) {
+        await window.GymSheetPWA.storeGenerated(html, _pendingFilename, 'trainer', true, true);
+      } else {
+        downloadTrainerHtmlFallback(html, _pendingFilename);
+      }
+    } catch (localError) {
+      console.error('Salvataggio PWA fallito; uso download diretto', localError);
+      downloadTrainerHtmlFallback(html, _pendingFilename);
+      showToast('⚠️ File scaricato. Salvataggio in Le Mie Schede non riuscito.');
+      return { ok:true, warning:'File scaricato, ma non salvato in Le Mie Schede: ' + (localError.message || 'errore locale') };
+    }
+
+    showToast('✅ App generata: ' + _pendingFilename);
+    closePaywall();
+    return { ok:true };
+  } catch (error) {
+    console.error('Download con chiave trainer fallito', error);
+    return { ok:false, error:'Generazione non completata: ' + (error.message || 'errore di rete') };
+  } finally {
+    btn.textContent = 'Usa chiave';
+    btn.disabled = false;
+  }
+}
+function downloadTrainerHtmlFallback(html, filename) {
+  const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename || 'scheda.html';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
 function openSinglePayment() {
   document.getElementById('email-form').style.display = 'block';
   document.getElementById('customer-email').focus();
