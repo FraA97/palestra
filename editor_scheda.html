@@ -1605,7 +1605,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   function pwaSheetId(){const match=location.pathname.match(/\\/schede\\/([^/]+)\\.html$/);return match?decodeURIComponent(match[1]):null}
   async function syncPwaCopy(html=currentHtmlWithData()){
     const id=pwaSheetId();if(!id||!indexedDB)return false;
-    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('GymAppDB',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('GymAppDB',2);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
     try{await new Promise((resolve,reject)=>{const tx=db.transaction('schede','readwrite'),store=tx.objectStore('schede'),get=store.get(id);get.onsuccess=()=>{const old=get.result||{id,createdAt:Date.now(),metaData:{filename:document.title+'.html',title:document.title,source:'pwa'}};store.put({...old,htmlString:html,updatedAt:Date.now()})};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}finally{db.close()}
     return true;
   }
