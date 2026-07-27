@@ -1,10 +1,10 @@
-const VERSION = 'gymsheet-pwa-v1.0.6';
+const VERSION = 'gymsheet-pwa-v1.0.7';
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
   './', './index.html', './landing.html', './mie_schede.html', './editor_scheda.html', './converter.html',
   './converter_universale.html', './istruzioni_template.html', './manifest.json',
-  './app.js', './db.js', './app.js?v=20260727-1', './db.js?v=20260727-1', './install-app.js', './pwa-register.js', './pwa-bridge.js', './offline.html', './icons/icon-192.png', './icons/icon-512.png',
+  './app.js', './db.js', './app.js?v=20260727-1', './db.js?v=20260727-1', './install-app.js', './pwa-register.js', './pwa-bridge.js', './pwa-bridge.js?v=20260727-2', './db.js?v=20260727-2', './offline.html', './icons/icon-192.png', './icons/icon-512.png',
   './template_scheda.xlsx'
 ];
 

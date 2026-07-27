@@ -1,4 +1,4 @@
-import { salvaScheda } from './db.js';
+import { salvaScheda } from './db.js?v=20260727-2';
 
 function safeFilename(value) {
   const name = String(value || 'scheda.html').replace(/[^a-z0-9._-]/gi, '_');
