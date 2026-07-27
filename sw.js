@@ -1,4 +1,4 @@
-const VERSION = 'gymsheet-pwa-v1.1.0';
+const VERSION = 'gymsheet-pwa-v1.1.1';
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [

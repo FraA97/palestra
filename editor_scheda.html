@@ -1562,10 +1562,9 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     }catch(error){console.warn('Ripristino file handle non disponibile',error)}
   }
   function safeLocalFilename(){
-    const source=(document.title||'scheda').toLowerCase();
-    let result='';
-    for(const char of source)result+=/[a-z0-9]/.test(char)?char:'_';
-    return result+'.html';
+    const source=(document.title||'scheda').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const base=source.replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'scheda';
+    return base+'.html';
   }
   async function connectLocalHtmlFile(){
     if(!window.showSaveFilePicker){
