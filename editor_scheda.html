@@ -342,6 +342,19 @@
   .required-field-wrap{flex:1;min-width:0}
   .required-field-wrap label{font-size:.7rem;color:#475569;margin-bottom:4px}
   .required-group-hint{font-size:.68rem;color:#64748b;margin:1px 0 6px}
+
+/* GymSheet editor mobile UX v15 */
+.syntax-help-strip .syntax-open-btn{border:0!important;background:linear-gradient(135deg,#2563eb,#1e40af)!important;color:#fff!important;border-radius:9px!important;padding:9px 12px!important;font-weight:750!important;box-shadow:0 4px 12px rgba(37,99,235,.24)}
+.exercise-carousel-nav{display:none;align-items:center;justify-content:space-between;gap:8px;margin:2px 0 12px}.exercise-carousel-nav button{width:40px;height:36px;border:1px solid #bfdbfe;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-size:1.1rem;font-weight:850;cursor:pointer}.exercise-carousel-status{font-size:.72rem;color:#64748b;font-weight:700;text-align:center;flex:1}.template-picker-btn{padding:6px 8px!important;font-size:.68rem!important}.recognition-preview{padding:6px 8px!important}.recognition-preview strong{font-size:.67rem!important}.recognition-preview small{display:none!important}.suggestions-title{font-size:.62rem!important}
+.draft-caption{font-size:.68rem;color:#64748b;text-transform:none;letter-spacing:0;font-weight:600;margin-left:auto}.restore-draft-btn{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:.76rem;font-weight:750;text-transform:none;letter-spacing:0}
+@media(max-width:620px){
+  .page{padding:14px 10px}.card{padding:14px}.syntax-help-strip{align-items:flex-start!important}.syntax-help-strip>div>div{font-size:.68rem!important}.syntax-open-btn{font-size:.72rem!important;padding:8px 9px!important}
+  .section-body{padding:12px 10px}.section-name-field{align-items:stretch;flex-direction:column}.del-section-btn{align-self:flex-end}
+  [id^="ex-list-"]{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;padding:2px 1px 5px}[id^="ex-list-"]::-webkit-scrollbar{display:none}
+  [id^="ex-list-"]>.ex-row{flex:0 0 calc(100% - 6px);width:calc(100% - 6px);scroll-snap-align:start;margin:0;padding:11px}
+  .exercise-carousel-nav{display:flex}.prog-row{display:block!important}.prog-field{width:100%!important;min-width:0!important;margin:0 0 10px;padding:0 0 10px 8px;border-bottom:1px solid #e5e7eb}.prog-field:last-child{border-bottom:0;margin-bottom:0}.template-picker-btn{width:auto!important}.smart-suggestions{padding:6px!important;margin-top:6px!important}.suggestion-chip{padding:6px 7px!important}.recognition-preview small{display:none!important}.required-group-hint{margin-bottom:9px}
+  .bottom-bar{gap:6px;padding:8px}.bottom-btn{font-size:.72rem;padding:10px 5px}.save-label{display:none}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <meta name="theme-color" content="#1e3a5f">
@@ -350,35 +363,18 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script src="pwa-register.js" defer></script>
   <script type="module" src="pwa-bridge.js?v=20260727-2"></script>
-<script src="install-app.js" defer></script></head>
+<script src="install-app.js" defer></script><script src="app-header.js?v=20260727-4" defer></script></head>
 <body>
 
-<nav class="site-nav" aria-label="Navigazione principale">
-  <a href="./" class="site-logo">🏋️ GymSheet</a>
-  <div class="site-links">
-    <a href="./">Home</a>
-    <a href="mie_schede.html">Le Mie Schede</a><a href="editor_scheda.html" class="active">Editor</a>
-    <details class="site-dropdown">
-      <summary>Converter ▾</summary>
-      <div class="site-dropdown-menu">
-        <a href="converter.html">📄 Tradizionale PDF</a>
-        <a href="converter_universale.html">✨ Conversione AI</a>
-      </div>
-    </details>
-    <a href="istruzioni_template.html">Guida</a>
-    <a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a>
-    <a class="desktop-extra" href="landing.html#prezzi">Prezzi</a>
-    <a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a>
-  </div>
-</nav>
+
 
 <div class="page">
 
   <!-- Meta info -->
   <div class="card">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-      <span>📋 Informazioni scheda</span>
-      <button type="button" onclick="loadDraft()" title="Carica bozza salvata" aria-label="Carica bozza salvata" style="border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:6px 9px;cursor:pointer;font-size:.78rem;font-weight:700;text-transform:none;letter-spacing:0">📂 Carica bozza</button>
+      <span>📋 Informazioni scheda</span><span class="draft-caption" id="draft-caption">Salvataggio automatico attivo</span>
+      <button type="button" class="restore-draft-btn" onclick="loadDraft()" title="Ripristina l’ultima versione salvata automaticamente">↶ Ripristina bozza</button>
     </div>
     <div class="field">
       <label for="meta-title">Nome cliente / Titolo <span class="required-mark" aria-hidden="true">*</span></label>
@@ -396,7 +392,7 @@
   </div>
 
   <!-- Sections -->
-  <div class="syntax-help-strip" style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:12px"><div><strong style="font-size:.82rem;color:#1e3a5f">💡 Parametri esercizio</strong><div style="font-size:.72rem;color:#64748b">Usa i template per ottenere badge e timer corretti.</div></div><button type="button" class="btn btn-secondary" style="white-space:nowrap;padding:7px 10px" onclick="openSyntaxGuide()">Template ed esempi</button></div><div id="sections-container"></div>
+  <div class="syntax-help-strip" style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:12px"><div><strong style="font-size:.82rem;color:#1e3a5f">💡 Parametri esercizio</strong><div style="font-size:.72rem;color:#64748b">Usa i template per ottenere badge e timer corretti.</div></div><button type="button" class="syntax-open-btn" onclick="openSyntaxGuide()">✨ Esempi</button></div><div id="sections-container"></div>
 
   <!-- Section picker (hidden by default) -->
   <div id="section-picker" style="display:none" class="section-picker">
@@ -726,7 +722,7 @@ function renderSmartSuggestions(secId,exId,idx,value){
   const preview=parsed.badges.map(([t,txt])=>`<span class="badge ${t}">${escHtml(txt)}</span>`).join('');
   const interpretation=ambiguity
     ? `<div class="recognition-preview raw"><strong>⚠️ Ordine serie/ripetizioni ambiguo</strong><div style="margin-top:5px">Possibili risultati: <b>${ambiguity.candidateA.sets} serie × ${ambiguity.candidateA.reps} rip</b> oppure <b>${ambiguity.candidateB.sets} serie × ${ambiguity.candidateB.reps} rip</b>.</div><small>Prima di generare l’app ti verrà chiesta conferma.</small></div>`
-    : `<div class="recognition-preview ${advanced?'advanced':'raw'}"><strong>${advanced?'✅ Card avanzate riconosciute':'ℹ️ Testo conservato integralmente'}</strong><div>${preview}</div><small>${parsed.status==='partial'?'La parte aggiuntiva resta visibile come nota.':advanced?'Nell’app saranno disponibili le funzioni compatibili.':'Nessuna informazione verrà eliminata.'}</small></div>`;
+    : `<div class="recognition-preview ${advanced?'advanced':'raw'}"><strong>${advanced?'✅ Riconosciuto':'ℹ️ Testo mantenuto'}</strong><div>${preview}</div><small>${parsed.status==='partial'?'La parte aggiuntiva resta visibile come nota.':advanced?'Funzioni interattive attive.':'Testo mantenuto senza modifiche.'}</small></div>`;
   const suggestions=smartSuggestions(v);
   if(!suggestions.length)return interpretation;
   return interpretation+'<div class="suggestions-title">💡 Migliora la struttura</div>'+suggestions.map(item=>`<button type="button" class="suggestion-chip" onclick="applySuggestedPattern(${secId},${exId},${idx},decodeURIComponent('${encodeURIComponent(item.example)}'))"><span><strong>${escHtml(item.title)}</strong><code>${escHtml(item.example)}</code><small>${escHtml(item.benefit)}</small></span></button>`).join('');
@@ -871,6 +867,18 @@ function renderSections() {
   }
 }
 
+
+function setupExerciseCarousel(secId){
+  const list=document.getElementById(`ex-list-${secId}`);if(!list)return;
+  const body=list.closest('.section-body');let nav=body?.querySelector('.exercise-carousel-nav');
+  const cards=[...list.querySelectorAll('.ex-row')];
+  if(!cards.length){nav?.remove();return}
+  if(!nav){nav=document.createElement('div');nav.className='exercise-carousel-nav';nav.innerHTML='<button type="button" data-dir="-1" aria-label="Esercizio precedente">‹</button><span class="exercise-carousel-status"></span><button type="button" data-dir="1" aria-label="Esercizio successivo">›</button>';list.after(nav);nav.addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;moveExerciseCarousel(secId,Number(button.dataset.dir))})}
+  const update=()=>{const width=list.clientWidth||1,index=Math.max(0,Math.min(cards.length-1,Math.round(list.scrollLeft/width)));nav.querySelector('.exercise-carousel-status').textContent=`Esercizio ${index+1} di ${cards.length}`;nav.querySelector('[data-dir="-1"]').disabled=index===0;nav.querySelector('[data-dir="1"]').disabled=index===cards.length-1};
+  list.onscroll=()=>requestAnimationFrame(update);update();
+}
+function moveExerciseCarousel(secId,direction){const list=document.getElementById(`ex-list-${secId}`);if(!list)return;const cards=[...list.querySelectorAll('.ex-row')];if(!cards.length)return;const current=Math.round(list.scrollLeft/(list.clientWidth||1));cards[Math.max(0,Math.min(cards.length-1,current+direction))].scrollIntoView({behavior:'smooth',block:'nearest',inline:'start'})}
+
 function renderExercisesInSection(secId) {
   const sec = sections.find(s => s.id === secId);
   if (!sec) return;
@@ -887,7 +895,7 @@ function renderExercisesInSection(secId) {
     <input type="text" id="prog-input-${ex.id}-${i}" value="${escHtml(ex.progs[i] || '')}"
       placeholder="es. 3x10 60%"
       oninput="updateExField(${secId}, ${ex.id}, 'prog-${i}', this.value)" />
-    <div class="template-helper"><button type="button" class="template-picker-btn" onclick="openTemplatePicker(${secId},${ex.id},${i})">✨ Scegli template e anteprima</button></div>
+    <div class="template-helper"><button type="button" class="template-picker-btn" onclick="openTemplatePicker(${secId},${ex.id},${i})">✨ Template</button></div>
     <div class="smart-suggestions" id="suggest-${ex.id}-${i}">${renderSmartSuggestions(secId,ex.id,i,ex.progs[i] || '')}</div>
   </div>`).join('');
     div.innerHTML = `
@@ -910,6 +918,7 @@ function renderExercisesInSection(secId) {
       </div>`;
     list.appendChild(div);
   }
+  setupExerciseCarousel(secId);
   updateSectionHead(secId);
 }
 
@@ -1867,9 +1876,11 @@ function saveDraft() {
     progLabels: [...progLabels],
     sections: sections,
     _sc: sectionCounter,
-    _ec: exerciseCounter
+    _ec: exerciseCounter,
+    savedAt: Date.now()
   };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  const caption=document.getElementById('draft-caption');if(caption)caption.textContent='Bozza salvata alle '+new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
   const dot = document.getElementById('save-dot');
   if (dot) { dot.style.background = '#22c55e'; setTimeout(() => dot.style.background = '#d1d5db', 1500); }
 }
@@ -1879,7 +1890,8 @@ async function loadDraft() {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) { showToast('Nessuna bozza salvata'); return; }
     const draft = JSON.parse(raw);
-    if (!await uiConfirm('Caricare la bozza? I dati attuali verranno sovrascritti.','Carica bozza')) return;
+    const savedWhen=draft.savedAt?new Date(draft.savedAt).toLocaleString('it-IT'):'data non disponibile';
+    if (!await uiConfirm('Ripristinare la bozza salvata automaticamente ('+savedWhen+')? Le modifiche non ancora salvate verranno sostituite.','Ripristina bozza')) return;
     document.getElementById('meta-title').value = draft.title || '';
     document.getElementById('meta-weeks').value = draft.weeks || '';
     if (draft.progLabels && Array.isArray(draft.progLabels)) progLabels = draft.progLabels;
@@ -1895,7 +1907,7 @@ async function loadDraft() {
         }
     renderProgTags();
     renderSections();
-    showToast('✅ Bozza caricata');
+    showToast('✅ Ultima bozza ripristinata');
   } catch(e) {
     showToast('❌ Errore nel caricare la bozza');
   }

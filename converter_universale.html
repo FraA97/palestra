@@ -19,25 +19,8 @@
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script src="pwa-register.js" defer></script>
-<script src="install-app.js" defer></script></head><body>
-<nav class="site-nav" aria-label="Navigazione principale">
-  <a href="./" class="site-logo">🏋️ GymSheet</a>
-  <div class="site-links">
-    <a href="./">Home</a>
-    <a href="mie_schede.html">Le Mie Schede</a><a href="editor_scheda.html">Editor</a>
-    <details class="site-dropdown">
-      <summary class="active">Converter ▾</summary>
-      <div class="site-dropdown-menu">
-        <a href="converter.html">📄 Tradizionale PDF</a>
-        <a href="converter_universale.html" class="active">✨ Conversione AI</a>
-      </div>
-    </details>
-    <a href="istruzioni_template.html">Guida</a>
-    <a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a>
-    <a class="desktop-extra" href="landing.html#prezzi">Prezzi</a>
-    <a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a>
-  </div>
-</nav>
+<script src="install-app.js" defer></script><script src="app-header.js?v=20260727-4" defer></script></head><body>
+
 <main class="wrap"><h1>Converti qualsiasi scheda con AI</h1><p class="lead">Carica un documento: GymSheet riconosce programmi, sezioni ed esercizi e apre lo stesso editor guidato della creazione manuale, così puoi controllare tutto prima di generare l’app.</p>
 <section class="card"><label class="drop" id="drop"><input id="file" type="file" accept=".pdf,.docx,.xlsx,.xls,.csv,.tsv,.txt"><div style="font-size:2.7rem">📄</div><strong>Scegli o trascina la scheda</strong><div class="small">PDF, DOCX, XLSX, XLS, CSV, TSV, TXT · massimo 8 MB</div></label><p class="privacy">Il file viene inviato al backend GymSheet e al provider AI esclusivamente per riconoscere la scheda. Controlla sempre il risultato nell’editor.</p><div class="limit-note" id="usage-note">Per proteggere il servizio da utilizzi impropri, le conversioni AI sono soggette a limiti orari e giornalieri. La conversione tradizionale PDF non usa AI.</div><ol class="steps"><li>Analisi del documento</li><li>Riconoscimento di programmi ed esercizi</li><li>Apertura nell’editor guidato</li></ol><div class="actions"><button id="convert" class="primary" disabled>✨ Converti e apri l’editor</button></div></section>
 <div id="status" class="status hidden" aria-live="polite"></div></main>

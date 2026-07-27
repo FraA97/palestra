@@ -19,11 +19,9 @@
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script src="pwa-register.js" defer></script>
-<script src="install-app.js" defer></script></head>
+<script src="install-app.js" defer></script><script src="app-header.js?v=20260727-4" defer></script></head>
 <body>
-<nav class="site-nav" aria-label="Navigazione principale">
-<a href="./" class="site-logo">🏋️ GymSheet</a><div class="site-links"><a href="./">Home</a><a href="mie_schede.html">Le Mie Schede</a><a href="editor_scheda.html">Editor</a><details class="site-dropdown"><summary class="active">Converter ▾</summary><div class="site-dropdown-menu"><a href="converter.html" class="active">📄 Tradizionale PDF</a><a href="converter_universale.html">✨ Conversione AI</a></div></details><a href="istruzioni_template.html">Guida</a><a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a><a class="desktop-extra" href="landing.html#prezzi">Prezzi</a><a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a></div>
-</nav>
+
 <main class="main"><div class="page-header"><h1>Scheda Palestra Converter</h1><p>Carica un file Excel GymSheet o un PDF tabellare compatibile. Il risultato verrà aperto nell’editor, dove potrai controllarlo e correggerlo prima di generare l’app.</p></div><section class="card"><div class="drop-zone" id="drop-zone"><input type="file" id="file-input" accept=".pdf,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"><div class="drop-icon">📄</div><div class="drop-label">Carica Excel o PDF della scheda</div><div class="drop-hint">Seleziona o trascina qui il file</div></div><div id="status-area"><div class="status-row"><span id="status-icon">⏳</span><span id="status-text">Elaborazione in corso…</span></div><div class="log" id="log"></div></div><button id="reset-btn" type="button">↩ Converti un altro file</button></section></main>
 <footer class="app-footer"><a href="landing.html">🏠 Home</a><a href="editor_scheda.html">✏️ Editor</a><a href="converter.html">📄 Converter</a><a href="istruzioni_template.html">📋 Guida</a></footer>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>

@@ -137,7 +137,7 @@
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script src="pwa-register.js" defer></script>
-<script src="install-app.js" defer></script></head>
+<script src="install-app.js" defer></script><script src="app-header.js?v=20260727-4" defer></script></head>
 <body>
 
 <!-- Success banner (shown after Stripe redirect) -->
@@ -150,24 +150,7 @@
   <button class="success-close" onclick="document.getElementById('success-banner').classList.remove('show')" aria-label="Chiudi">✕</button>
 </div>
 
-<nav class="site-nav" aria-label="Navigazione principale">
-  <a href="./" class="site-logo">🏋️ GymSheet</a>
-  <div class="site-links">
-    <a href="./" class="active">Home</a>
-    <a href="mie_schede.html">Le Mie Schede</a><a href="editor_scheda.html">Editor</a>
-    <details class="site-dropdown">
-      <summary class="">Converter ▾</summary>
-      <div class="site-dropdown-menu">
-        <a href="converter.html">📄 Tradizionale PDF</a>
-        <a href="converter_universale.html">✨ Conversione AI</a>
-      </div>
-    </details>
-    <a href="istruzioni_template.html">Guida</a>
-    <a class="desktop-extra" href="landing.html#come-funziona">Come funziona</a>
-    <a class="desktop-extra" href="landing.html#prezzi">Prezzi</a>
-    <a class="site-cta" href="editor_scheda.html?mode=new">Prova gratis</a>
-  </div>
-</nav>
+
 
 <!-- Hero -->
 <section class="hero">
