@@ -1,5 +1,5 @@
 const DB_NAME = 'GymAppDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'schede';
 
 function requestToPromise(request) {
@@ -19,6 +19,7 @@ export function openGymDB() {
         store.createIndex('updatedAt', 'updatedAt');
         store.createIndex('createdAt', 'createdAt');
       }
+      if (!db.objectStoreNames.contains('fileHandles')) db.createObjectStore('fileHandles', { keyPath: 'id' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('Impossibile aprire GymAppDB'));

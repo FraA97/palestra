@@ -1,4 +1,4 @@
-import { salvaScheda, getSchede, getSchedaById, eliminaScheda } from './db.js';
+import { salvaScheda, getSchede, getSchedaById, eliminaScheda } from './db.js?v=20260727-1';
 
 const WORKER_BASE = 'https://gymsheet-worker.francescoartibani.workers.dev';
 const list = document.getElementById('sheet-list');

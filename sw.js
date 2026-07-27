@@ -1,10 +1,10 @@
-const VERSION = 'gymsheet-pwa-v1.0.4';
+const VERSION = 'gymsheet-pwa-v1.0.6';
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const APP_SHELL = [
   './', './index.html', './landing.html', './mie_schede.html', './editor_scheda.html', './converter.html',
   './converter_universale.html', './istruzioni_template.html', './manifest.json',
-  './app.js', './db.js', './install-app.js', './pwa-register.js', './pwa-bridge.js', './offline.html', './icons/icon-192.png', './icons/icon-512.png',
+  './app.js', './db.js', './app.js?v=20260727-1', './db.js?v=20260727-1', './install-app.js', './pwa-register.js', './pwa-bridge.js', './offline.html', './icons/icon-192.png', './icons/icon-512.png',
   './template_scheda.xlsx'
 ];
 
@@ -29,10 +29,11 @@ self.addEventListener('activate', event => {
 
 function openDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('GymAppDB', 1);
+    const req = indexedDB.open('GymAppDB', 2);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains('schede')) db.createObjectStore('schede', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('fileHandles')) db.createObjectStore('fileHandles', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
