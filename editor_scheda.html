@@ -1473,11 +1473,17 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     const ds=now.toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
     const ts=now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
     const sess={id:now.getTime(),date:ds,time:ts,program:prog,notes:{...notes},generalNote:workoutNote};
-    const history=loadHistory();history.unshift(sess);
+    const history=loadHistory();
+    history.unshift(sess);
     _ls.setItem(HK,JSON.stringify(history));
-    notes={};_ls.removeItem(NK);
-    workoutNote='';_ls.removeItem(WK);updateWorkoutNoteButton();
-    setProgress={};_ls.removeItem(TK);refreshSeriesProgress();
+    notes={};
+    _ls.removeItem(NK);
+    workoutNote='';
+    _ls.removeItem(WK);
+    updateWorkoutNoteButton();
+    setProgress={};
+    _ls.removeItem(TK);
+    refreshSeriesProgress();
     document.querySelectorAll('.note-input').forEach(el=>el.value='');
     showTab('storico');
     renderHistory(sess.id);
@@ -1491,25 +1497,105 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
     try{return JSON.parse(_ls.getItem(HK)||'[]');}catch(e){return[];}}
   // ── Export / Import / Update file ─────────────────────────────────────────
   let linkedFileHandle=null;
-  function setFileSyncState(text,tone=''){const el=document.getElementById('file-sync-state');if(!el)return;el.textContent=text;el.className='file-sync-state '+tone}
-  function openHandleDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('GymAppDB',2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('schede'))db.createObjectStore('schede',{keyPath:'id'});if(!db.objectStoreNames.contains('fileHandles'))db.createObjectStore('fileHandles',{keyPath:'id'})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
-  async function storeLinkedHandle(handle){const db=await openHandleDb();try{await new Promise((resolve,reject)=>{const tx=db.transaction('fileHandles','readwrite');tx.objectStore('fileHandles').put({id:pwaSheetId()||location.pathname,handle});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}finally{db.close()}}
-  async function restoreLinkedHandle(){if(!('showSaveFilePicker'in window)||!indexedDB)return;try{const db=await openHandleDb();linkedFileHandle=await new Promise((resolve,reject)=>{const req=db.transaction('fileHandles','readonly').objectStore('fileHandles').get(pwaSheetId()||location.pathname);req.onsuccess=()=>resolve(req.result?.handle||null);req.onerror=()=>reject(req.error)});db.close();if(linkedFileHandle){const state=await linkedFileHandle.queryPermission({mode:'readwrite'});setFileSyncState(state==='granted'?'Backup HTML collegato':'Ricollega backup HTML',state==='granted'?'ok':'warn')}}catch(error){console.warn('Ripristino file handle non disponibile',error)}}
+  function setFileSyncState(text,tone=''){
+    const el=document.getElementById('file-sync-state');
+    if(!el)return;
+    el.textContent=text;
+    el.className='file-sync-state '+tone;
+  }
+  function onlineSheetId(){
+    const marker='/schede/';
+    const path=location.pathname;
+    const start=path.lastIndexOf(marker);
+    if(start<0||!path.endsWith('.html'))return null;
+    return decodeURIComponent(path.slice(start+marker.length,-5));
+  }
+  function handleStorageKey(){return onlineSheetId()||location.pathname}
+  function openHandleDb(){
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open('GymAppDB',2);
+      req.onupgradeneeded=()=>{
+        const db=req.result;
+        if(!db.objectStoreNames.contains('schede'))db.createObjectStore('schede',{keyPath:'id'});
+        if(!db.objectStoreNames.contains('fileHandles'))db.createObjectStore('fileHandles',{keyPath:'id'});
+      };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+  }
+  async function storeLinkedHandle(handle){
+    const db=await openHandleDb();
+    try{
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction('fileHandles','readwrite');
+        tx.objectStore('fileHandles').put({id:handleStorageKey(),handle:handle});
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error);
+      });
+    }finally{db.close()}
+  }
+  async function restoreLinkedHandle(){
+    if(!('showSaveFilePicker' in window)||!window.indexedDB)return;
+    try{
+      const db=await openHandleDb();
+      linkedFileHandle=await new Promise((resolve,reject)=>{
+        const req=db.transaction('fileHandles','readonly').objectStore('fileHandles').get(handleStorageKey());
+        req.onsuccess=()=>resolve(req.result?req.result.handle:null);
+        req.onerror=()=>reject(req.error);
+      });
+      db.close();
+      if(linkedFileHandle){
+        const state=await linkedFileHandle.queryPermission({mode:'readwrite'});
+        setFileSyncState(state==='granted'?'Backup HTML collegato':'Ricollega backup HTML',state==='granted'?'ok':'warn');
+      }
+    }catch(error){console.warn('Ripristino file handle non disponibile',error)}
+  }
+  function safeLocalFilename(){
+    const source=(document.title||'scheda').toLowerCase();
+    let result='';
+    for(const char of source)result+=/[a-z0-9]/.test(char)?char:'_';
+    return result+'.html';
+  }
   async function connectLocalHtmlFile(){
-    if(!window.showSaveFilePicker){await uiAlert('Su questo browser il file non può essere sovrascritto direttamente. Usa “Scarica copia HTML” dopo l’allenamento.','Salvataggio file');return}
-    try{linkedFileHandle=await window.showSaveFilePicker({suggestedName:document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html',types:[{description:'Scheda GymSheet HTML',accept:{'text/html':['.html']}}]});await storeLinkedHandle(linkedFileHandle);await writeLinkedHtmlFile();setFileSyncState('Backup HTML collegato','ok');await uiAlert('File collegato. Da ora, quando salvi un allenamento, GymSheet proverà ad aggiornare automaticamente questo file.','Backup collegato')}catch(error){if(error?.name!=='AbortError'){console.warn(error);await uiAlert('Non è stato possibile collegare il file.','Salvataggio file')}}
+    if(!window.showSaveFilePicker){
+      await uiAlert('Su questo browser il file non può essere sovrascritto direttamente. Usa “Scarica copia HTML” dopo l’allenamento.','Salvataggio file');
+      return;
+    }
+    try{
+      linkedFileHandle=await window.showSaveFilePicker({suggestedName:safeLocalFilename(),types:[{description:'Scheda GymSheet HTML',accept:{'text/html':['.html']}}]});
+      await storeLinkedHandle(linkedFileHandle);
+      await writeLinkedHtmlFile();
+      setFileSyncState('Backup HTML collegato','ok');
+      await uiAlert('File collegato. Da ora GymSheet proverà ad aggiornarlo quando salvi un allenamento.','Backup collegato');
+    }catch(error){
+      if(error&&error.name!=='AbortError'){
+        console.warn(error);
+        await uiAlert('Non è stato possibile collegare il file.','Salvataggio file');
+      }
+    }
   }
   async function writeLinkedHtmlFile(html=currentHtmlWithData()){
     if(!linkedFileHandle)return false;
-    let permission=await linkedFileHandle.queryPermission({mode:'readwrite'});if(permission!=='granted')return false;
-    const writable=await linkedFileHandle.createWritable();await writable.write(html);await writable.close();setFileSyncState('Backup HTML aggiornato','ok');return true
+    const permission=await linkedFileHandle.queryPermission({mode:'readwrite'});
+    if(permission!=='granted')return false;
+    const writable=await linkedFileHandle.createWritable();
+    await writable.write(html);
+    await writable.close();
+    setFileSyncState('Backup HTML aggiornato','ok');
+    return true;
   }
   async function autoSyncAfterWorkout(){
     await syncPwaCopy().catch(console.warn);
-    if(linkedFileHandle){try{if(await writeLinkedHtmlFile())return}catch(error){console.warn('Sync file non riuscita',error)}}
+    if(linkedFileHandle){
+      try{if(await writeLinkedHtmlFile())return}catch(error){console.warn('Sync file non riuscita',error)}
+    }
     setFileSyncState('Dati nell’app · aggiorna il backup HTML','warn');
   }
-  function showOnlineNavigation(){const online=location.protocol==='https:'&&/\/schede\/[^/]+\.html$/.test(location.pathname);const button=document.getElementById('back-to-gym-app');if(button)button.hidden=!online}
+  function showOnlineNavigation(){
+    const online=location.protocol==='https:'&&onlineSheetId()!==null;
+    const button=document.getElementById('back-to-gym-app');
+    if(button)button.hidden=!online;
+  }
 
   function currentHtmlWithData(){
     const payload={ts:Date.now(),notes:JSON.parse(_ls.getItem(NK)||'{}'),history:JSON.parse(_ls.getItem(HK)||'[]'),sets:JSON.parse(_ls.getItem(TK)||'{}'),workoutNote:_ls.getItem(WK)||''};
@@ -1529,7 +1615,7 @@ function uiPrompt(message,title='GymSheet',placeholder=''){return uiDialog({titl
   async function saveUpdatedHtml(usePicker=true){
     const html=currentHtmlWithData();await syncPwaCopy(html).catch(console.warn);
     if(usePicker&&window.showSaveFilePicker){
-      try{const handle=await window.showSaveFilePicker({suggestedName:document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html',types:[{description:'Scheda GymSheet HTML',accept:{'text/html':['.html']}}]});linkedFileHandle=handle;await storeLinkedHandle(handle);const writer=await handle.createWritable();await writer.write(html);await writer.close();setFileSyncState('Backup HTML collegato','ok');await uiAlert('✅ File HTML aggiornato e collegato ai prossimi salvataggi.');return}catch(error){if(error?.name==='AbortError')return;console.warn(error)}
+      try{const handle=await window.showSaveFilePicker({suggestedName:safeLocalFilename(),types:[{description:'Scheda GymSheet HTML',accept:{'text/html':['.html']}}]});linkedFileHandle=handle;await storeLinkedHandle(handle);const writer=await handle.createWritable();await writer.write(html);await writer.close();setFileSyncState('Backup HTML collegato','ok');await uiAlert('✅ File HTML aggiornato e collegato ai prossimi salvataggi.');return}catch(error){if(error?.name==='AbortError')return;console.warn(error)}
     }
     downloadCurrentHtml(html);await uiAlert('✅ Copia HTML aggiornata scaricata.');
   }
